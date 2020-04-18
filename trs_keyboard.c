@@ -335,7 +335,7 @@ KeyTable ascii_key_table[] = {
 /* 0xc1 */    { TK_NULL, TK_Neutral },
 /* 0xc2 */    { TK_NULL, TK_Neutral },
 /* 0xc3 */    { TK_NULL, TK_Neutral },
-/* 0xc4 */    { TK_LeftBracket, TK_ForceShift },    /* Ä */
+/* 0xc4 */    { TK_LeftBracket, TK_ForceShift },    /* ï¿½ */
 /* 0xc5 */    { TK_NULL, TK_Neutral },
 /* 0xc6 */    { TK_NULL, TK_Neutral },
 /* 0xc7 */    { TK_NULL, TK_Neutral },
@@ -353,21 +353,21 @@ KeyTable ascii_key_table[] = {
 /* 0xd3 */    { TK_NULL, TK_Neutral },
 /* 0xd4 */    { TK_NULL, TK_Neutral },
 /* 0xd5 */    { TK_NULL, TK_Neutral },
-/* 0xd6 */    { TK_Backslash, TK_ForceShift },      /* Ö */
+/* 0xd6 */    { TK_Backslash, TK_ForceShift },      /* ï¿½ */
 /* 0xd7 */    { TK_NULL, TK_Neutral },
 /* 0xd8 */    { TK_NULL, TK_Neutral },
 /* 0xd9 */    { TK_NULL, TK_Neutral },
 /* 0xda */    { TK_NULL, TK_Neutral },
 /* 0xdb */    { TK_NULL, TK_Neutral },
-/* 0xdc */    { TK_RightBracket, TK_ForceShift },   /* Ü */
+/* 0xdc */    { TK_RightBracket, TK_ForceShift },   /* ï¿½ */
 /* 0xdd */    { TK_NULL, TK_Neutral },
 /* 0xde */    { TK_NULL, TK_Neutral },
-/* 0xdf */    { TK_Caret, TK_ForceNoShift },        /* ß */
+/* 0xdf */    { TK_Caret, TK_ForceNoShift },        /* ï¿½ */
 /* 0xe0 */    { TK_NULL, TK_Neutral },
 /* 0xe1 */    { TK_NULL, TK_Neutral },
 /* 0xe2 */    { TK_NULL, TK_Neutral },
 /* 0xe3 */    { TK_NULL, TK_Neutral },
-/* 0xe4 */    { TK_LeftBracket, TK_ForceNoShift },  /* ä */
+/* 0xe4 */    { TK_LeftBracket, TK_ForceNoShift },  /* ï¿½ */
 /* 0xe5 */    { TK_NULL, TK_Neutral },
 /* 0xe6 */    { TK_NULL, TK_Neutral },
 /* 0xe7 */    { TK_NULL, TK_Neutral },
@@ -385,13 +385,13 @@ KeyTable ascii_key_table[] = {
 /* 0xf3 */    { TK_NULL, TK_Neutral },
 /* 0xf4 */    { TK_NULL, TK_Neutral },
 /* 0xf5 */    { TK_NULL, TK_Neutral },
-/* 0xf6 */    { TK_Backslash, TK_ForceNoShift },    /* ö */
+/* 0xf6 */    { TK_Backslash, TK_ForceNoShift },    /* ï¿½ */
 /* 0xf7 */    { TK_NULL, TK_Neutral },
 /* 0xf8 */    { TK_NULL, TK_Neutral },
 /* 0xf9 */    { TK_NULL, TK_Neutral },
 /* 0xfa */    { TK_NULL, TK_Neutral },
 /* 0xfb */    { TK_NULL, TK_Neutral },
-/* 0xfc */    { TK_RightBracket, TK_ForceNoShift }, /* ü */
+/* 0xfc */    { TK_RightBracket, TK_ForceNoShift }, /* ï¿½ */
 /* 0xfd */    { TK_NULL, TK_Neutral },
 /* 0xfe */    { TK_NULL, TK_Neutral },
 /* 0xff */    { TK_NULL, TK_Neutral }
@@ -718,6 +718,8 @@ static int joystate = 0;
 static tstate_t key_stretch_timeout;
 int stretch_amount = STRETCH_AMOUNT;
 
+static int peek_key_queue();
+
 void trs_kb_reset()
 {
   key_stretch_timeout = z80_state.t_count;
@@ -878,7 +880,9 @@ static int kb_mem_value(int address)
 
 int trs_kb_mem_read(int address)
 {
+	//printf("%04x %04x\n", address & 0xFFFF, REG_PC & 0xFFFF);
     int key = -1;
+    int key2;
     int i, wait;
     static int recursion = 0;
     static int timesseen;
@@ -886,6 +890,25 @@ int trs_kb_mem_read(int address)
     /* Prevent endless recursive calls to this routine (by mem_read_word
        below) if REG_SP happens to point to keyboard memory. */
     if (recursion) return 0;
+
+    if ((address & 0xFFFF) == 0x3801) {
+	    key = trs_next_key(0);
+	    if (key >= 0) {
+	      change_keystate(key);
+	      timesseen = 1;
+	      key2 = peek_key_queue();
+	      if (key2 >= 0 && (TK_DOWN(key2) != TK_DOWN(key)) && (((key ^ key2) & 0xFFFF) != 0)) {
+		      key2 = trs_next_key(0);
+		      if (key2 >= 0) {
+			      change_keystate(key2);
+		      }
+		      //printf("%05X %05X\n",key&0xFFFFF,key2&0xFFFFF);
+	      }
+	    }
+    }
+    key_heartbeat = 0;
+    return kb_mem_value(address);
+
 
     /* Avoid delaying key state changes in queue for too long */
     if (key_heartbeat > 2) {
@@ -952,6 +975,9 @@ void clear_key_queue()
 
 void queue_key(int state)
 {
+	if ( ((state & 0x80) != 0) && state != TK_AllKeysUp) {
+		return;
+	}
   key_queue[(key_queue_head + key_queue_entries) % KEY_QUEUE_SIZE] = state;
 #if QDEBUG
   debug("queue_key 0x%x\n", state);
@@ -976,6 +1002,20 @@ int dequeue_key()
       key_queue_entries--;
 #if QDEBUG
       debug("dequeue_key 0x%x\n", rval);
+#endif
+    }
+  return rval;
+}
+
+static int peek_key_queue()
+{
+  int rval = -1;
+
+  if(key_queue_entries > 0)
+    {
+      rval = key_queue[key_queue_head];
+#if QDEBUG
+      debug("peek_key_queue 0x%x\n", rval);
 #endif
     }
   return rval;

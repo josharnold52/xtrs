@@ -20,6 +20,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>    /* for time() */
 
 #include "z80.h"
 #include "trs.h"
@@ -41,6 +42,25 @@ static void check_endian()
     {
 	fatal("Program compiled with wrong ENDIAN value -- adjust the Makefile.local, type \"rm *.o\", recompile, and try again.");
     }
+}
+
+static void load_invade(char *filename) {
+    FILE *program;
+    int c;
+    int pos = 0x5000;
+
+    if((program = fopen(filename, "r")) == NULL)
+    {
+        char message[100];
+        sprintf(message, "could not read %s", filename);
+        fatal(message);
+    }
+    c = getc(program);
+    while (c != EOF) {
+        mem_write(pos++, c);
+        c = getc(program);
+    }
+
 }
 
 void trs_load_rom(char *filename)
@@ -128,7 +148,12 @@ int main(int argc, char *argv[])
     trs_hard_init();
     stringy_init();
 
+    load_invade("/Users/arnold/docs/trs80/invade/romtest/invade.bin");
     trs_reset(1);
+
+    srand(time(NULL));
+    mem_write_word(0x6ffb,rand() & 0xFFFF);
+
     if (!debug) {
       /* Run continuously until exit or request to enter debugger */
       z80_run(TRUE);
