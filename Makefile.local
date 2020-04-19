@@ -78,12 +78,14 @@ DEBUG = -O2 -g -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter
 
 # If you need a different path for libraries:
 
-LDFLAGS += -L/usr/lib/X11
+#LDFLAGS += -L/usr/lib/X11
+LDFLAGS += $(shell test -d /usr/X11/lib && echo -L/usr/X11/lib || echo -L/usr/lib/X11)
 #LDFLAGS = -non_shared -L/usr/X11/lib
 
 # If you need a different path for include files:
 
-IFLAGS = -I/usr/include/X11
+#IFLAGS = -I/usr/include/X11
+IFLAGS += $(shell test -d /usr/X11/include && echo -I/usr/X11/include || echo -I/usr/include/X11)
 
 # Re-define this if your X library is strangely named:
 
