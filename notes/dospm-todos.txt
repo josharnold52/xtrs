@@ -1,0 +1,65 @@
+Maintainence & Bugs:
+
+* Go through source file TODOs (last done: ????-??-??)
+* Document new magic keystrokes(F4 - exit, F5,F6 - tracing)
+* Document new logs and logging functionality.
+   Disable excessive logging outside of development
+* Integrate upstream dosbox changes (current up to ????)
+
+Develop/Build:
+
+* Consolidate additional build steps into makefile
+  * scantran ( requires scala )
+  * keytrap ( requires turboc + dosbox )
+* Create distribution output (versioned, folder, zip file)
+  * include dosbox launcher ???
+  * include roms
+* Optimize test cycle on actual hardware
+  * Figure out networking or some other way to copy updates to the target dev
+* Create a dependency checker
+  * Test for presence of all the tools in the base xtrs build
+  * Test for djgpp, scala, turboc, dosbox
+* Integrate changes back into main xtrs branch (so can build either linux or dospm from same source)
+
+Target HW:
+
+* Boot launcher for target HW
+  * Grub to dos to xtrs.  
+  * Have a hidden way to get into linux or dos without xtrs
+  * Perhaps boot to memdisk floppy with data files on HDD
+* Add Control Dialogs
+  * E.g. - cassette selection and controls
+  * (Future) Disks?  - Maybe at first we just have a few HDDs (CPM, LSDOS, etc.) Later add floppies if neede.
+
+Emulator:
+
+* Optimize rendering
+  * Implement trs_screen_scroll ?
+  * Optimize refresh?
+  * Pre-rotate blocks?  Not sure if this is even worth it
+  * Delayed render???  
+* Implement additional video modes
+  * Wide (32-character)
+  * Lowercase
+  * Alternate character sets
+  * Model 4 80/40
+  * Hi-res grafix
+    * Old M1  grafix-80
+    * M4
+    * Others?
+* Keyboard improvements
+  * Study current implementation and document (I left off mid-hack)
+    * Special attention to the bug fix - make sure key downs and ups  are consistent!
+  * Add M3/M4 specialties
+  * Test invasionforce - see if we need those mods
+* Real time improvements
+  * Do delay checks at I/O time rather than in the z80 emulator.
+  * Accuracy?
+    * Requirement depends on which IO.  Sound should be very accurate.  Video can be relaxed.
+    * Probably multipke thresholds. E.g. : 
+      * within 20us don't worry about it. 
+      * within ?? us do a spin loop (but only where accuracy is needed!).  TODO - Is there a low-energy spin technique for target CPU?
+      * otherwise, do a sleep. TODO - What are dpmi sleep options?
+    * Really only need for sound, video, and keyboard.   Disk, cassette, etc. should work off of T counts rather than real time
+  
+
