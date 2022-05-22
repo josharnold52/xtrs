@@ -1,0 +1,7 @@
+# TODO: This was for an early experiment and can probably
+# be removed
+
+
+PROVIDE(_WahWah = _fread);
+INSERT AFTER .text;
+

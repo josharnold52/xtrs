@@ -239,10 +239,13 @@ extern int load_hex(); /* returns highest address loaded + 1 */
 extern void debug(const char *fmt, ...);
 extern void error(const char *fmt, ...);
 extern void fatal(const char *fmt, ...);
+extern void joshlog(const char *fmt, ...);
 extern void z80_out(int port, int value);
 extern int z80_in(int port);
 extern int disassemble(unsigned short pc);
 extern void debug_init(void);
 extern void debug_shell(void);
+
+extern volatile int josh_trace_enabled;
 
 #endif

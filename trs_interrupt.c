@@ -13,8 +13,8 @@
 #define _XOPEN_SOURCE 500 /* signal.h: SA_RESTART */
 
 #include "z80.h"
-#include "trs.h"
 #include <stdio.h>
+#include "trs.h"
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>

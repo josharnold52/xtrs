@@ -2980,6 +2980,8 @@ volatile int x_poll_count = 0;
 int trs_continuous;
 volatile int dummy;
 
+volatile int josh_trace_enabled = 0;
+
 int z80_run(int continuous)
      /*
       * -1 = single-step and disallow interrupts
@@ -3009,6 +3011,9 @@ int z80_run(int continuous)
 	}
 
 	instruction = mem_read(REG_PC++);
+  if (josh_trace_enabled) {
+    joshlog("%04X %02X\n", (REG_PC-1) & 0xFFFF, instruction & 0xFF);
+  }
 	
 	switch(instruction)
 	{

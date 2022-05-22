@@ -591,7 +591,7 @@ static int assert_state(int state)
   case READ:
     get_control();
     if (cassette_format == DIRECT_FORMAT) {
-      cassette_file = fopen(cassette_filename, "r");
+      cassette_file = fopen(cassette_filename, "rb");
       if (cassette_file == NULL) {
 	error("couldn't read %s: %s", cassette_filename, strerror(errno));
 	cassette_state = FAILED;
@@ -607,7 +607,7 @@ static int assert_state(int state)
 	return -1;
       }
     } else {
-      cassette_file = fopen(cassette_filename, "r");
+      cassette_file = fopen(cassette_filename, "rb");
       if (cassette_format == WAV_FORMAT &&
 	  cassette_file != NULL && parse_wav_header(cassette_file) < 0) {
 	cassette_file = NULL;
@@ -636,7 +636,7 @@ static int assert_state(int state)
       return -1;
 #endif
       cassette_sample_rate = cassette_default_sample_rate;
-      cassette_file = fopen(cassette_filename, "w");
+      cassette_file = fopen(cassette_filename, "wb");
       if (cassette_file == NULL) {
 	error("couldn't write %s: %s", cassette_filename, strerror(errno));
 	cassette_state = FAILED;
@@ -661,10 +661,10 @@ static int assert_state(int state)
 	return -1;
       }	
     } else if (cassette_format == WAV_FORMAT) {
-      cassette_file = fopen(cassette_filename, "r+");
+      cassette_file = fopen(cassette_filename, "r+b");
       if (cassette_file == NULL) {
 	cassette_sample_rate = cassette_default_sample_rate;
-	cassette_file = fopen(cassette_filename, "w");
+	cassette_file = fopen(cassette_filename, "wb");
 	if (cassette_file && create_wav_header(cassette_file) < 0) {
 	  cassette_file = NULL;
 	}
@@ -678,9 +678,9 @@ static int assert_state(int state)
 	fseek(cassette_file, cassette_position, 0);
       }
     } else {
-      cassette_file = fopen(cassette_filename, "r+");
+      cassette_file = fopen(cassette_filename, "r+b");
       if (cassette_file == NULL) {
-	cassette_file = fopen(cassette_filename, "w");
+	cassette_file = fopen(cassette_filename, "wb");
       }
       if (cassette_file != NULL) {
 	fseek(cassette_file, cassette_position, 0);

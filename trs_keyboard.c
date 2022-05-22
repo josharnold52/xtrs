@@ -709,6 +709,18 @@ KeyTable function_key_table[] = {
 /* 0xffff   XK_Delete      */    { TK_Left, TK_Neutral }
 };
 
+
+
+struct PcScanMapping {
+   KeyTable unshifted;
+   int shift_sensitive;
+   KeyTable shifted;
+};
+
+struct PcScanMapping pcScanCode[] = {
+   #include "scantran/generated_table.inc"
+};
+
 static int keystate[8] = { 0, };
 static int force_shift = TK_Neutral;
 static int joystate = 0;
@@ -769,6 +781,65 @@ int trs_joystick_in()
 #endif
   return (Uchar) ~joystate;
 }
+
+void trs_xlate_pc_scancode(unsigned char scan_code, int shifted) {
+    int key_down;
+    KeyTable* kt;
+    static int shift_action = TK_Neutral;
+
+    static char shift_states[128] = {0};
+
+    //TODO: Perhaps shift_action should affect or override "shifted"
+    // ... Possible: If 
+
+    if (scan_code == 0 || scan_code == 0xFF) {
+      /* force all keys up */
+      queue_key(TK_AllKeysUp);
+      shift_action = TK_Neutral;
+      memset(shift_states, 0, sizeof(shift_states));
+      return;
+    }
+    key_down = (scan_code & 0x80) == 0;
+
+    int scindex = scan_code & 0x7F;
+
+    struct PcScanMapping *pMap = pcScanCode + scindex;
+    if (key_down) {
+      if (shift_states[scindex]) {
+         shifted = shift_states[scindex] & 1;
+      }
+      shift_states[scindex] = shifted ? 0x81 : 0x80;
+    } else {
+      shifted = shift_states[scindex] & 1;
+      shift_states[scindex] = 0;
+    }
+
+
+    kt = (shifted && pMap->shift_sensitive) ? &(pMap->shifted) : &(pMap->unshifted);
+
+
+    //joshlog("Key %d %d %d\n", key_down, kt->bit_action, kt->shift_action);
+
+    if (kt->bit_action == TK_NULL) return;
+    if (trs_emulate_joystick(key_down, kt->bit_action)) return;
+
+    if (key_down) {
+      if (shift_action != TK_ForceShiftPersistent &&
+         shift_action != kt->shift_action) {
+         shift_action = kt->shift_action;
+         queue_key(shift_action);
+      }
+      queue_key(kt->bit_action);
+    } else {
+      queue_key(kt->bit_action | 0x10000);
+      if (shift_action != TK_Neutral &&
+         shift_action == kt->shift_action) {
+         shift_action = TK_Neutral;
+         queue_key(shift_action);
+      }
+    }
+}
+
 
 void trs_xlate_keysym(int keysym)
 {

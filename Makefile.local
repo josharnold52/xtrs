@@ -5,7 +5,7 @@
 
 # Set these to where you want installed stuff to go, if you install
 
-PREFIX = $(DESTDIR)/usr
+PREFIX = /Users/arnold/projects/dos-xtrs/inst
 BINDIR = $(PREFIX)/bin
 MANDIR = $(PREFIX)/share/man
 DOCDIR = $(PREFIX)/share/doc/xtrs
@@ -62,8 +62,14 @@ DISKDIR = -DDISKDIR='"."'
 # get it) and would like to use it with the built-in Z80 debugger, use
 # these lines.
 
-READLINE = -DREADLINE
-READLINELIBS = -lreadline
+# READLINE = -DREADLINE
+# READLINELIBS = -lreadline
+
+# TODO (JWA) - Re-enable readline using a djgpp version!
+
+READLINE=
+READLINELIBS=
+
 
 # Select debugging symbols (-g) and/or optimization (-O2, etc.)
 
@@ -74,20 +80,32 @@ DEBUG = -O2 -g -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter
 
 # If you have gcc, and you want to use it:
 
-#CC = gcc
+CC = i586-pc-msdosdjgpp-gcc
 
 # If you need a different path for libraries:
 
-LDFLAGS += -L/usr/lib/X11
+#LDFLAGS += -L/usr/lib/X11
 #LDFLAGS = -non_shared -L/usr/X11/lib
+
+# NOTE: I'm ambandoning the xlibemu x11 emulator because it requires djgpp1.x
+#   and I think it will hard to be find a cross compiler that works (alternative
+#   would be to compile under dos, but then I'd have to worry about file names...
+#   SO... Here's where I got to when I gave up:
+#     (The josh.lkr script wasn't needed - just using it to try somethings out)
+#LDFLAGS= -L/Users/arnold/devtools/djgpp/extras/xlibemu/lib-goodnames -L/Users/arnold/devtools/djgpp/extras/oldgrx/contrib/libgrx/lib -Tjosh.lkr
+
+# New attempt will be to use libgrx2.0 directly
+LDFLAGS= -L/Users/arnold/devtools/djgpp/extras/grx249/lib
 
 # If you need a different path for include files:
 
-IFLAGS = -I/usr/include/X11
+#IFLAGS = -I/usr/include/X11
+IFLAGS = -DENOTSUP=101 -DSA_RESTART=0 -DJWA_DJGPP -DJWA_NEEDSIGSET -I/Users/arnold/devtools/djgpp/i586-pc-msdosdjgpp/sys-include -I/Users/arnold/devtools/djgpp/extras/grx249/include
 
 # Re-define this if your X library is strangely named:
-
-XLIB = -lX11
+# NOTE: Abandoning X11 in favor of grx
+#         After that, I may try to direct to VESA or even direct to VGA
+XLIB = -lgrx20
 
 # Use this if you need yet more libraries:
 
@@ -98,7 +116,7 @@ XLIB = -lX11
 # If you want xtrs to look for a global app-defaults file
 # at runtime in $APPDEFAULTS/Xtrs:
 
-APPDEFAULTS = -DAPPDEFAULTS='"/etc/X11/app-defaults"'
+# APPDEFAULTS = -DAPPDEFAULTS='"/etc/X11/app-defaults"'
 
 # Change this if you have a BSD-compatible install program that is
 # not the first program named "install" on your $PATH

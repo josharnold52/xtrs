@@ -48,7 +48,7 @@ void trs_load_rom(char *filename)
     FILE *program;
     int c;
 
-    if((program = fopen(filename, "r")) == NULL)
+    if((program = fopen(filename, "rb")) == NULL)
     {
 	char message[100];
 	sprintf(message, "could not read %s", filename);
@@ -105,6 +105,7 @@ void trs_load_compiled_rom(int size, unsigned char rom[])
 int main(int argc, char *argv[])
 {
     int debug = FALSE;
+
 
     /* program_name must be set first because the error
      * printing routines use it. */

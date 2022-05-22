@@ -13,6 +13,9 @@
 /*
  * Debug flags.  Update help_message in debug.c if these change.
  */
+
+
+
 #define DISKDEBUG_FDCREG   (1<<0)  /* FDC register reads and writes */
 #define DISKDEBUG_FDCCMD   (1<<1)  /* FDC commands */
 #define DISKDEBUG_VTOS3    (1<<2)  /* VTOS 3.0 JV3 kludges */
@@ -3596,4 +3599,5 @@ real_writetrk()
   trs_disk_unimpl(state.currcommand, "write track on real floppy");
 #endif
 }
+
 

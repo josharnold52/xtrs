@@ -43,12 +43,17 @@
 #include <unistd.h>
 #include <errno.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-int"
+
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <X11/keysymdef.h>
 #include <X11/Xresource.h>
+
+#pragma GCC diagnostic pop
 
 #include "trs_iodefs.h"
 #include "trs.h"
@@ -101,6 +106,8 @@ static XKeyboardState repeat_state;
 static int trs_charset;
 static int scale_x = 1;
 static int scale_y = 2;
+
+typedef char * caddr_t;
 
 static XrmOptionDescRec opts[] = {
 /* Option */    /* Resource */  /* Value from arg? */   /* Value if no arg */

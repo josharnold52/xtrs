@@ -23,7 +23,6 @@
  */
 #ifndef _TRS_H
 #define _TRS_H
-
 #include "z80.h"
 
 #define NORMAL 0

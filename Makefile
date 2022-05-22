@@ -34,6 +34,9 @@ GTK_OBJECTS = \
 	keyrepeat.o \
 	trs_gtkinterface.o
 
+DOS_OBJECTS = \
+	trs_djgpp.o
+
 CR_OBJECTS = \
 	compile_rom.o \
 	error.o \
@@ -68,7 +71,7 @@ PDFMANPAGES = cassette.man.pdf \
 HTMLDOCS = cpmutil.txt \
 	dskspec.txt
 
-PROGS = xtrs mkdisk hex2cmd cmddump
+PROGS = dosxtrs mkdisk hex2cmd cmddump
 
 default: $(PROGS) docs
 
@@ -81,8 +84,11 @@ z80code: $(Z80CODE)
 # Local customizations for make variables are done in Makefile.local:
 include Makefile.local
 
+scantran/generated_table.inc: scantran/scantran.scala
+	bash -c "cd scantran && scala scantran.scala"
+
 CFLAGS += $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
-	$(APPDEFAULTS) -DKBWAIT -std=c11
+	$(APPDEFAULTS) -DKBWAIT 
 LIBS = $(XLIB) $(READLINELIBS) $(EXTRALIBS)
 
 ZMACFLAGS = -h
@@ -106,10 +112,13 @@ ZMACFLAGS = -h
 	nroff -man -c -Tascii $< | colcrt - | cat -s > $*.txt
 
 .html.txt:
-	html2text -nobs -style pretty $< >$@
+	html2text -nobs  $< >$@
 
 %.man.pdf: %.man
 	groff -Tpdf -man $< > $@
+
+dosxtrs: $(OBJECTS) $(DOS_OBJECTS)
+	$(CC) $(LDFLAGS) -o dosxtrs $(OBJECTS) $(DOS_OBJECTS) $(LIBS)
 
 xtrs: $(OBJECTS) $(X_OBJECTS)
 	$(CC) $(LDFLAGS) -o xtrs $(OBJECTS) $(X_OBJECTS) $(LIBS)
@@ -119,8 +128,11 @@ gxtrs: $(OBJECTS) $(GTK_OBJECTS)
 		$(OBJECTS) $(GTK_OBJECTS) $(LIBS) \
 		`pkg-config --libs gtk+-2.0`
 
+#compile_rom: $(CR_OBJECTS)
+#	$(CC) $(LDFLAGS) -o compile_rom $(CR_OBJECTS)
+
 compile_rom: $(CR_OBJECTS)
-	$(CC) $(LDFLAGS) -o compile_rom $(CR_OBJECTS)
+	cp /Users/arnold/scm/git/xtrs/compile_rom ./
 
 trs_rom1.c: compile_rom $(BUILT_IN_ROM)
 	./compile_rom 1 $(BUILT_IN_ROM) > trs_rom1.c
@@ -150,16 +162,16 @@ clean:
 	rm -f $(OBJECTS) $(MD_OBJECTS) \
 		$(X_OBJECTS) $(GTK_OBJECTS) \
 		$(CR_OBJECTS) $(HC_OBJECTS) \
-		$(CD_OBJECTS) trs_rom*.c *~ \
-		$(PROGS) compile_rom gxtrs \
+		$(CD_OBJECTS) $(DOS_OBJECTS) trs_rom*.c *~ \
+		$(PROGS) compile_rom gxtrs dosxtrs \
 		$(HTMLDOCS)
 
 veryclean: clean
 	rm -f $(Z80CODE) $(MANPAGES) $(PDFMANPAGES) *.lst
 
 link:	
-	rm -f xtrs
-	make xtrs
+	rm -f dosxtrs
+	make dosxtrs
 
 install: install-progs install-docs
 
@@ -184,7 +196,7 @@ install-docs: docs
 	$(INSTALL) -c -m 644 dskspec.txt $(DOCDIR)
 
 depend:
-	makedepend -Y -- $(CFLAGS) -- *.c 2>&1 | \
+	makedepend -Y. --  -- *.c 2>&1 | \
 		(egrep -v 'cannot find|not in' || true)
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
@@ -202,13 +214,15 @@ mkdisk.o: reed.h
 trs_cassette.o: trs.h z80.h config.h
 trs_chars.o: trs_iodefs.h
 trs_disk.o: z80.h config.h trs.h trs_disk.h trs_hard.h crc.c
+trs_djgpp.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
+trs_djgpp.o: trs_hard.h trs_imp_exp.h keytrap/scanbuf.h
 trs_gtkinterface.o: trs.h z80.h config.h trs_iodefs.h trs_disk.h trs_uart.h
 trs_gtkinterface.o: trs_hard.h keyrepeat.h
 trs_hard.o: trs.h z80.h config.h trs_hard.h reed.h
 trs_imp_exp.o: trs_imp_exp.h z80.h config.h trs.h trs_disk.h trs_hard.h
 trs_interrupt.o: z80.h config.h trs.h
 trs_io.o: z80.h config.h trs.h trs_disk.h trs_hard.h trs_uart.h
-trs_keyboard.o: z80.h config.h trs.h
+trs_keyboard.o: z80.h config.h trs.h scantran/generated_table.inc
 trs_memory.o: z80.h config.h trs.h trs_disk.h trs_hard.h
 trs_printer.o: z80.h config.h trs.h
 trs_stringy.o: z80.h config.h trs.h trs_disk.h

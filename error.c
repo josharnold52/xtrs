@@ -66,3 +66,21 @@ void fatal(const char *fmt, ...)
   va_end(args);
   exit(1);
 }
+
+void joshlog(const char *fmt, ...)
+{
+
+  va_list args;
+  FILE *f;
+
+  f = fopen("josh.log", "a");
+  va_start(args, fmt);
+  vfprintf(f, fmt, args);
+  fflush(f);
+  fclose(f);
+  va_end(args);
+
+
+
+}
+
