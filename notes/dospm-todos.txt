@@ -34,7 +34,6 @@ Target HW:
 Emulator:
 
 * Optimize rendering
-  * Implement trs_screen_scroll ?
   * Optimize refresh?
   * Pre-rotate blocks?  Not sure if this is even worth it
   * Delayed render???  

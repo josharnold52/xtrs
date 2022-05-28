@@ -263,12 +263,15 @@ void trs_screen_inverse(int flag) {
   not_implemented("trs_screen_inverse"); 
 }
 void trs_screen_scroll() {
-  int i = 0;
+  //int i = 0;
+  //for (i = row_chars; i < screen_chars; i++)
+  //  trs_screen[i-row_chars] = trs_screen[i];
+  //repaint_screen();
 
-  for (i = row_chars; i < screen_chars; i++)
-    trs_screen[i-row_chars] = trs_screen[i];
-
-  repaint_screen();
+  //TODO: Need to define variables for some of these magic numbers (120, 6, etc.)
+  //   Note that they can change due to grafix mode
+  memmove(trs_screen, trs_screen + row_chars, screen_chars - row_chars);
+  GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
 
 }
 void trs_screen_write_char(int position, int char_index) {
@@ -305,6 +308,7 @@ void trs_screen_write_char(int position, int char_index) {
    GrPatternFilledBox(px, py, px+5, py+TRS_CHAR_HEIGHT - 1, &pat);
    return;
 
+  /*
    GrTextOption grt;
 
 
@@ -334,6 +338,7 @@ void trs_screen_write_char(int position, int char_index) {
    //joshlog("WC3 %s %d %d\n",message, x, y);
 
   //not_implemented("trs_screen_write_char"); 
+  */
 }
 
 
