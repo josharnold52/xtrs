@@ -88,7 +88,7 @@ static char *format_name[] = {
 #define DEFAULT_SAMPLE_RATE 11025 /* samples/sec for .wav and /dev/dsp output */
 #define NOISE_FLOOR 64
 
-#define CONTROL_FILENAME	".cassette.ctl"
+#define CONTROL_FILENAME	"_cste.ctl"
 #define DEFAULT_FILENAME	"cassette.cas"
 #define DSP_FILENAME            "/dev/dsp"  /* for sound output */
 #define DEFAULT_FORMAT		CAS_FORMAT

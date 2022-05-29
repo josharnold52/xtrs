@@ -2974,8 +2974,8 @@ static int do_ED_instruction()
     return debug;
 }
 
-volatile int x_poll_count = 0;
-#define X_POLL_INTERVAL 10000
+//volatile int x_poll_count = 0;
+//#define X_POLL_INTERVAL 10000
 
 int trs_continuous;
 volatile int dummy;
@@ -2999,21 +2999,22 @@ int z80_run(int continuous)
     do {
         /* We need to poll for X events periodically.  That also
 	   flushes output to the X server. */
-	if (x_poll_count <= 0) {
-	    x_poll_count = X_POLL_INTERVAL;
-	    trs_get_event(FALSE);
-	} else {
-	    x_poll_count--;
-	}
+
+	//if (x_poll_count <= 0) {
+	//    x_poll_count = X_POLL_INTERVAL;
+	//    trs_get_event(FALSE);
+	//} else {
+	//    x_poll_count--;
+	//}
         /* Speed control */
         if ((i = z80_state.delay)) {
 	  while (--i) dummy = i;
 	}
 
 	instruction = mem_read(REG_PC++);
-  if (josh_trace_enabled) {
-    joshlog("%04X %02X\n", (REG_PC-1) & 0xFFFF, instruction & 0xFF);
-  }
+        if (josh_trace_enabled) {
+           joshlog("%04X %02X\n", (REG_PC-1) & 0xFFFF, instruction & 0xFF);
+        }
 	
 	switch(instruction)
 	{

@@ -1104,6 +1104,7 @@ int trs_next_key(int wait)
   }
 #endif
      */
+  trs_get_event(FALSE);      
   int res = dequeue_key();
   /*
   if (res >= 0)

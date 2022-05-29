@@ -387,7 +387,7 @@ trs_timer_event(int signo)
     trs_disk_motoroff_interrupt(trs_disk_motoroff());
     trs_kb_heartbeat(); /* part of keyboard stretch kludge */
   }
-  x_poll_count = 0; /* be sure to flush and check for X events */
+  //x_poll_count = 0; /* be sure to flush and check for X events */
 
   /* Schedule next tick.  We do it this way because the host system
      probably didn't wake us up at exactly the right time.  For
