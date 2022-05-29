@@ -25,7 +25,7 @@
 /*#define KPNUM_JOYSTICK 1*/  /* emulate joystick with keypad + NumLock */
 /*#define SHIFT_F1_IS_F13 1*/ /* use if X reports Shift+F1..F8 as F13..F20 */
 /*#define SHIFT_F1_IS_F11 1*/ /* use if X reports Shift+F1..F10 as F11..F20 */
-
+#include <string.h>
 #include "z80.h"
 #include "trs.h"
 #include <unistd.h>
@@ -787,6 +787,14 @@ void trs_xlate_pc_scancode(unsigned char scan_code, int shifted) {
     KeyTable* kt;
     static int shift_action = TK_Neutral;
 
+    /** This was a workaround for the "inconsistent-shift" bug I described elsewhere...
+     * Basically, for each scan code, we use bit 7 to tell if the last action was a key-down (1)
+     * or key-up (0).   If it is keydowm we use bit 0 to tell if the key was shifted.
+     * (Note that value is non-zero if and only if last scan code was a keydown).
+     * 
+     * If we see that the key is already in a key-down state, we override the "shift" modifier
+     * with whatever it was when the key went down.   That way the 
+     */
     static char shift_states[128] = {0};
 
     //TODO: Perhaps shift_action should affect or override "shifted"
@@ -804,9 +812,10 @@ void trs_xlate_pc_scancode(unsigned char scan_code, int shifted) {
     int scindex = scan_code & 0x7F;
 
     struct PcScanMapping *pMap = pcScanCode + scindex;
-    if (key_down) {
+    if (key_down) {  
       if (shift_states[scindex]) {
-         shifted = shift_states[scindex] & 1;
+         //shifted = shift_states[scindex] & 1;
+        return; //Already down
       }
       shift_states[scindex] = shifted ? 0x81 : 0x80;
     } else {
@@ -946,8 +955,24 @@ static int kb_mem_value(int address)
     }
     return data;
 }
+int trs_kb_mem_read(int address) {
+    static tstate_t last_state = 0;
+    int key;
 
-int trs_kb_mem_read(int address)
+    if ( 
+        (z80_state.t_count < last_state)  || 
+        ((z80_state.t_count - last_state ) > 10000)
+       ) {
+        key = trs_next_key(0);
+        if (key >= 0) {
+           change_keystate(key);
+        }
+        last_state = z80_state.t_count;
+    }
+    return kb_mem_value(address);
+}
+
+int trs_kb_mem_read_old(int address)
 {
     int key = -1;
     int i, wait;
@@ -1060,6 +1085,7 @@ trs_skip_next_kbwait()
 
 int trs_next_key(int wait)
 {
+        /*
 #if KBWAIT
   if (wait) {
     int rval;
@@ -1077,5 +1103,11 @@ int trs_next_key(int wait)
     return rval;
   }
 #endif
-  return dequeue_key();
+     */
+  int res = dequeue_key();
+  /*
+  if (res >= 0)
+        joshlog("Dequeue %u\n",res);
+  */
+  return res;
 }

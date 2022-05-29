@@ -36,7 +36,7 @@ for(c <- 'a' to 'z') {
     val cu = c.toUpper
     val s = tMap(f"$c $cu")
     val i = Integer.parseInt(s,16)
-    outTable(i) = entry(cu.toString, i, f"TK_$cu", "TK_ForceNoShift")
+    outTable(i) = entry(cu.toString, i, f"TK_$cu")
 }
 
 

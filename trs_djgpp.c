@@ -149,8 +149,9 @@ void trs_get_event(int wait) {
       josh_trace_enabled = 0;
     }
     int shifted = pScanBuffer->key_states[0x2A] || pScanBuffer->key_states[0x36];
+
     trs_xlate_pc_scancode(keycode, shifted);
-    //joshlog("Keycode %x\n",(int)keycode);
+    //joshlog("Keycode %x S=%u\n",(int)keycode, shifted);
   }
 
   //not_implemented("trs_get_event");
