@@ -60,5 +60,6 @@ Emulator:
       * within ?? us do a spin loop (but only where accuracy is needed!).  TODO - Is there a low-energy spin technique for target CPU?
       * otherwise, do a sleep. TODO - What are dpmi sleep options?
     * Really only need for sound, video, and keyboard.   Disk, cassette, etc. should work off of T counts rather than real time
+* Save/Restore machine state
   
 
