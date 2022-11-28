@@ -89,6 +89,7 @@ void trs_load_rom(char *filename)
         mem_write_rom(trs_rom_size++, c);
 	c = getc(program);
     }
+    joshlog("Rom size is %d\n", trs_rom_size);
 }
 
 void trs_load_compiled_rom(int size, unsigned char rom[])
@@ -127,6 +128,7 @@ int main(int argc, char *argv[])
     trs_timer_init();
     trs_disk_init();
     trs_hard_init();
+    trs_realtime_reset();
     stringy_init();
 
     trs_reset(1);

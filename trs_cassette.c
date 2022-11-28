@@ -1097,6 +1097,7 @@ void trs_cassette_motor(int value)
 #if CASSDEBUG3
       debug("motor on %ld\n", z80_state.t_count);
 #endif
+      trs_realtime_disable();
       cassette_motor = 1;
       cassette_transition = z80_state.t_count;
       cassette_value = 0;
@@ -1122,11 +1123,13 @@ void trs_cassette_motor(int value)
   } else {
     /* motor off */
     if (cassette_motor) {
+
       if (cassette_state == WRITE) {
 	transition_out(FLUSH);
       }
       assert_state(CLOSE);
       cassette_motor = 0;
+      trs_realtime_enable();
     }
   }
 }
@@ -1353,4 +1356,8 @@ void
 trs_cassette_reset()
 {
   assert_state(CLOSE);
+}
+
+int trs_cassette_is_motor_on() {
+  return trs_model != 0;
 }

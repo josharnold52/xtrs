@@ -252,7 +252,12 @@ void trs_screen_init()
 
 void trs_screen_expanded(int flag)
 {
-  not_implemented("trs_screen_expanded"); 
+  static int warned = 0;
+  if (! warned) {
+    not_implemented("trs_screen_expanded"); 
+    warned = 1;
+  }
+
 }
 void trs_screen_alternate(int flag) {
   not_implemented("trs_screen_alternate"); 
@@ -271,13 +276,28 @@ void trs_screen_scroll() {
 
   //TODO: Need to define variables for some of these magic numbers (120, 6, etc.)
   //   Note that they can change due to grafix mode
+
+  trs_realtime_sync(5000);
   memmove(trs_screen, trs_screen + row_chars, screen_chars - row_chars);
   GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
 
 }
 void trs_screen_write_char(int position, int char_index) {
-  //joshlog("WC %d %d\n", position, char_index);
+   //joshlog("WC %d %d\n", position, char_index);
+
+
+
+   trs_realtime_sync(5000);
+   if (trs_model == 1) {
+      //TODO - Maybe this changes with a lowercase conversion, but 
+      //the model 1 sets bit 6 to Bit 5 NOR bit 7 
+      if ((char_index & 0xA0) != 0) 
+        char_index &= (~0x40);
+      else
+        char_index |= 0x40;
+   }
    char_index = char_index & 0xff;
+
    position = position & 1023;  //TODO - Assume 64x16
    trs_screen[position] = (char)char_index;
 

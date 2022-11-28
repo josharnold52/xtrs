@@ -343,8 +343,17 @@ void trs_restore_delay() { }
 void
 trs_timer_event(int signo)
 {
+  joshlog("DISABLED TIMER EVENTS!");
+  return;
+}
+
+void
+trs_timer_event_old(int signo)
+{
   struct timeval tv;
   struct itimerval it;
+
+
 
   gettimeofday(&tv, NULL);
   if (trs_autodelay) {

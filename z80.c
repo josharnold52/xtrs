@@ -2992,8 +2992,12 @@ int z80_run(int continuous)
     Uchar instruction;
     Ushort address; /* generic temps */
     int ret = 0;
-    int i;
+    //int i;
     trs_continuous = continuous;
+
+    tstate_t last_sync;
+
+    last_sync = z80_state.t_count;
 
     /* loop to do a z80 instruction */
     do {
@@ -3007,9 +3011,14 @@ int z80_run(int continuous)
 	//    x_poll_count--;
 	//}
         /* Speed control */
-        if ((i = z80_state.delay)) {
-	  while (--i) dummy = i;
-	}
+        //if ((i = z80_state.delay)) {
+	//  while (--i) dummy = i;
+	//}
+        if ((z80_state.t_count - last_sync ) > 1000) {
+                trs_realtime_sync(100);
+                last_sync = z80_state.t_count;
+        }
+
 
 	instruction = mem_read(REG_PC++);
         if (josh_trace_enabled) {

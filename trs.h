@@ -119,6 +119,7 @@ void trs_cassette_update(int dummy);
 extern int cassette_default_sample_rate;
 void trs_orch90_out(int chan, int value);
 void trs_cassette_reset(void);
+int trs_cassette_is_motor_on(void);
 
 const char *trs_disk_get_name(int drive);
 int trs_disk_set_name(int drive, const char *newname);
@@ -128,6 +129,11 @@ void trs_disk_debug(void);
 int trs_disk_motoroff(void);
 
 void trs_change_all(void);
+
+void trs_realtime_reset(void);
+void trs_realtime_sync(tstate_t threhsold);
+void trs_realtime_disable();
+void trs_realtime_enable();
 
 void mem_video_page(int which);
 void mem_bank(int which);
