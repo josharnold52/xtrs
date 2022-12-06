@@ -48,7 +48,7 @@ void z80_out(int port, int value)
   /** JOSH MODS **/
   switch (port) {
     case 0x20:
-      trs_realtime_log_status();
+      trs_realtime_log_status((char)value);
       break;
   }
 

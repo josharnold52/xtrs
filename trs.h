@@ -134,7 +134,7 @@ void trs_realtime_reset(void);
 void trs_realtime_sync(tstate_t threhsold);
 void trs_realtime_disable();
 void trs_realtime_enable();
-void trs_realtime_log_status();
+void trs_realtime_log_status(char ctl);
 
 void mem_video_page(int which);
 void mem_bank(int which);
