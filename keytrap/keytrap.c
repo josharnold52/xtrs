@@ -135,8 +135,8 @@ void main(int argc, char **argv, char **env) {
     zz = silly;
     g_buffer.next_offset = 0;
 
-    printf("Hello\n");
     /*
+    printf("Hello\n");
     setup_keyboard();
     printf("Set Up\n");
     */
@@ -144,14 +144,19 @@ void main(int argc, char **argv, char **env) {
     oldfunc = getvect(0x15);
     setvect(0x15, zz); 
 
+    /*
     printf("Here\n");
     printf("%p\n", &g_buffer);
     printf("%Fp\n", (void far *)(&g_buffer));
+    */
     sprintf(tbuf, "CHARPEEK=%Fp", (void far *)(&g_buffer));
+    /*
     printf("%s\n",tbuf);
+    */
     putenv(tbuf);
 
     
+    /*
     g_buffer.suppress_flag = 1;
     cursor = g_buffer.next_offset;
     for(i=0;!g_buffer.key_states[0x35];) {
@@ -163,7 +168,7 @@ void main(int argc, char **argv, char **env) {
         }
     }
     g_buffer.suppress_flag = 0;
-    
+    */
 
     spawnvp(P_WAIT, argv[1], argv + 1);
 

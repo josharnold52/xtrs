@@ -45,6 +45,13 @@ void z80_out(int port, int value)
   if (trs_io_debug_flags & IODEBUG_OUT) {
     debug("out (0x%02x), 0x%02x; pc 0x%04x\n", port, value, z80_state.pc.word);
   }
+  /** JOSH MODS **/
+  switch (port) {
+    case 0x20:
+      trs_realtime_log_status();
+      break;
+  }
+
   /* First, ports common to all models */
   switch (port) {
   case TRS_HARD_WP:       /* 0xC0 */

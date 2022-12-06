@@ -35,7 +35,11 @@ typedef unsigned int Uint;      /* 4 bytes */
 typedef unsigned short Ushort;  /* 2 bytes */
 typedef unsigned char Uchar;    /* 1 byte */
 
-#if __WORDSIZE == 32
+#ifdef JWA_DJGPP
+typedef unsigned long long tstate_t; 
+#define TSTATE_T_MID (((unsigned long long) -1LL)/2ULL)
+#define TSTATE_T_LEN "llu"
+#elif __WORDSIZE == 32 
 typedef unsigned long long tstate_t;
 #define TSTATE_T_MID (((unsigned long long) -1LL)/2ULL)
 #define TSTATE_T_LEN "llu"

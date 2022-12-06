@@ -47,6 +47,25 @@ void trs_realtime_reset() {
     last_reset_at_uclock = real_basetime;
 }
 
+void trs_realtime_log_status() { 
+
+    uclock_t now_uclock;
+    now_uclock = uclock();
+    double elapsed_rt;
+    double elapsed_t;
+    double elapsed_delta;
+
+    elapsed_rt = (now_uclock - real_basetime) * REAL_USEC_FACTOR;
+    elapsed_t = (z80_state.t_count - z80_basetime) * TSTATE_USEC_FACTOR_M1;
+    elapsed_delta = elapsed_t - elapsed_rt;
+
+    joshlog("ST=%lu,UT=%lu,TS=%llu,TSB=%llu,TSR=%llu,UC=%lld,UCB=%lld,UCR=%lld,UPS=%lld,TPS=%llu,ERT=%4.8f,ET=%4.8f,ED=%4.8f\n",
+        sizeof(tstate_t), sizeof(uclock_t),
+        z80_state.t_count, z80_basetime, last_synced_at_tstate,
+        now_uclock, real_basetime, last_reset_at_uclock,
+        ((uclock_t)UCLOCKS_PER_SEC), ((tstate_t)TSTATES_PER_SEC_M1),
+        elapsed_rt, elapsed_t, elapsed_delta);
+}
 
 void trs_realtime_sync(tstate_t threhsold) {
     uclock_t now_uclock;

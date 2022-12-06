@@ -343,7 +343,7 @@ void trs_restore_delay() { }
 void
 trs_timer_event(int signo)
 {
-  joshlog("DISABLED TIMER EVENTS!");
+  joshlog("DISABLED TIMER EVENTS!\n");
   return;
 }
 

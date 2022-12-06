@@ -55,7 +55,6 @@
 
 #define STRINGY_FMT_DEFAULT STRINGY_FMT_ESF
 
-
 typedef long stringy_pos_t;
 
 typedef struct {

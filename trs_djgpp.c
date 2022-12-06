@@ -78,6 +78,10 @@ static unsigned char scanBufferCursor;
 
 static char pattern_table_1[MAXCHARS][TRS_CHAR_HEIGHT];
 
+static char pattern_table_1_wideleft[MAXCHARS][TRS_CHAR_HEIGHT];
+static char pattern_table_1_wideright[MAXCHARS][TRS_CHAR_HEIGHT];
+
+static int currentmode = 0;
 
 static void trs_load_romfile();
 
@@ -111,6 +115,28 @@ void rotate_left_block(void *p, int steps, int len) {
   }
 }
 
+static char expand_3to6bit(char c, int bitoffset) {
+  char res;
+  int i;
+  int bt;
+  res = 0;
+
+  for(i = 0; i < 6; i++) {
+    bt = bitoffset + ( i / 2);
+    if ( c & (1 << bt)) {
+      res |= (1 << i);
+    }
+  }
+  //joshlog("(%d) %02X -> %02X\n", bitoffset, c & 0xFF, res);
+  return res;
+}
+
+static void expand_3to6bit_block(void *p ,int bitoffset, int len) {
+  char *c = (char *)p;
+  for(;len>0;c++,len--) {
+    *c = expand_3to6bit(*c, bitoffset);
+  }
+}
 
 static void not_implemented(const char *msg) {
 
@@ -194,6 +220,17 @@ void trs_screen_init()
       }
     }
 
+    memcpy(pattern_table_1_wideleft, pattern_table_1, sizeof(pattern_table_1));
+    reverse_bits_block(pattern_table_1_wideleft, sizeof(pattern_table_1_wideleft));
+    expand_3to6bit_block(pattern_table_1_wideleft, 0, sizeof(pattern_table_1_wideleft));
+    reverse_bits_block(pattern_table_1_wideleft, sizeof(pattern_table_1_wideleft));
+
+    memcpy(pattern_table_1_wideright, pattern_table_1, sizeof(pattern_table_1));
+    reverse_bits_block(pattern_table_1_wideright, sizeof(pattern_table_1_wideright));
+    expand_3to6bit_block(pattern_table_1_wideright, 3, sizeof(pattern_table_1_wideright));
+    reverse_bits_block(pattern_table_1_wideright, sizeof(pattern_table_1_wideright));
+
+
     //FILE * modout;
     GrSetDriver("VESA");
 
@@ -213,12 +250,14 @@ void trs_screen_init()
      //exit(0);
     */
      
-   char *message = "Hello, GRX world";
+  /*
+   char *message = "Booting...";
    int x, y;
    GrTextOption grt;
  
    GrSetMode( GR_width_height_graphics, 640, 200 );
- 
+  
+
    grt.txo_font = &GrDefaultFont;
    grt.txo_fgcolor.v = GrWhite();
    grt.txo_bgcolor.v = GrBlack();
@@ -232,16 +271,23 @@ void trs_screen_init()
  
    x = GrMaxX()/2;
    y = GrMaxY()/2;
-      joshlog("II %s %d %d\n",message, x, y);
+  joshlog("II %s %d %d\n",message, x, y);
 
    GrDrawString( message,strlen( message ),x,y,&grt );
  
    //GrKeyRead();
  
-   sleep(1);
+   //sleep(1);
+    */
 
    //TODO: This really should be done elsewhere... It's in trs_djgpp.c because it
    //uses our command line options.
+
+   GrSetMode( GR_width_height_graphics, 640, 200 );
+   int x,y;
+   x = GrMaxX()/2;
+   y = GrMaxY()/2;
+   joshlog("Midpoint: %d %d\n",x, y);
    repaint_screen();
    trs_load_romfile();
 
@@ -252,12 +298,11 @@ void trs_screen_init()
 
 void trs_screen_expanded(int flag)
 {
-  static int warned = 0;
-  if (! warned) {
-    not_implemented("trs_screen_expanded"); 
-    warned = 1;
+  int bit = flag ? EXPANDED : 0;
+  if ((currentmode ^ bit) & EXPANDED) {
+    currentmode ^= EXPANDED;
+    repaint_screen();
   }
-
 }
 void trs_screen_alternate(int flag) {
   not_implemented("trs_screen_alternate"); 
@@ -282,8 +327,38 @@ void trs_screen_scroll() {
   GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
 
 }
+
+static void trs_screen_write_glyph(char *glyphRows, int position) {
+   char patData[TRS_CHAR_HEIGHT];
+   memcpy(patData, glyphRows, TRS_CHAR_HEIGHT);
+   rotate_left_block(patData, (position & 3) << 1, TRS_CHAR_HEIGHT);
+
+
+   GrPattern pat;
+   pat.gp_bitmap.bmp_ispixmap = 0;
+   pat.gp_bitmap.bmp_height = TRS_CHAR_HEIGHT;
+   pat.gp_bitmap.bmp_data = patData;
+   pat.gp_bitmap.bmp_fgcolor = GrWhite();
+   pat.gp_bitmap.bmp_bgcolor = GrBlack();
+   pat.gp_bitmap.bmp_memflags = 0;
+
+  int x,y;
+
+   x = (position & 63);
+   y = position >> 6;
+   int px, py;
+   px = x * 6 + 120;   //offset (640-384)/2 then round down to a multiple of 24 so rotates work correctlt
+   py = y * TRS_CHAR_HEIGHT + 0;  //offset (200-192)/2 then rown down to a multiple of 12 so patterns line up
+
+
+   GrPatternFilledBox(px, py, px+5, py+TRS_CHAR_HEIGHT - 1, &pat);
+   return;
+
+}
+
 void trs_screen_write_char(int position, int char_index) {
    //joshlog("WC %d %d\n", position, char_index);
+
 
 
 
@@ -301,65 +376,16 @@ void trs_screen_write_char(int position, int char_index) {
    position = position & 1023;  //TODO - Assume 64x16
    trs_screen[position] = (char)char_index;
 
-
-   char patData[TRS_CHAR_HEIGHT];
-   memcpy(patData, pattern_table_1[char_index], TRS_CHAR_HEIGHT);
-   rotate_left_block(patData, (position & 3) << 1, TRS_CHAR_HEIGHT);
-
-   //char * pData = pattern_table_1[char_index];
-
-   GrPattern pat;
-   pat.gp_bitmap.bmp_ispixmap = 0;
-   pat.gp_bitmap.bmp_height = TRS_CHAR_HEIGHT;
-   pat.gp_bitmap.bmp_data = patData;
-   pat.gp_bitmap.bmp_fgcolor = GrWhite();
-   pat.gp_bitmap.bmp_bgcolor = GrBlack();
-   pat.gp_bitmap.bmp_memflags = 0;
-
-
-   int x,y;
-
-   x = (position & 63);
-   y = position >> 6;
-   int px, py;
-   px = x * 6 + 120;   //offset (640-384)/2 then round down to a multiple of 24 so rotates work correctlt
-   py = y * TRS_CHAR_HEIGHT + 0;  //offset (200-192)/2 then rown down to a multiple of 12 so patterns line up
-
-
-   GrPatternFilledBox(px, py, px+5, py+TRS_CHAR_HEIGHT - 1, &pat);
-   return;
-
-  /*
-   GrTextOption grt;
-
-
-   grt.txo_font = &GrDefaultFont;
-   grt.txo_fgcolor.v = GrWhite();
-   grt.txo_bgcolor.v = GrBlack();
-   grt.txo_direct = GR_TEXT_RIGHT;
-   grt.txo_xalign = GR_ALIGN_CENTER;
-   grt.txo_yalign = GR_ALIGN_CENTER;
-   grt.txo_chrtype = GR_BYTE_TEXT;
-
-   char message[2];
-
-   position = position & 1023;
-   x = (position & 63);
-   y = position >> 6;
-   message[0] = (char)char_index;
-   message[1] = 0;
-
-
-   x = x * 10 + 5;
-   y = y * 12 + 6;
-   
-   //joshlog("WC2 %s %d %d\n",message, x, y);
-
-   GrDrawString( message,strlen( message ),x,y,&grt );
-   //joshlog("WC3 %s %d %d\n",message, x, y);
-
-  //not_implemented("trs_screen_write_char"); 
-  */
+   if (!(currentmode & EXPANDED)) {
+    trs_screen_write_glyph(pattern_table_1[char_index], position);
+   } else {
+    if (position & 1) {
+      return;
+    }
+    trs_screen_write_glyph(pattern_table_1_wideleft[char_index], position);
+    trs_screen_write_glyph(pattern_table_1_wideright[char_index], position | 1);
+   }
+   return; 
 }
 
 
@@ -567,24 +593,25 @@ trs_parse_command_line(int argc, char **argv, int *debug)
     unsigned int real_addr = ((unsigned long)cps) * 16 + cpo;
     unsigned int real_page = real_addr & (~4095);
     unsigned int real_offset = real_addr - real_page;
-    printf("A %x %x %x\n", real_addr, real_page, real_offset);
+    joshlog("CHARPEEK REAL MODE ADDRESS RADDR=%x RPAGE=%x ROFF=%x\n", real_addr, real_page, real_offset);
 
 
     char * p;
     p = malloc(3*4096);
     p += 4096 - (((unsigned int)p) & 4095);
 
-    printf("A %p %d\n", p, errno);
+    //printf("A %p %d\n", p, errno);
     int x = -1;
-    printf("B %x %p %x %d\n", real_page, p,x,errno);
+    //printf("B %x %p %x %d\n", real_page, p,x,errno);
     x = __djgpp_map_physical_memory(p, 8192, real_page);
-    printf("C %x %p %x %d\n", real_page, p,x,errno);
+    joshlog("CHARPEAK MAPPED RPAGE=%x PPAGE=%p MAPRES=%x ERRNO=%d\n", real_page, p,x,errno);
 
 
     pScanBuffer = (struct scan_buffer *)(p + real_offset);
+    joshlog("CHARPEAK MAPPED BUFFER=%p\n", pScanBuffer);
 
     pScanBuffer->suppress_flag = 1;
-    sleep(1);
+    //sleep(1);
     scanBufferCursor = pScanBuffer->next_offset;
   }
 
