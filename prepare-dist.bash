@@ -18,7 +18,7 @@ cp dosxtrs.exe _dist_gather/ || exit 1
 cp cwsdpmi/BIN/CWSDPMI.EXE _dist_gather/ || exit 1
 cp M1L1.ROM _dist_gather/ || exit 1
 cp M1L2.ROM _dist_gather/ || exit 1
-cp KEYTRAP.COM _dist_gather || exit 1
+cp ./keytrap/target/KEYTRAP.COM _dist_gather || exit 1
 rsync -a "$SCRIPT_DIR"/../dist-extras/ _dist_gather/ || exit 1
 
 
