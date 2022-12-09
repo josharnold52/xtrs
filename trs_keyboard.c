@@ -972,70 +972,6 @@ int trs_kb_mem_read(int address) {
     return kb_mem_value(address);
 }
 
-int trs_kb_mem_read_old(int address)
-{
-    int key = -1;
-    int i, wait;
-    static int recursion = 0;
-    static int timesseen;
-
-    /* Prevent endless recursive calls to this routine (by mem_read_word
-       below) if REG_SP happens to point to keyboard memory. */
-    if (recursion) return 0;
-
-    /* Avoid delaying key state changes in queue for too long */
-    if (key_heartbeat > 2) {
-      do {
-	key = trs_next_key(0);
-	if (key >= 0) {
-	  change_keystate(key);
-	  timesseen = 1;
-	}
-      } while (key >= 0);
-    }
-
-    /* After each key state change, impose a timeout before the next one
-       so that the Z80 program doesn't miss any by polling too rarely,
-       and so that we don't tickle the bugs in some common TRS-80 keyboard
-       drivers that strike if two keys change simultaneously */
-    if (key_stretch_timeout - z80_state.t_count > TSTATE_T_MID) {
-
-	/* Check if we are in the system keyboard driver, called from
-	   the wait-for-input routine.  If so, and there are no
-	   keystrokes queued, and the current state has been seen by
-	   at least 16 such reads, then trs_next_key will pause the
-	   process to avoid burning host CPU needlessly.
-
-	   The test below works on both Model I and III and is
-	   insensitive to what keyboard driver is being used, as long
-	   as it is called through the wait-for-key routine at ROM
-	   address 0x0049 and has not pushed too much on the stack yet
-	   when it first reads from the key matrix.  The search is
-	   needed (at least) for NEWDOS80, which pushes 2 extra bytes
-	   on the stack.  */
-	wait = 0;
-	if (timesseen++ >= 16) {
-	  recursion = 1;
-	  for (i=0; i<=4; i+=2) {
-	    if (mem_read_word(REG_SP + 2 + i) == 0x4015) {
-	      wait = mem_read_word(REG_SP + 10 + i) == 0x004c;
-	      break;
-	    }
-	  }
-	  recursion = 0;
-	}
-	/* Get the next key */
-	key = trs_next_key(wait);
-	key_stretch_timeout = z80_state.t_count + stretch_amount;
-    }
-
-    if (key >= 0) {
-      change_keystate(key);
-      timesseen = 1;
-    }
-    key_heartbeat = 0;
-    return kb_mem_value(address);
-}
 
 void clear_key_queue()
 {
@@ -1085,25 +1021,7 @@ trs_skip_next_kbwait()
 
 int trs_next_key(int wait)
 {
-        /*
-#if KBWAIT
-  if (wait) {
-    int rval;
-    for (;;) {
-      if ((rval = dequeue_key()) >= 0) break;
-      if ((z80_state.nmi && !z80_state.nmi_seen) ||
-	  (z80_state.irq && z80_state.iff1) ||
-	  trs_event_scheduled() || skip_next_kbwait) {
-	if (skip_next_kbwait) skip_next_kbwait--;
-	rval = -1;
-	break;
-      }
-      trs_get_event(TRUE);
-    }
-    return rval;
-  }
-#endif
-     */
+       
   trs_get_event(FALSE);      
   int res = dequeue_key();
   /*
