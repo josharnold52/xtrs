@@ -1030,3 +1030,32 @@ int trs_next_key(int wait)
   */
   return res;
 }
+
+/**
+ *  Pause the emulator and wait for all keys to reach their resting state
+ *  
+ */
+void trs_wait_for_all_keys_up() {
+   int active, i, key;
+
+   for(;;) {
+      active = key_queue_entries > 0;
+      active |= force_shift != TK_Neutral;
+      for(i=0;i<8 && !active; i++) {
+         active |= keystate[i];
+      }
+      if (!active) {
+         break;
+      }
+      key = trs_next_key(0);
+      while(key < 0) {
+         asm("pause");
+         key = trs_next_key(0);
+      }
+      change_keystate(key);
+   }
+
+   
+}
+
+

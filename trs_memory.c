@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include "trs_disk.h"
 #include "trs_hard.h"
+#include <string.h>
 
 #define MAX_ROM_SIZE	(0x3800)
 #define MAX_VIDEO_SIZE	(0x0800)

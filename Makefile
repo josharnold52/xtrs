@@ -36,7 +36,8 @@ GTK_OBJECTS = \
 
 DOS_OBJECTS = \
 	trs_djgpp.o \
-	trs_realtime.o
+	trs_realtime.o \
+	trs_djgpp_modal.o
 
 CR_OBJECTS = \
 	compile_rom.o \

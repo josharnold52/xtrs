@@ -39,7 +39,7 @@ static uclock_t last_reset_at_uclock;
 
 
 void trs_realtime_reset() {
-    joshlog("Reset relatime counters\n");
+    joshlog("Reset realtime counters\n");
 
     z80_basetime = z80_state.t_count;
     real_basetime = uclock();
@@ -136,7 +136,8 @@ void trs_realtime_sync(tstate_t threhsold) {
 
 
 void trs_realtime_disable() {
-    realtime_suppress ++;
+    ++realtime_suppress ;
+    joshlog("Realtime throttle is suppressed! %d\n", realtime_suppress);
 }
 
 void trs_realtime_enable() {

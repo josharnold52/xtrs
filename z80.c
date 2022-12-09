@@ -3009,8 +3009,8 @@ int z80_run(int continuous)
           trs_timer_trigger_pulse();
         }
 
-        if ((z80_state.t_count - last_sync ) > 1000) {
-                trs_realtime_sync(100);
+        if ((z80_state.t_count - last_sync ) > 10000) {
+                trs_realtime_sync(5000);
                 last_sync = z80_state.t_count;
         }
 

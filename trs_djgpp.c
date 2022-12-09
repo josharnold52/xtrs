@@ -152,6 +152,8 @@ extern void trs_xlate_pc_scancode(unsigned char scan_code, int shifted);
 
 
 void trs_get_event(int wait) {
+  static int nest_count = 0;
+
   //TODO: I think there's a bug here (or in the trs_xlate_pc_scancode code that goes with it)
   // If shifted and unshifted IBM key maps to different TRS keys, and if shift is released
   // before IBM key, it may be that we send the incorrect key-up.   This causes the Level 1
@@ -165,15 +167,27 @@ void trs_get_event(int wait) {
   }
   while(pScanBuffer->next_offset != scanBufferCursor) {
     unsigned char keycode = pScanBuffer->key_ring[scanBufferCursor++];
-    if (keycode == 0x3e) {
+    if (keycode == 0x3e) { //F4
       exit(0);
     }
-    if (keycode == 0x3F) {
+    if (keycode == 0x3F) { //F5
       josh_trace_enabled = 1;
+      continue;
     }
-    if (keycode == 0x40) {
+    if (keycode == 0x40) { //F6
       josh_trace_enabled = 0;
+      continue;
     }
+    if (keycode == 0x41) { //F7
+      if (nest_count <= 0) {
+        nest_count++;
+        joshem_modal_ask_yn("Special F7?");
+        nest_count--;
+      }
+      continue;
+    }
+
+
     int shifted = pScanBuffer->key_states[0x2A] || pScanBuffer->key_states[0x36];
 
     trs_xlate_pc_scancode(keycode, shifted);
@@ -915,3 +929,24 @@ trs_load_romfile()
 }
 
 
+
+
+int joshem_do_modal(joshem_modal_handler handler, void *input) {
+  joshem_modal_context context;
+
+  memset(&context, 0, sizeof(context));
+
+  context.input = input;
+
+  trs_wait_for_all_keys_up();
+  pScanBuffer->suppress_flag = 0;
+
+  handler(&context);
+  repaint_screen();
+  pScanBuffer->suppress_flag = 1;
+  
+  scanBufferCursor = pScanBuffer->next_offset;
+  trs_realtime_reset();
+  return context.result;
+
+}

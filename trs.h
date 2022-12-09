@@ -194,5 +194,20 @@ int put_fourbyte(Uint n, FILE* f);
 int get_twobyte(Ushort *n, FILE* f);
 int get_fourbyte(Uint *n, FILE* f);
 
+void trs_wait_for_all_keys_up();
+
+
+typedef struct joshem_modal_context {
+   void * input;
+   int result;
+} joshem_modal_context;
+
+typedef void (*joshem_modal_handler)(joshem_modal_context*);
+
+
+int joshem_do_modal(joshem_modal_handler handler, void *input);
+
+int joshem_modal_ask_yn(const char *pPrompt);
+
 
 #endif /*_TRS_H*/

@@ -352,7 +352,7 @@ tstate_t trs_timer_get_period() {
   static int logged_warning = 0;
   if (!logged_warning) {
     logged_warning = 1;
-    joshlog("TODO: Need to adjust timer period based on model and mode");
+    joshlog("TODO: Need to adjust timer period based on model and mode\n");
   }
   return 44352; // 1.77Mhz * 0.025 sec
 }
