@@ -186,6 +186,14 @@ void trs_get_event(int wait) {
       }
       continue;
     }
+    if (keycode == 0x42) { //F8
+      if (nest_count <= 0) {
+        nest_count++;
+        joshem_cassette_control();
+        nest_count--;
+      }
+      continue;
+    }
 
 
     int shifted = pScanBuffer->key_states[0x2A] || pScanBuffer->key_states[0x36];

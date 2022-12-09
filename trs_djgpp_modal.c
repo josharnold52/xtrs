@@ -41,7 +41,9 @@ static void yesno_message_handler(joshem_modal_context *pContext) {
  
   
 
-   grt.txo_font = &GrDefaultFont;
+   // Use the GrFont_PC8x14 - presumably i can assume 8 pixels wide and 14 pixels high
+   // so I don't have to use the text measurement functions.
+   grt.txo_font = &GrFont_PC8x14;
    grt.txo_fgcolor.v = GrWhite();
    grt.txo_bgcolor.v = GrBlack();
    grt.txo_direct = GR_TEXT_RIGHT;
@@ -79,5 +81,27 @@ static void yesno_message_handler(joshem_modal_context *pContext) {
    else GrDrawString( "(N)o",5,x+80,y+20,&grt );
    usleep(100000);
 
-
 }
+
+
+static void cassette_control_handler(joshem_modal_context *pContext);
+
+void joshem_cassette_control() {
+    
+    joshem_do_modal(cassette_control_handler, 0);
+}
+
+
+static void cassette_control_handler(joshem_modal_context *pContext) {
+   int midx, midy;
+   midx = GrMaxX() / 2;
+   midy = GrMaxY() / 2;
+   int ry = midy - 50;
+   int rx = midx - 150;
+   GrFilledBox( midx - rx, midy - ry, midx + rx, midy + ry,GrBlack() );
+   GrBox(  midx - rx, midy - ry, midx + rx, midy + ry,GrWhite() );
+   GrEllipse( midx - rx / 2, midy, rx / 7, ry / 4 , GrWhite());
+   GrEllipse( midx + rx / 2, midy, rx / 7, ry / 4 , GrWhite());
+   GrKeyRead();
+}
+
