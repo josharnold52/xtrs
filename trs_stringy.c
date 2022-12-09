@@ -127,7 +127,7 @@ stringy_create_with(const char *name,
   int ires;
   size_t sres;
 
-  f = fopen(name, "w");
+  f = fopen(name, "wb");
   if (f == NULL) {
       return errno;
   }
@@ -269,10 +269,10 @@ stringy_change(int unit)
     return 0;
   }
 
-  s->file = fopen(s->name, "r+");
+  s->file = fopen(s->name, "rb+");
   if (s->file == NULL) {
     if (errno == EACCES || errno == EROFS) {
-      s->file = fopen(s->name, "r");
+      s->file = fopen(s->name, "rb");
     }
     if (s->file == NULL) {
       s->in_port = STRINGY_NO_WAFER;

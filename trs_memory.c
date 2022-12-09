@@ -62,6 +62,8 @@ int video_offset = (-VIDEO_START + VIDEO_PAGE_0);
 int romin = 0; /* Model 4p */
 unsigned short trs_changecount = 0;
 
+int trs_video_ram_7_bit = 0;
+
 /*SUPPRESS 53*/
 /*SUPPRESS 112*/
 
@@ -187,6 +189,9 @@ void mem_init()
 	/* +1 so strings from mem_pointer are NUL-terminated */
 	rom = (Uchar *) calloc(MAX_ROM_SIZE+1, 1);
 	video = (Uchar *) calloc(MAX_VIDEO_SIZE+1, 1);
+    if (trs_video_ram_7_bit) {
+        memset(video, 0x40, MAX_VIDEO_SIZE);
+    }
 	trs_video_size = MAX_VIDEO_SIZE;
     }
     mem_map(0);
@@ -302,18 +307,18 @@ void mem_write(int address, int value)
 	    memory[address] = value;
 	} else if (address >= VIDEO_START) {
 	    int vaddr = address + video_offset;
-#if UPPERCASE
-	    /*
-	     * Video write.  Hack here to make up for the missing bit 6
-	     * video ram, emulating the gate in Z30.
-	     */
-	    if (trs_model == 1) {
-		if(value & 0xa0)
-		  value &= 0xbf;
-		else
-		  value |= 0x40;
-	    }
-#endif
+        if (trs_video_ram_7_bit ) {
+    	    /*
+    	     * Video write.  Hack here to make up for the missing bit 6
+    	     * video ram, emulating the gate in Z30.
+    	     */
+    	    if (trs_model == 1) {
+    		if(value & 0xa0)
+    		  value &= 0xbf;
+    		else
+    		  value |= 0x40;
+    	    }
+        }
 	    if (video[vaddr] != value) {
 		video[vaddr] = value;
 		trs_screen_write_char(vaddr, value);

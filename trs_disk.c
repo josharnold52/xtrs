@@ -424,6 +424,7 @@ trs_disk_init(void)
     } else {
       sprintf(disk[i].name, "%s/disk%d-%d", trs_disk_dir, trs_model, i);
     }
+    joshlog("DISK %i : %s\n", i, disk[i].name);
   }
 
   sa.sa_handler = trs_sigusr1;
@@ -777,7 +778,7 @@ trs_disk_change(int drive)
       d->emutype = JV3;
       return errno;
     }
-    d->file = fdopen(fd, "r+");
+    d->file = fdopen(fd, "rb+");
     if (d->file == NULL) {
       d->emutype = JV3;
       return errno;
@@ -796,10 +797,10 @@ trs_disk_change(int drive)
   } else
 #endif
   {
-    d->file = fopen(d->name, "r+");
+    d->file = fopen(d->name, "rb+");
     if (d->file == NULL) {
       if (errno == EACCES || errno == EROFS) {
-	d->file = fopen(d->name, "r");
+	d->file = fopen(d->name, "rb");
       }
       if (d->file == NULL) return errno;
       d->writeprot = 1;

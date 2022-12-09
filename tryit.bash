@@ -18,6 +18,6 @@ cp keytrap/target/KEYTRAP.COM ./dboxrun/ || exit 1
 echo "MICAH2.CAS 0 1" | perl -pe 's/\n/\r\n/g' > ./dboxrun/_CSTE.CTL
 
 dosbox -c "mount c ./dboxrun" -c "c:" -c "cwsdpmi\\bin\\cwsdpmi.exe" \
-   -c "keytrap.com dosxtrs -model 1 -romfile M1L2.ROM"
+   -c "keytrap.com dosxtrs -model 1 -romfile M1L2.ROM -diskdir DSKSET/M1LDOS53"
 
 

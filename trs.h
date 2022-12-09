@@ -43,6 +43,8 @@ extern int trs_disk_debug_flags;
 extern int trs_io_debug_flags;
 extern int trs_emtsafe;
 
+extern int trs_video_ram_7_bit;
+
 int trs_parse_command_line(int argc, char **argv, int *debug);
 
 void trs_screen_init(void);
@@ -106,6 +108,8 @@ void trs_disk_motoroff_interrupt(int state);
 void trs_uart_err_interrupt(int state);
 void trs_uart_rcv_interrupt(int state);
 void trs_uart_snd_interrupt(int state);
+tstate_t trs_timer_get_period();
+void trs_timer_trigger_pulse();
 void trs_timer_interrupt(int state);
 void trs_timer_init(void);
 void trs_timer_off(void);

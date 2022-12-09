@@ -363,6 +363,9 @@ void trs_screen_write_char(int position, int char_index) {
 
 
    trs_realtime_sync(5000);
+   /*
+   NB - This is no longer needed since it is done in trs_memory
+   
    if (trs_model == 1) {
       //TODO - Maybe this changes with a lowercase conversion, but 
       //the model 1 sets bit 6 to Bit 5 NOR bit 7 
@@ -371,6 +374,7 @@ void trs_screen_write_char(int position, int char_index) {
       else
         char_index |= 0x40;
    }
+   */
    char_index = char_index & 0xff;
 
    position = position & 1023;  //TODO - Assume 64x16
@@ -427,7 +431,14 @@ void grafyx_m3_reset() { not_implemented("grafyx_m3_reset"); }
 void grafyx_m3_write_mode(int value) { not_implemented("grafyx_m3_write_mode"); }
 int grafyx_m3_write_byte(int position, int byte) { not_implemented("grafyx_m3_write_byte"); return 0; }
 unsigned char grafyx_m3_read_byte(int position) { not_implemented("grafyx_m3_read_byte"); return 0; }
-int grafyx_m3_active() { not_implemented("grafyx_m3_active"); return 0; }
+int grafyx_m3_active() { 
+  static volatile char logged = 0;
+  if (!logged) {
+    logged = 1;
+    not_implemented("grafyx_m3_active"); 
+  }
+  return 0; 
+}
 
 int hrg_read_data()  { not_implemented("hrg_read_data"); return 0; }
 void hrg_write_addr(int addr, int mask) { not_implemented("hrg_write_addr"); }
@@ -719,6 +730,13 @@ trs_parse_command_line(int argc, char **argv, int *debug)
   }
   if (optind != argc) {
     fatal("unrecognized argument %s", argv[optind]);
+  }
+
+  if (trs_model == 1) {
+    // This forces the model 1 to faithfull emulate a non-uppercase conversion
+    // ( Software that tries to detect a lowercase mod by checking if video ram is 8 bit will see this as an unconverted model 1)
+    joshlog("Forcing video RAM to 7 bits (TODO - Make this an option)");
+      trs_video_ram_7_bit = 1; //TODO - Make this switch selectable
   }
 
   /*

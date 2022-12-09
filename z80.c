@@ -2995,25 +2995,20 @@ int z80_run(int continuous)
     //int i;
     trs_continuous = continuous;
 
+    tstate_t next_timer;
+
     tstate_t last_sync;
 
     last_sync = z80_state.t_count;
+    next_timer = z80_state.t_count + trs_timer_get_period();
 
     /* loop to do a z80 instruction */
     do {
-        /* We need to poll for X events periodically.  That also
-	   flushes output to the X server. */
+        if (z80_state.t_count > next_timer) {
+          next_timer = next_timer + trs_timer_get_period();
+          trs_timer_trigger_pulse();
+        }
 
-	//if (x_poll_count <= 0) {
-	//    x_poll_count = X_POLL_INTERVAL;
-	//    trs_get_event(FALSE);
-	//} else {
-	//    x_poll_count--;
-	//}
-        /* Speed control */
-        //if ((i = z80_state.delay)) {
-	//  while (--i) dummy = i;
-	//}
         if ((z80_state.t_count - last_sync ) > 1000) {
                 trs_realtime_sync(100);
                 last_sync = z80_state.t_count;

@@ -409,11 +409,11 @@ static int open_drive(int drive)
   }
 
   /* First try opening for reading and writing */
-  d->file = fopen(d->name, "r+");
+  d->file = fopen(d->name, "rb+");
   if (d->file == NULL) {
     if (errno == EACCES || errno == EROFS) {
       /* No luck, try for reading only */
-      d->file = fopen(d->name, "r");
+      d->file = fopen(d->name, "rb");
     }
     if (d->file == NULL) {
       err = errno;

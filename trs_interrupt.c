@@ -347,6 +347,24 @@ trs_timer_event(int signo)
   return;
 }
 
+//Return the timer period in T_STATES
+tstate_t trs_timer_get_period() {
+  static int logged_warning = 0;
+  if (!logged_warning) {
+    logged_warning = 1;
+    joshlog("TODO: Need to adjust timer period based on model and mode");
+  }
+  return 44352; // 1.77Mhz * 0.025 sec
+}
+
+void trs_timer_trigger_pulse() {
+  if (timer_on) {
+    trs_timer_interrupt(1); /* generate */
+    trs_disk_motoroff_interrupt(trs_disk_motoroff());
+    //trs_kb_heartbeat(); /* part of keyboard stretch kludge */
+  }
+}
+
 void
 trs_timer_event_old(int signo)
 {
@@ -415,7 +433,7 @@ trs_timer_event_old(int signo)
 void
 trs_timer_init()
 {
-  struct sigaction sa;
+  //struct sigaction sa;
   struct tm *lt;
   time_t tt;
 
@@ -428,6 +446,7 @@ trs_timer_init()
       z80_state.clockMHz = CLOCK_MHZ_3;
   }
 
+  /*
   sa.sa_handler = trs_timer_event;
   sigemptyset(&sa.sa_mask);
   sigaddset(&sa.sa_mask, SIGALRM);
@@ -435,6 +454,7 @@ trs_timer_init()
   sigaction(SIGALRM, &sa, NULL);
 
   trs_timer_event(SIGALRM);
+  */
 
   /* Also initialize the clock in memory - hack */
   tt = time(NULL);
@@ -484,7 +504,7 @@ trs_timer_on()
 {
   if (!timer_on) {
     timer_on = 1;
-    trs_timer_event(SIGALRM);
+    //trs_timer_event(SIGALRM);
   }
 }
 

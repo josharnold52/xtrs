@@ -50,14 +50,14 @@ FILE *
 fopen_w(const char *fname, int overwrite)
 {
   if (overwrite) {
-    return fopen(fname, "w");
+    return fopen(fname, "wb");
   } else {
     int fd;
     fd = open(fname, O_WRONLY|O_CREAT|O_EXCL, 0666);
     if (fd < 0) {
       return NULL;
     }
-    return fdopen(fd, "w");
+    return fdopen(fd, "wb");
   }
 }
 
@@ -155,7 +155,7 @@ main(int argc, char *argv[])
       exit(1);
     }
 
-    f = fopen(fname, "r+");
+    f = fopen(fname, "rb+");
     if (f == NULL) {
       perror(fname);
       exit(1);
