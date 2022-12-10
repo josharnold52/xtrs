@@ -961,7 +961,7 @@ int trs_kb_mem_read(int address) {
 
     if ( 
         (z80_state.t_count < last_state)  || 
-        ((z80_state.t_count - last_state ) > 10000)
+        ((z80_state.t_count - last_state ) > 1000)
        ) {
         key = trs_next_key(0);
         if (key >= 0) {

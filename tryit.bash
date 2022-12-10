@@ -15,7 +15,7 @@ rsync dosxtrs dboxrun/
 
 cp keytrap/target/KEYTRAP.COM ./dboxrun/ || exit 1
 
-echo "MICAH2.CAS 0 1" | perl -pe 's/\n/\r\n/g' > ./dboxrun/_CSTE.CTL
+echo "XW_32470.CAS 0 1" | perl -pe 's/\n/\r\n/g' > ./dboxrun/_CSTE.CTL
 
 
 #DISKMODE="-diskdir DSKSET/M1LDOS53"

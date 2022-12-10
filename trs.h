@@ -208,9 +208,20 @@ typedef void (*joshem_modal_handler)(joshem_modal_context*);
 int joshem_do_modal(joshem_modal_handler handler, void *input);
 
 int joshem_modal_ask_yn(const char *pPrompt);
-void joshem_cassette_control();
 
 
+typedef char cassette_filename_buffer [1024];
+
+typedef struct joshem_cassette_control_args {
+   cassette_filename_buffer cassette_filename; //TODO: Can overflow thus buffer when we read in the control file!!!
+   int cassette_position;
+   int cassette_format;
+} joshem_cassette_control_args;
+
+void joshem_cassette_control(joshem_cassette_control_args *pArgs);
+
+
+void joshem_request_tapedialog();
 
 
 #endif /*_TRS_H*/

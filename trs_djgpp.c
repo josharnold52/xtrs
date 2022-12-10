@@ -189,7 +189,7 @@ void trs_get_event(int wait) {
     if (keycode == 0x42) { //F8
       if (nest_count <= 0) {
         nest_count++;
-        joshem_cassette_control();
+        joshem_request_tapedialog();
         nest_count--;
       }
       continue;

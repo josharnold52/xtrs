@@ -1,0 +1,54 @@
+
+; NOTE: Uses the new zmac from http://48k.ca/zmac.html
+
+    ORG 5000H
+
+
+video equ 3C00H
+vlen equ 400H
+white equ 0BFH
+black equ 020H
+keyboard equ 3800H
+
+
+kptr: dw keyboard + 1
+
+entrypoint: ld hl, video
+    ld (hl), black
+    ld de, video + 1
+    ld bc, vlen - 1
+    ldir
+
+onepass: 
+      ld hl, video + 64 + 48 - 2
+      ld bc, keyboard + 1
+      ld (kptr), bc
+
+loop:
+      ld bc, (kptr)
+      ld a, (bc)
+
+  rept 8
+      local skipwhite
+      ld d, black
+      add a, a
+      jr nc, skipwhite
+      ld d, white
+skipwhite: 
+      ld (hl), d
+      ld bc, -4
+      add hl, bc
+  endm
+
+      ld bc, 32 + 64 + 64
+      add hl, bc
+      ld a, (kptr)
+      add a, a
+      jp c, onepass
+      ld (kptr), a
+      jp loop
+
+
+
+
+   end entrypoint

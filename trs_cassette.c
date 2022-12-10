@@ -95,7 +95,11 @@ static char *format_name[] = {
 
 #define FLUSH -500  /* special fake signal value used when turning off motor */
 
-static char cassette_filename[256]; //TODO: Can overflow thus buffer when we read in the control file!!!
+static void get_control();
+static void put_control();
+
+
+static cassette_filename_buffer cassette_filename; //TODO: Can overflow thus buffer when we read in the control file!!!
 static int cassette_position;
 static int cassette_format;
 static int cassette_state = CLOSE;
@@ -225,6 +229,43 @@ Uchar value_to_sample[] = { 127, /* 0.46 V */
 static long wave_dataid_offset = WAVE_DATAID_OFFSET;
 static long wave_datasize_offset = WAVE_DATASIZE_OFFSET;
 static long wave_data_offset = WAVE_DATA_OFFSET;
+
+
+//0 = none, 1=doing tapeswitch dialog, -1 = requested
+#define JOSHEM_TAPESWITCH_NONE (0)
+#define JOSHEM_TAPESWITCH_REQUESTED (-1)
+#define JOSHEM_TAPESWITCH_ACTIVE (1)
+
+static int joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
+
+
+static void do_joshem_tapedialog() {
+        joshem_cassette_control_args args;
+        memcpy(args.cassette_filename, cassette_filename, sizeof(cassette_filename_buffer));
+        args.cassette_position = cassette_position;
+        args.cassette_format = cassette_format;
+        joshem_cassette_control(&args);
+        memcpy(cassette_filename, args.cassette_filename, sizeof(cassette_filename_buffer));
+        cassette_position = args.cassette_position;
+        cassette_format = args.cassette_format;
+        put_control();
+}
+
+void joshem_request_tapedialog() {
+        joshlog("HERE %u %u", cassette_state, joshem_tapeswitch_state);
+        if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
+                return;
+        }
+        if (cassette_state == CLOSE) {
+                joshem_tapeswitch_state = JOSHEM_TAPESWITCH_ACTIVE;
+                get_control();
+                do_joshem_tapedialog();
+                joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
+        } else {
+            joshem_tapeswitch_state = JOSHEM_TAPESWITCH_REQUESTED;              
+        }
+}
+
 
 #if HAVE_OSS
 /* Orchestra 80/85/90 stuff */
@@ -1293,11 +1334,11 @@ trs_cassette_update(int dummy)
 	/* Read the next transition */
 	newtrans = transition_in();
 
-  //JOSH TEST
-  if (newtrans == 0) {
-    //Read failure
-    joshem_cassette_control();
-  }
+        //JOSH TEST
+        if (newtrans == 0) {
+          //Read failure
+          joshem_cassette_control(0);
+        }
 
 	/* Allow reset button */
 	trs_get_event(FALSE);
