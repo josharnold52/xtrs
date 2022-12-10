@@ -100,8 +100,24 @@ static void cassette_control_handler(joshem_modal_context *pContext) {
    int rx = midx - 150;
    GrFilledBox( midx - rx, midy - ry, midx + rx, midy + ry,GrBlack() );
    GrBox(  midx - rx, midy - ry, midx + rx, midy + ry,GrWhite() );
-   GrEllipse( midx - rx / 2, midy, rx / 7, ry / 4 , GrWhite());
-   GrEllipse( midx + rx / 2, midy, rx / 7, ry / 4 , GrWhite());
+   GrEllipse( midx - rx / 2, midy - ry/5, rx / 7, ry / 4 , GrWhite());
+   GrEllipse( midx + rx / 2, midy - ry/5, rx / 7, ry / 4 , GrWhite());
+
+
+   int bx1 = rx * 3 / 4;
+   int bx2 = bx1 - rx / 10;
+   int by1 = ry;
+   int by2 = by1  - ry *  5 / 10;
+   int poly[][2] = {
+    {midx - bx1, midy + by1}
+    ,{midx - bx2, midy + by2}
+    ,{midx + bx2, midy + by2}
+    ,{midx + bx1, midy + by1}
+   };
+   GrPolygon(4, poly, GrWhite());
+   //GrLine(poly[0][0], poly[0][1], poly[1][0], poly[1][1], GrWhite());
+
+
    GrKeyRead();
 }
 

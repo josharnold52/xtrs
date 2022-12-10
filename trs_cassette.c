@@ -95,7 +95,7 @@ static char *format_name[] = {
 
 #define FLUSH -500  /* special fake signal value used when turning off motor */
 
-static char cassette_filename[256];
+static char cassette_filename[256]; //TODO: Can overflow thus buffer when we read in the control file!!!
 static int cassette_position;
 static int cassette_format;
 static int cassette_state = CLOSE;
@@ -1292,6 +1292,12 @@ trs_cassette_update(int dummy)
 
 	/* Read the next transition */
 	newtrans = transition_in();
+
+  //JOSH TEST
+  if (newtrans == 0) {
+    //Read failure
+    joshem_cassette_control();
+  }
 
 	/* Allow reset button */
 	trs_get_event(FALSE);
