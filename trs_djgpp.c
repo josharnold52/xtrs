@@ -153,11 +153,12 @@ extern void trs_xlate_pc_scancode(unsigned char scan_code, int shifted);
 
 void trs_get_event(int wait) {
   static int nest_count = 0;
+  int modalRes;
 
   //TODO: I think there's a bug here (or in the trs_xlate_pc_scancode code that goes with it)
   // If shifted and unshifted IBM key maps to different TRS keys, and if shift is released
   // before IBM key, it may be that we send the incorrect key-up.   This causes the Level 1
-  // keyboard driver (and maybe others) to hang because it loops waitinf for a keyup that it
+  // keyboard driver (and maybe others) to hang because it loops waiting for a keyup that it
   // never sees.   Perhaps I need to keep track of whether shift is forced up or down when doing
   // keyups.
 
@@ -168,34 +169,41 @@ void trs_get_event(int wait) {
   }
   while(pScanBuffer->next_offset != scanBufferCursor) {
     unsigned char keycode = pScanBuffer->key_ring[scanBufferCursor++];
-    if (keycode == 0x3e) { //F4
-      exit(0);
-    }
-    if (keycode == 0x3F) { //F5
-      josh_trace_enabled = 1;
-      continue;
-    }
-    if (keycode == 0x40) { //F6
-      josh_trace_enabled = 0;
-      continue;
-    }
-    if (keycode == 0x41) { //F7
-      if (nest_count <= 0) {
+    int ignoreKey = 0;
+    if (nest_count == 0) {
         nest_count++;
-        joshem_modal_ask_yn("Special F7?");
+        if (keycode == 0x3e) { //F4
+            ignoreKey = 1;
+            if (joshem_modal_ask_yn("Exit Simulator?")) {
+                exit(0);
+            }
+        } else if (keycode == 0x3F) { //F5
+            ignoreKey = 1;
+            const char *p = josh_trace_enabled ? "Trace is ON.  Leave it on?" : "Trace is OFF.  Turn it on?";
+            if (joshem_modal_ask_yn(p)) {
+                josh_trace_enabled = 1;
+            } else {
+                josh_trace_enabled = 0;
+            }
+        } else if (keycode == 0x40) { //F6
+            ignoreKey = 1;
+            if (joshem_modal_ask_yn("Reset TRS-80?")) {
+                trs_reset(0);
+            }
+        } else if (keycode == 0x41) { //F7
+            ignoreKey = 1;
+            if (joshem_modal_ask_yn("HARD Reset TRS-80?")) {
+                trs_reset(1);
+            }
+        } else if (keycode == 0x42) { //F8
+            ignoreKey = 1;
+            joshem_request_tapedialog();
+        }
         nest_count--;
-      }
-      continue;
     }
-    if (keycode == 0x42) { //F8
-      if (nest_count <= 0) {
-        nest_count++;
-        joshem_request_tapedialog();
-        nest_count--;
-      }
-      continue;
+    if (ignoreKey) {
+        continue;
     }
-
 
     int shifted = pScanBuffer->key_states[0x2A] || pScanBuffer->key_states[0x36];
 

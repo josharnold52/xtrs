@@ -70,7 +70,7 @@ addkey("Left Arrow", "^Left Arrow 4", "TK_Left")
 addkey("Backspace (Map to Left)", "^Backspace", "TK_Left")
 addkey("Right Arrow", "^Right Arrow 6", "TK_Right")
 addkey("Down Arrow", "^Down Arrow 2", "TK_Down")
-addkey("F1 (maps to shift-@)","^F1$","TK_AtSign","TK_ForceShift")
+addkey("F2 (maps to shift-@)","^F1$","TK_AtSign","TK_ForceShift")
 
 for(i <- 0 to 127) {
     if (outTable(i) == null) {

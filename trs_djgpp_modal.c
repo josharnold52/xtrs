@@ -306,6 +306,7 @@ static void yesno_message_handler(joshem_modal_context *pContext) {
    if (key == 'Y') GrDrawString( "(Y)es",5,x-80,y+20,&grt );
    else GrDrawString( "(N)o",5,x+80,y+20,&grt );
    usleep(100000);
+   pContext->result = (key == 'Y') ? 1 : 0;
 
 }
 
