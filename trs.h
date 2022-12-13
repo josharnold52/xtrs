@@ -216,12 +216,17 @@ typedef struct joshem_cassette_control_args {
    cassette_filename_buffer cassette_filename; //TODO: Can overflow thus buffer when we read in the control file!!!
    int cassette_position;
    int cassette_format;
+   int cassette_writable;
+   int write_requested;
 } joshem_cassette_control_args;
+
+
 
 void joshem_cassette_control(joshem_cassette_control_args *pArgs);
 
 
 void joshem_request_tapedialog();
+
 
 
 #endif /*_TRS_H*/

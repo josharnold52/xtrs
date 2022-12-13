@@ -102,6 +102,7 @@ static void put_control();
 static cassette_filename_buffer cassette_filename; //TODO: Can overflow thus buffer when we read in the control file!!!
 static int cassette_position;
 static int cassette_format;
+static int cassette_writable = 0;
 static int cassette_state = CLOSE;
 static int cassette_motor = 0;
 static FILE *cassette_file;
@@ -239,16 +240,22 @@ static long wave_data_offset = WAVE_DATA_OFFSET;
 static int joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
 
 
-static void do_joshem_tapedialog() {
-        joshem_cassette_control_args args;
+static void do_joshem_tapedialog(int writeRequested) {
+    joshem_tapeswitch_state = JOSHEM_TAPESWITCH_ACTIVE;
+
+    joshem_cassette_control_args args;
         memcpy(args.cassette_filename, cassette_filename, sizeof(cassette_filename_buffer));
         args.cassette_position = cassette_position;
         args.cassette_format = cassette_format;
+        args.cassette_writable = cassette_writable;
+        args.write_requested  = writeRequested;
         joshem_cassette_control(&args);
         memcpy(cassette_filename, args.cassette_filename, sizeof(cassette_filename_buffer));
         cassette_position = args.cassette_position;
         cassette_format = args.cassette_format;
+        cassette_writable = args.cassette_writable;
         put_control();
+        joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
 }
 
 void joshem_request_tapedialog() {
@@ -256,13 +263,10 @@ void joshem_request_tapedialog() {
         if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
                 return;
         }
-        if (cassette_state == CLOSE) {
-                joshem_tapeswitch_state = JOSHEM_TAPESWITCH_ACTIVE;
+    joshem_tapeswitch_state = JOSHEM_TAPESWITCH_REQUESTED;
+    if (cassette_state == CLOSE) {
                 get_control();
-                do_joshem_tapedialog();
-                joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
-        } else {
-            joshem_tapeswitch_state = JOSHEM_TAPESWITCH_REQUESTED;              
+                do_joshem_tapedialog(0);
         }
 }
 
@@ -669,7 +673,9 @@ static int assert_state(int state)
       cassette_format = DIRECT_FORMAT;
       strcpy(cassette_filename, DSP_FILENAME);
     } else {
-      get_control(state);
+      while (!cassette_writable) {
+          do_joshem_tapedialog(1);
+      }
     }
     if (cassette_format == DIRECT_FORMAT) {
 #if !HAVE_OSS
@@ -1317,6 +1323,12 @@ trs_cassette_update(int dummy)
   if (cassette_motor && cassette_state != WRITE && assert_state(READ) >= 0) {
     int newtrans = 0;
     while ((z80_state.t_count - cassette_transition) >= cassette_delta) {
+        if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED) {
+            put_control();
+            assert_state(CLOSE);
+            do_joshem_tapedialog(0);
+            assert_state(READ);
+        }
 
 	/* Simulate analog signal processing on the 500-bps cassette input */
 	if (cassette_next != 0 && cassette_value == 0) {
@@ -1335,9 +1347,12 @@ trs_cassette_update(int dummy)
 	newtrans = transition_in();
 
         //JOSH TEST
-        if (newtrans == 0) {
-          //Read failure
-          joshem_cassette_control(0);
+        while (newtrans == 0) {
+            put_control();
+            assert_state(CLOSE);
+            do_joshem_tapedialog(0);
+            assert_state(READ);
+            newtrans = transition_in();
         }
 
 	/* Allow reset button */

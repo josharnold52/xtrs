@@ -174,7 +174,7 @@ static int choose_cassette(cassette_entry *pDest) {
        x = GrMaxX()/2;
        y = GrMaxY()/2;
 
-       GrDrawString( chooseMsg,strlen( chooseMsg),x,y-30,&grt );
+       GrDrawString( (void*)chooseMsg,strlen( chooseMsg),x,y-30,&grt );
        GrDrawString( pTable->pEntries[currentEntry].filename,strlen( pTable->pEntries[currentEntry].filename ),x,y-10,&grt );
        for(int ii=0;ii<4;ii++) {
            GrDrawString( (void*)choices[ii],strlen(choices[ii]),x-180 + ii * 120,y+35,&grt );
@@ -310,17 +310,19 @@ static void yesno_message_handler(joshem_modal_context *pContext) {
 }
 
 
-static void ask_question_message_handler(joshem_modal_context *pContext) {
-   char *message;
+static int ask_question(const char *prompt, char *dest, int maxLen) {
    int x,y;
    int insety = 50;
    int insetx = 80;
-   message =  "Where Do You Want To Save?";
+    int retVal = 0;
 
-
-   int maxchars = 8;
-   char buf[10] = {0};  //Need space for a _ and null term
-   int cur_len = 0;
+   char *buf = maxLen > 0 ? malloc(maxLen + 2) : 0;
+    if (!buf) {
+        joshlog("ERR: ask_question alloc failed\n");
+        return 0;
+    }
+    buf[0] = 0;
+    int cur_len = 0;
 
    GrTextOption grt;
  
@@ -355,7 +357,7 @@ static void ask_question_message_handler(joshem_modal_context *pContext) {
        grt.txo_xalign = GR_ALIGN_CENTER;
 
 
-       GrDrawString( message,strlen( message ),x,y-30,&grt );
+       GrDrawString( (void*)prompt,strlen( prompt ),x,y-30,&grt );
        GrDrawString( "(Y)es",5,x-80,y+20,&grt );
        GrDrawString( "(N)o",5,x+80,y+20,&grt );
 
@@ -365,23 +367,33 @@ static void ask_question_message_handler(joshem_modal_context *pContext) {
          if (key >= 'a' && key <= 'z') {
             key = key + ('A' - 'a');
          }
-         if ((key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9') || key=='_' || key == GrKey_BackSpace || key == GrKey_Return)
+         if ((key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9') || key=='_'
+            || key == GrKey_BackSpace || key == GrKey_Return || key == GrKey_Escape)
             break;
        }
        if ((key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9') || key=='_') {
-         if (cur_len < maxchars) {
+         if (cur_len < maxLen) {
              buf[cur_len++] = key;
          }
        } else if (key == GrKey_BackSpace) {
          if (cur_len > 0)
             cur_len --;
        } else if (key == GrKey_Return && cur_len > 0) {
+           retVal = 1;
          break;
+       } else if (key == GrKey_Escape) {
+           retVal = 0;
+           break;
        }
 
    }
-   usleep(100000);
-
+    if (retVal) {
+        memcpy(dest, buf, cur_len);
+        dest[cur_len] = 0;
+    }
+    if (buf)
+        free(buf);
+    return retVal;
 }
 
 
@@ -446,12 +458,26 @@ static void draw_cassette(joshem_cassette_control_args *pArgs) {
 static void cassette_control_handler(joshem_modal_context *pContext) {
    joshem_cassette_control_args *pArgs = pContext->input;
    cassette_entry e;
-
-   ask_question_message_handler(0);
-   if (choose_cassette(&e) && pArgs) {
+    if (!pArgs) {
+        return;
+    }
+    if (pArgs ->write_requested) {
+        if (ask_question("Save to which cassette?", e.filename, 8)) {
+            sprintf(pArgs->cassette_filename, "%s.CAS", e.filename);
+            pArgs ->cassette_format = 1;
+            pArgs -> cassette_position = 0;
+            pArgs ->cassette_writable = 1;
+        } else {
+            pArgs ->cassette_writable = 0;
+        }
+        return;
+    }
+   //ask_question_message_handler(0);
+   if (choose_cassette(&e)) {
     sprintf(pArgs->cassette_filename, "%s.CAS", e.filename);
     pArgs->cassette_position = 0;
     pArgs->cassette_format = 1;
+    pArgs->cassette_writable = 0;
    }
    //draw_cassette(pArgs);
 

@@ -62,7 +62,7 @@
 static unsigned char trs_screen[2048];
 static int screen_chars = 1024;
 static int row_chars = 64;
-static int col_chars = 16;
+//static int col_chars = 16;
 
 
 static int scale_x = 1;
@@ -161,6 +161,7 @@ void trs_get_event(int wait) {
   // never sees.   Perhaps I need to keep track of whether shift is forced up or down when doing
   // keyups.
 
+  //joshlog("GE\n");
   //TODO: Keep wait or get rid of it/
   if (wait && pScanBuffer->next_offset == scanBufferCursor) {
     usleep(55000);
