@@ -1,3 +1,19 @@
+Needed for V1:
+  * Finish cassette selection work
+     * Status display with "Rewind" and "Help" controls...maybe controls to let you skip to next program?
+     * "Help" and "Description" for cassette files (probably just other files with same name)
+     * Protect against overwriting/saving to write-protected files
+  * Formalize "boot profiles" (L1 vs L2, set of cassettes)
+     * MAYBE NOT NEEDED FOR VERY EARLY V1
+     * Let user restart emulator into a different boot profile.
+     * Maybe provide a way to signal a restart to the keytrap wrapper and then let it restart,
+       passing in a new profile directory?   Or maybe just use a batch file for now.
+  * Netbook autoboot to emulator, with secret way to get into dos or linux.
+  * Would be nice to try the readtsc approach for realtime but not absolutely needed for V1
+
+
+
+
 Maintainence & Bugs:
 
 * Go through source file TODOs (last done: ????-??-??)
@@ -27,9 +43,13 @@ Target HW:
   * Grub to dos to xtrs.  
   * Have a hidden way to get into linux or dos without xtrs
   * Perhaps boot to memdisk floppy with data files on HDD
-* Add Control Dialogs
-  * E.g. - cassette selection and controls
+* FInish Control Dialogs
+  * Cassette selection and controls (half way there)
   * (Future) Disks?  - Maybe at first we just have a few HDDs (CPM, LSDOS, etc.) Later add floppies if neede.
+  * Clean up and consolidate the code
+* Sound
+  * This is hard!  But there seeems to be some code out there that can play sounds on some modern chipsets
+    under dos protected mode, so can start with there.   
 
 Emulator:
 
@@ -38,7 +58,6 @@ Emulator:
   * Pre-rotate blocks?  Not sure if this is even worth it
   * Delayed render???  
 * Implement additional video modes
-  * Wide (32-character)
   * Lowercase
   * Alternate character sets
   * Model 4 80/40
@@ -48,11 +67,24 @@ Emulator:
     * Others?
 * Keyboard improvements
   * Study current implementation and document (I left off mid-hack)
-    * Special attention to the bug fix - make sure key downs and ups  are consistent!
+    * Find and consolidate the 2 comments regarding the bug fix for inconsistent shift behavior - I think it is fixed but 
+      let's put a bow on it.
   * Add M3/M4 specialties
-  * Test invasionforce - see if we need those mods
+  * I removed the keyboard delay/stretching now that realtime is working pretty well.  This made invasion force
+    play much better, and I don't think it will need the old iforce workaround code that I did for Daniel.  I need to test
+    it on normal editing on L1 basic and L2 basic but if it looks good then maybe we go with it.  
 * Real time improvements
-  * Do delay checks at I/O time rather than in the z80 emulator.
+  * First pass using uclock seems to work OK.  Occasionally I have thought I've seen variations in speed but unconfirmed.
+    I added test code to try to check for this and could not reproduce.
+  * Originally I thought maybe we should do delay checks at I/O time rather than in the z80 emulator loop.  This turned out
+    to have a problem.  If the emulator time was far ahead of of real time, and an event came in (keystroke), you would have
+    to wait for a long time for "real time" to catch up, which is a bad user experience.  So latest compromis is to coarser
+    delay checks in the CPU loop and finer delay checks for IO that needs high accuracy.   This seemse to be working OK.
+  * It looks like rdtsc is very constant on the netbook I tried it on so could replace uclock as something with more accuracy
+    and less overhead.  The catch is I need to measure the TSC clock rate.   I've done this with high accuracy for one netbook
+    and can now easily do it elsewhere with my tester program.   Perhasp use an ENV var or hardware profile to define the rate.
+    If present, we use rdtsc for delay and not uclock.  ( Also should find all occurances of usleep and uclock and remove them?)
+    The __asm pause loop seems pretty energy efficient but will have ot test using readtsc
   * Accuracy?
     * Requirement depends on which IO.  Sound should be very accurate.  Video can be relaxed.
     * Probably multipke thresholds. E.g. : 
