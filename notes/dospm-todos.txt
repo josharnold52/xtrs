@@ -3,6 +3,10 @@ Needed for V1:
      * Status display with "Rewind" and "Help" controls...maybe controls to let you skip to next program?
      * "Help" and "Description" for cassette files (probably just other files with same name)
      * Protect against overwriting/saving to write-protected files
+     * BUG: If you do a soft reset while loading a tape, you get prompted to save...
+     * BUG: Don't autodisplay tape dialog at end of tape (or do it at most once and then stop doing it)
+            until tape has been closed normally.  Why??  Becuase if you mistype the image name at the SYSTEM 
+            prompt, you may never be able to load and the dialog will keep popping up.
   * Formalize "boot profiles" (L1 vs L2, set of cassettes)
      * MAYBE NOT NEEDED FOR VERY EARLY V1
      * Let user restart emulator into a different boot profile.
@@ -15,12 +19,14 @@ Needed for V1:
 
 
 Maintainence & Bugs:
-
 * Go through source file TODOs (last done: ????-??-??)
 * Document new magic keystrokes(F4 - exit, F5,F6 - tracing)
 * Document new logs and logging functionality.
    Disable excessive logging outside of development
 * Integrate upstream dosbox changes (current up to ????)
+* In retro/tech diary, document how removing the signal handlers made
+   tape loading faster under dos
+
 
 Develop/Build:
 
