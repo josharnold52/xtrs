@@ -139,6 +139,8 @@ void trs_realtime_sync(tstate_t threhsold);
 void trs_realtime_disable();
 void trs_realtime_enable();
 void trs_realtime_log_status(char ctl);
+void trs_realtime_force_enable();
+int trs_is_realtime_enabled();
 
 void mem_video_page(int which);
 void mem_bank(int which);
@@ -218,6 +220,7 @@ typedef struct joshem_cassette_control_args {
    int cassette_format;
    int cassette_writable;
    int write_requested;
+   int initial_selection;
 } joshem_cassette_control_args;
 
 

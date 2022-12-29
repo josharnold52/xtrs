@@ -95,6 +95,8 @@ void trs_realtime_sync(tstate_t threhsold) {
     int i;
 
     if (realtime_suppress > 0) {
+        //Process keyboard events (so we don't hang up if the CPU never touches keyboard memory)
+        trs_get_event(0);
         return;
     }
     if ( (z80_state.t_count - last_synced_at_tstate) < threhsold ) {
@@ -102,11 +104,16 @@ void trs_realtime_sync(tstate_t threhsold) {
     }
     last_synced_at_tstate = z80_state.t_count;
     for(;;) {
+        //Trying this for power
+        __asm__ __volatile__ ("pause");
+        //Process keyboard events (so we don't hang up if the CPU never touches keyboard memory)
+        trs_get_event(0);
 
+        //Now sync...
         now_uclock = uclock();
 
-        elapsed_rt = (now_uclock - real_basetime) * REAL_USEC_FACTOR;
-        elapsed_t = (z80_state.t_count - z80_basetime) * TSTATE_USEC_FACTOR_M1;
+        elapsed_rt = ((double)(now_uclock - real_basetime)) * REAL_USEC_FACTOR;
+        elapsed_t = ((double)(z80_state.t_count - z80_basetime)) * TSTATE_USEC_FACTOR_M1;
         elapsed_delta = elapsed_t - elapsed_rt;
         if (elapsed_delta <= 10) {
             break;
@@ -116,7 +123,7 @@ void trs_realtime_sync(tstate_t threhsold) {
             elapsed_delta = 1000000;
         } 
         for(i = 0; i < 10000; i++) {
-            asm("pause");
+            __asm__ __volatile__ ("pause");
         }
         //asm ("pause" : /*no output*/ : /*no input */ : /* no clobber */);
         //delay((unsigned int)elapsed_delta);
@@ -135,16 +142,33 @@ void trs_realtime_sync(tstate_t threhsold) {
 }
 
 
+
+
 void trs_realtime_disable() {
-    ++realtime_suppress ;
-    joshlog("Realtime throttle is suppressed! %d\n", realtime_suppress);
+    int pre = realtime_suppress;
+    int post = realtime_suppress + 1;
+    realtime_suppress = post;
+    if (pre <= 0 && post > 0)
+        joshlog("Realtime throttle is suppressed! %d\n", realtime_suppress);
+}
+
+static void do_trs_realtime_enable(int force) {
+    int pre = realtime_suppress;
+    int post = force ? 0 : ((pre > 0) ? pre - 1 : 0);
+    realtime_suppress = post;
+    if (pre > 0 && post <= 0) {
+        trs_realtime_reset();
+        joshlog("Realtime throttle is enabled! %d\n", realtime_suppress);
+    }
 }
 
 void trs_realtime_enable() {
-    int z = --realtime_suppress;
+    do_trs_realtime_enable(0);
+}
+void trs_realtime_force_enable() {
+    do_trs_realtime_enable(1);
+}
 
-    if (z <= 0) {
-        trs_realtime_reset();
-        realtime_suppress = 0;
-    }
+int trs_is_realtime_enabled() {
+    return realtime_suppress == 0;
 }

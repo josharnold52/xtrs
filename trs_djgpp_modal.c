@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 #include <fcntl.h>
-#include <signal.h>
+//#include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -479,6 +479,7 @@ static void cassette_control_handler(joshem_modal_context *pContext) {
     pArgs->cassette_position = 0;
     pArgs->cassette_format = 1;
     pArgs->cassette_writable = 0;
+    pArgs->initial_selection = 0;
    }
    //draw_cassette(pArgs);
 

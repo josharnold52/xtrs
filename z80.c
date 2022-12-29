@@ -3449,7 +3449,11 @@ int z80_run(int continuous)
 		    !(z80_state.nmi && !z80_state.nmi_seen) &&
 		    !(z80_state.irq && z80_state.iff1) &&
 		    !trs_event_scheduled()) {
-		  trs_get_event(TRUE);
+                  //JOSH NOTES: I removed the get_event from here because
+                  // we can handle it as part of our realtime checks.
+                  // This is also teh only place that calls trs_get_event with
+                  // a non-zero argument, so nice to get rid of.
+		  //trs_get_event(TRUE);
 		}
 	    }
 	    T_COUNT(4);

@@ -43,7 +43,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <signal.h>
+//#include <signal.h>
 
 #include "crc.c"
 
@@ -412,7 +412,7 @@ void
 trs_disk_init(void)
 {
   int i;
-  struct sigaction sa;
+  //struct sigaction sa;
 
   for (i=0; i<NDRIVES; i++) {
     disk[i].phytrack = 0;
@@ -427,11 +427,11 @@ trs_disk_init(void)
     joshlog("DISK %i : %s\n", i, disk[i].name);
   }
 
-  sa.sa_handler = trs_sigusr1;
-  sigemptyset(&sa.sa_mask);
-  sigaddset(&sa.sa_mask, SIGUSR1);
-  sa.sa_flags = SA_RESTART;
-  sigaction(SIGUSR1, &sa, NULL);
+  //sa.sa_handler = trs_sigusr1;
+  //sigemptyset(&sa.sa_mask);
+  //sigaddset(&sa.sa_mask, SIGUSR1);
+  //sa.sa_flags = SA_RESTART;
+  //sigaction(SIGUSR1, &sa, NULL);
 }
 
 /* Reset floppy controller hardware */

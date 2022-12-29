@@ -33,7 +33,7 @@
 
 #include <stdio.h>
 #include <fcntl.h>
-#include <signal.h>
+//#include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -102,16 +102,21 @@ void reverse_bits_block(void *p, int len) {
 }
 
 
-static char rotate_left(char c, int steps) {
-  //TODO - inline assembly
-  int c2 = ((int)c) & 0xFF;
-  c2 <<= (steps & 7);
-  return (char)((c2 >> 8) | c2);
-}
+
 void rotate_left_block(void *p, int steps, int len) {
   char *c = (char *)p;
+  //Using inline assembly, so we can do a single op-code rotation.
+  //I think it may be worth it because we are rotating on the fly
+  //in order to get our 6 pixel character at the proper 8 bit alignment).
+  //Typically, we do this for a single character cell of height,
+  //so we could maybe improve this by unrolling the loop.
   for(;len>0;c++,len--) {
-    *c = rotate_left(*c, steps);
+    //*c = rotate_left(*c, steps);
+    asm ( "rolb %%cl, (%0)"
+            : /* no output registers */
+            : "r" (c), "c" (steps)
+            : "cc"
+            );
   }
 }
 
@@ -152,8 +157,9 @@ extern void trs_xlate_pc_scancode(unsigned char scan_code, int shifted);
 
 
 void trs_get_event(int wait) {
+    //Argument is ignored!  (In old xtrs it caused us to sleep for a bit if no events)
+
   static int nest_count = 0;
-  int modalRes;
 
   //TODO: I think there's a bug here (or in the trs_xlate_pc_scancode code that goes with it)
   // If shifted and unshifted IBM key maps to different TRS keys, and if shift is released
@@ -162,11 +168,7 @@ void trs_get_event(int wait) {
   // never sees.   Perhaps I need to keep track of whether shift is forced up or down when doing
   // keyups.
 
-  //joshlog("GE\n");
-  //TODO: Keep wait or get rid of it/
-  if (wait && pScanBuffer->next_offset == scanBufferCursor) {
-    usleep(55000);
-  }
+
   while(pScanBuffer->next_offset != scanBufferCursor) {
     unsigned char keycode = pScanBuffer->key_ring[scanBufferCursor++];
     int ignoreKey = 0;
@@ -198,6 +200,14 @@ void trs_get_event(int wait) {
         } else if (keycode == 0x42) { //F8
             ignoreKey = 1;
             joshem_request_tapedialog();
+        } else if (keycode == 0x43) { //F9
+            ignoreKey = 1;
+            const char *p = trs_is_realtime_enabled() ? "Fast Mode is OFF.  Turn it on?" : "Fast mode is ON.  Leave it on?";
+            if (joshem_modal_ask_yn(p)) {
+                trs_realtime_disable();
+            } else {
+                trs_realtime_force_enable();
+            }
         }
         nest_count--;
     }

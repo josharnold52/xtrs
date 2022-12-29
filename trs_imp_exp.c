@@ -17,7 +17,7 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include <signal.h>
+//#include <signal.h>
 #include <string.h>
 #include <time.h>
 #include <dirent.h>

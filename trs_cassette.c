@@ -60,10 +60,11 @@
 #include "trs.h"
 #include "z80.h"
 #include <string.h>
-#include <signal.h>
+//#include <signal.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #if HAVE_OSS
 #include <sys/ioctl.h>
@@ -98,6 +99,8 @@ static char *format_name[] = {
 static void get_control();
 static void put_control();
 
+
+static int cassette_did_initial_selection = 0;
 
 static cassette_filename_buffer cassette_filename; //TODO: Can overflow thus buffer when we read in the control file!!!
 static int cassette_position;
@@ -249,11 +252,13 @@ static void do_joshem_tapedialog(int writeRequested) {
         args.cassette_format = cassette_format;
         args.cassette_writable = cassette_writable;
         args.write_requested  = writeRequested;
+        args.initial_selection = !cassette_did_initial_selection;
         joshem_cassette_control(&args);
         memcpy(cassette_filename, args.cassette_filename, sizeof(cassette_filename_buffer));
         cassette_position = args.cassette_position;
         cassette_format = args.cassette_format;
         cassette_writable = args.cassette_writable;
+        cassette_did_initial_selection = !args.initial_selection;
         put_control();
         joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
 }
@@ -263,10 +268,10 @@ void joshem_request_tapedialog() {
         if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
                 return;
         }
-    joshem_tapeswitch_state = JOSHEM_TAPESWITCH_REQUESTED;
-    if (cassette_state == CLOSE) {
-                get_control();
-                do_joshem_tapedialog(0);
+        joshem_tapeswitch_state = JOSHEM_TAPESWITCH_REQUESTED;
+        if (cassette_state == CLOSE) {
+                get_control();  //Responds to JOSHEM_TAPESWITCH_REQUESTED
+                //do_joshem_tapedialog(0);
         }
 }
 
@@ -554,6 +559,16 @@ set_audio_format(FILE *f, int state)
 static void get_control()
 {
   FILE *f;
+  struct stat p;
+  //TODO: This will make it so that the first CLOAD after starting the emulator
+  // prompts for a tape.   Is this desired, or should we reuse whatever the previous
+  // session had?
+  if (!cassette_did_initial_selection || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED) {
+      do_joshem_tapedialog(0);
+  }
+  if (!cassette_did_initial_selection) {
+    return;
+  }
 
   f = fopen(CONTROL_FILENAME, "r");
   cassette_format = DEFAULT_FORMAT;
@@ -605,13 +620,13 @@ static int assert_state(int state)
 
   if (cassette_state != CLOSE && cassette_state != FAILED) {
     if (cassette_format == DIRECT_FORMAT) {
-      sigset_t set, oldset;
-      sigemptyset(&set);
-      sigaddset(&set, SIGALRM);
-      sigprocmask(SIG_BLOCK, &set, &oldset);
+      //sigset_t set, oldset;
+      //sigemptyset(&set);
+      //sigaddset(&set, SIGALRM);
+      //sigprocmask(SIG_BLOCK, &set, &oldset);
       trs_paused = 1;  /* disable speed measurement for this round */
       fclose(cassette_file);
-      sigprocmask(SIG_SETMASK, &oldset, NULL);
+      //sigprocmask(SIG_SETMASK, &oldset, NULL);
       cassette_position = 0;
     } else {
       cassette_position = ftell(cassette_file);
@@ -635,6 +650,11 @@ static int assert_state(int state)
   switch (state) {
   case READ:
     get_control();
+    if (!cassette_did_initial_selection) {
+        joshlog("Cassette read failed because no tape was selected");
+        cassette_state = FAILED;
+        return -1;
+    }
     if (cassette_format == DIRECT_FORMAT) {
       cassette_file = fopen(cassette_filename, "rb");
       if (cassette_file == NULL) {
@@ -756,14 +776,14 @@ transition_out(int value)
   long nsamples, delta_us;
   Ushort code;
   float ddelta_us;
-  sigset_t set, oldset;
+  //sigset_t set, oldset;
 
   cassette_transitionsout++;
   if (value != FLUSH && value == cassette_value) return;
 
-  sigemptyset(&set);
-  sigaddset(&set, SIGALRM);
-  sigprocmask(SIG_BLOCK, &set, &oldset);
+  //sigemptyset(&set);
+  //sigaddset(&set, SIGALRM);
+  //sigprocmask(SIG_BLOCK, &set, &oldset);
 
   ddelta_us = (z80_state.t_count - cassette_transition) / z80_state.clockMHz
     - cassette_roundoff_error;
@@ -946,7 +966,7 @@ transition_out(int value)
     break;
   }
 
-  sigprocmask(SIG_SETMASK, &oldset, NULL);
+  //sigprocmask(SIG_SETMASK, &oldset, NULL);
   if (cassette_value != value) last_sound = z80_state.t_count;
   cassette_transition = z80_state.t_count;
   cassette_value = value;
@@ -964,11 +984,11 @@ transition_in()
   int next, ret = 0;
   int c, cabs;
   float delta_ts;
-  sigset_t set, oldset;
+  //sigset_t set, oldset;
 
-  sigemptyset(&set);
-  sigaddset(&set, SIGALRM);
-  sigprocmask(SIG_BLOCK, &set, &oldset);
+  //sigemptyset(&set);
+  //sigaddset(&set, SIGALRM);
+  //sigprocmask(SIG_BLOCK, &set, &oldset);
 
   switch (cassette_format) {
   case DEBUG_FORMAT:
@@ -1115,7 +1135,7 @@ transition_in()
   if (ret == 0) {
     cassette_delta = (unsigned long) -1;
   }
-  sigprocmask(SIG_SETMASK, &oldset, NULL);
+  //sigprocmask(SIG_SETMASK, &oldset, NULL);
   return ret;
 }
 
@@ -1326,7 +1346,7 @@ trs_cassette_update(int dummy)
         if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED) {
             put_control();
             assert_state(CLOSE);
-            do_joshem_tapedialog(0);
+            get_control(); //Responds to JOSHEM_TAPESWITCH_REQUESTED
             assert_state(READ);
         }
 

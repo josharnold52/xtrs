@@ -17,7 +17,7 @@
 #include "trs.h"
 #include <sys/time.h>
 #include <time.h>
-#include <signal.h>
+//#include <signal.h>
 
 /*#define IDEBUG 1*/
 /*#define IDEBUG2 1*/

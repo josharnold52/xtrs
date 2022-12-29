@@ -20,7 +20,7 @@
 #include <sys/file.h>
 #include <fcntl.h>
 #include <string.h>
-#include <signal.h>
+//#include <signal.h>
 #include "trs.h"
 #include "trs_uart.h"
 
@@ -349,12 +349,12 @@ trs_uart_control_out(int value)
   }
 
   if (!(value & TRS_UART_NOTBREAK) && uart.fd != -1) {
-    sigset_t set, oldset;
-    sigemptyset(&set);
-    sigaddset(&set, SIGALRM);
-    sigprocmask(SIG_BLOCK, &set, &oldset);
+    //sigset_t set, oldset;
+    //sigemptyset(&set);
+    //sigaddset(&set, SIGALRM);
+    //sigprocmask(SIG_BLOCK, &set, &oldset);
     err = tcsendbreak(uart.fd, 0);
-    sigprocmask(SIG_SETMASK, &oldset, NULL);
+    //sigprocmask(SIG_SETMASK, &oldset, NULL);
     if (err == -1) {
       error("can't send break on %s: %s", trs_uart_name, strerror(errno));
     }

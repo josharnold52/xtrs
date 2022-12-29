@@ -180,11 +180,12 @@ void main(int argc, char **argv, char **env) {
 
 
 
+    /* If were going to TSR, we'd do this...
     /* TODO: We don't need to keep this much memory! */
     /* keep(0, 4096); *//* Exits here - stuff below won't run */
 
 
-    /* If we're not a TSR... */
+    /* But we're not a TSR, so remove our hook and get out */
     printf("Hi!");
     setvect(0x15, oldfunc);
     return;
