@@ -287,7 +287,7 @@ no_sound(void)
 {
   static int warned = 0;
   if (!warned) {
-    error("sound support is not compiled in");
+    joshlog("sound support is not compiled in");
     warned = 1;
   }
 }

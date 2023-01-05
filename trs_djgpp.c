@@ -180,6 +180,7 @@ void trs_get_event(int wait) {
                 exit(0);
             }
         } else if (keycode == 0x3F) { //F5
+           /*
             ignoreKey = 1;
             const char *p = josh_trace_enabled ? "Trace is ON.  Leave it on?" : "Trace is OFF.  Turn it on?";
             if (joshem_modal_ask_yn(p)) {
@@ -187,6 +188,9 @@ void trs_get_event(int wait) {
             } else {
                 josh_trace_enabled = 0;
             }
+           */
+           joshem_modal_message("Tracing not supported in this build");
+           josh_trace_enabled = 0;
         } else if (keycode == 0x40) { //F6
             ignoreKey = 1;
             if (joshem_modal_ask_yn("Reset TRS-80?")) {

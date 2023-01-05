@@ -23,22 +23,29 @@
 
 #include <dirent.h>  
 #include <assert.h>
+#include <io.h>
 //#include <dpmi.h>
 
 static int min(int x, int y) {
     return x < y ? x : y;
 }
 
+#define ENTRY_TYPE_NONE 0
+#define ENTRY_TYPE_CASSETTE 1
+#define ENTRY_TYPE_SUBDIR 2
+#define ENTRY_TYPE_PARENTDIR 3
 
 typedef char cassette_instructions[256];
 typedef char cassette_description[256];
 typedef char cassette_entry_fn[sizeof(cassette_filename_buffer) - 16];
+typedef char cassette_simple_filename[128];
+
+typedef char cassette_display_name[32];
 
 typedef struct cassette_entry {
-    cassette_entry_fn filename;
-    int metadata_state;
-    cassette_instructions instructions;
-    cassette_description description;
+    cassette_display_name display_name;
+    cassette_simple_filename filename;
+    unsigned char entry_type;
 } cassette_entry;
 
 typedef struct cassette_table {
@@ -47,15 +54,39 @@ typedef struct cassette_table {
 } cassette_table;
 
 
-static int is_cassette_file(struct dirent *dir) {
-    if (!dir) {
+static unsigned int get_file_length(const char *fn) {
+    FILE *f;
+    int fhandle;
+    long long len;
+
+    f = fopen(fn, "rb");
+    if (!f) {
         return 0;
+    }
+    fhandle = fileno(f);
+    len = lfilelength(fhandle);
+    fclose(f);
+    if (len == -1LL) {
+        return 0;
+    }
+    if (len >  0xFFFFFFFFLL) {
+        return 0xFFFFFFFF;
+    }
+    return (unsigned int)len;
+}
+
+static unsigned char get_cassette_entry_type(struct dirent *dir) {
+    if (!dir) {
+        return ENTRY_TYPE_NONE;
+    }
+    if (dir->d_type == DT_DIR &&  dir->d_namlen > 1 && dir->d_name[0] != '.' ) {
+        return ENTRY_TYPE_SUBDIR;
     }
     if (dir->d_type != DT_REG) {
-        return 0;
+        return ENTRY_TYPE_NONE;
     }
     if (dir -> d_namlen < 4) {
-        return 0;
+        return ENTRY_TYPE_NONE;
     }
     char *p;
     p = (dir -> d_name) + (dir ->d_namlen) - 1;
@@ -68,59 +99,107 @@ static int is_cassette_file(struct dirent *dir) {
     if (tolower(*(p--)) != '.')
         return 0;
 
-    return 1;
+    return ENTRY_TYPE_CASSETTE;
 
 }
 
 static void init_entry(cassette_entry *entry, struct dirent *de) {
     assert(entry != 0);
     memset(entry, 0, sizeof(cassette_entry));
-    int elen;
-    elen = min(strlen(de->d_name), sizeof(cassette_entry_fn) - 1);
-    memcpy(entry->filename, de->d_name, elen);
-    entry->filename[elen-4] = 0;
-    for(int i=0;i<elen;i++) {
-        entry->filename[i] = toupper(entry->filename[i]);
+    if (!de) {
+        //Sentinel de==null --> is parentdir
+        entry->entry_type = ENTRY_TYPE_PARENTDIR;
+        strcpy(entry->display_name,"( Parent Dir )");
+        strcpy(entry->filename, "..");
+        return;
+    }
+
+    unsigned char entry_type = get_cassette_entry_type(de);
+    assert(entry_type != ENTRY_TYPE_NONE);
+    entry->entry_type = entry_type;
+    strncpy(entry->filename, de->d_name, sizeof(cassette_simple_filename));
+    entry->filename[sizeof(cassette_simple_filename)-1] = 0;
+
+    if (entry_type == ENTRY_TYPE_CASSETTE) {
+        strncpy(entry->display_name, de->d_name, sizeof(cassette_display_name));
+        entry->display_name[sizeof(cassette_display_name)-1] = 0;
+        char *p = strrchr(entry->display_name, '.');
+        //Chop off extension in display name
+        if (p) {
+            *p = 0;
+        }
+    } else {
+        const char * prefix  = "< ";
+        const char * suffix = " >";
+        const unsigned int room = sizeof(cassette_display_name) - strlen(prefix) - strlen(suffix);
+        strcpy(entry->display_name, prefix);
+        strncpy(entry->display_name + strlen(prefix), de->d_name, room - strlen(prefix));
+        entry->display_name[sizeof(cassette_display_name)-1-strlen(suffix)] = 0;
+        strcat(entry->display_name, suffix);
+    }
+    unsigned int fnl = strlen(entry->display_name);
+    for(unsigned int i=0;i<fnl;i++) {
+        entry->display_name[i] = toupper(entry->display_name[i]);
     }
 }
 
-static cassette_table * load_cassette_table() {
+static int compare_cassette_entries(const cassette_entry *e1, const cassette_entry *e2) {
+    if (e1->display_name[0] == '(') {
+        return e2->display_name[0] == '(' ? 0 : 1;
+    }
+    if (e2->display_name[0] == '(') {
+        return -1;
+    }
+    return stricmp(e1->display_name, e2->display_name);
+}
+
+static cassette_table * load_cassette_table(char *base_dir, int nestCount) {
    struct dirent *de;
    DIR *d;
    int tableSize = 0;
    cassette_table *pRes;
 
-   d = opendir(".");
+   d = opendir(base_dir);
    if (!d) {
     joshlog("opendir failed\n");
     return 0;
    }
    while ((de = readdir(d))) {
-      if (is_cassette_file(de)) {
+      if (get_cassette_entry_type(de)) {
         tableSize ++;
       }
    }
    closedir(d);
+   if (nestCount) {
+       tableSize ++;
+   }
 
    pRes = (cassette_table *)malloc(sizeof(cassette_table) + tableSize * sizeof(cassette_entry));
    if (!pRes) {
     return 0;
    }
+   memset(pRes, 0 , sizeof(cassette_table) + tableSize * sizeof(cassette_entry));
 
-   int ts2 = 0;
-   d = opendir(".");
+   d = opendir(base_dir);
    if (!d) {
     joshlog("opendir failed 2\n");
     free(pRes);
     return 0;
    }
+   int ts2 = 0;
+   if (nestCount) {
+       init_entry(pRes->pEntries, 0);
+       ts2 += 1;
+   }
    while ((de = readdir(d)) && ts2 < tableSize) {
-      if (is_cassette_file(de)) {
+      if (get_cassette_entry_type(de)) {
         init_entry(pRes->pEntries + ts2, de);
         ts2 += 1;
       }
    }
    closedir(d);
+
+   qsort(pRes->pEntries, ts2, sizeof(cassette_entry), (int (*)(const void *, const void *))compare_cassette_entries);
    pRes->size = ts2;
 
 
@@ -132,30 +211,37 @@ static cassette_table * load_cassette_table() {
 
 
 
-static int choose_cassette(cassette_entry *pDest) {
+static int choose_cassette(cassette_entry_fn pDest) {
+    assert(pDest != 0);
    int x,y;
    int insety = 50;
    int insetx = 80;
    int return_value = 0;
-   cassette_table *pTable = 0;
-   typedef const char *ccc;
+   typedef const char *choice;
+   char baseDir[sizeof(cassette_filename_buffer)];
+   baseDir[0] = '.';
+   baseDir[1] = 0;
+   int dirLevels = 0;
 
-
-   static const ccc choices[]={"(B)ack", "(S)elect", "(C)ancel", "(N)ext"};
+   static const choice choices[]={"(B)ack", "(S)elect", "(C)ancel", "(N)ext"};
    static const char *chooseMsg = "Choose Cassette";
-   pTable = load_cassette_table();
-   if (!pTable) {
-    joshlog("ERR: Failed to load_cassette_table\n");
-    goto done;
-   }
-   if (!pTable->size) {
-    joshlog("ERR: No cassettes found\n");
-    goto done;
-   }
-    GrClearScreen(GrBlack());
-   GrTextOption grt;
+   cassette_table *pTable = 0;
    int currentEntry = 0;
+   GrClearScreen(GrBlack());
+   GrTextOption grt;
    for(;;) {
+       if (!pTable) {
+           pTable = load_cassette_table(baseDir,dirLevels);
+           if (!pTable) {
+               joshlog("ERR: Failed to load_cassette_table\n");
+               goto done;
+           }
+           if (!pTable->size) {
+               joshlog("ERR: No cassettes found\n");
+               goto done;
+           }
+           currentEntry = 0;
+       }
        // Use the GrFont_PC8x14 - presumably i can assume 8 pixels wide and 14 pixels high
        // so I don't have to use the text measurement functions.
        grt.txo_font = &GrFont_PC8x14;
@@ -175,14 +261,15 @@ static int choose_cassette(cassette_entry *pDest) {
        y = GrMaxY()/2;
 
        GrDrawString( (void*)chooseMsg,strlen( chooseMsg),x,y-30,&grt );
-       GrDrawString( pTable->pEntries[currentEntry].filename,strlen( pTable->pEntries[currentEntry].filename ),x,y-10,&grt );
+       GrDrawString( pTable->pEntries[currentEntry].display_name,strlen( pTable->pEntries[currentEntry].display_name ),x,y-10,&grt );
+       if (dirLevels) {
+           grt.txo_font = &GrFont_PC6x8;
+           GrDrawString(baseDir, strlen(baseDir), x, y + 20, &grt);
+           grt.txo_font = &GrFont_PC8x14;
+       }
        for(int ii=0;ii<4;ii++) {
            GrDrawString( (void*)choices[ii],strlen(choices[ii]),x-180 + ii * 120,y+35,&grt );
        }
-       //GrDrawString( "(B)ack",6,x-180,y+35,&grt );
-       //GrDrawString( "(N)ext",6,x+180,y+35,&grt );
-       //GrDrawString( "(S)elect",8,x-60,y+35,&grt );
-       //GrDrawString( "(C)ancel",8,x+60,y+35,&grt );
 
        int choice = -1;
        for(;choice < 0;) {
@@ -201,6 +288,7 @@ static int choose_cassette(cassette_entry *pDest) {
             case 'S': choice = 1; break;
             case GrKey_Escape:
             case 'C': choice = 2; break;
+             default: choice = -1;
          }
        }
        grt.txo_fgcolor.v = GrBlack();
@@ -215,12 +303,32 @@ static int choose_cassette(cassette_entry *pDest) {
          if (currentEntry <(pTable->size - 1))
            currentEntry ++;
        } else if (choice == 1) {
-         if (pDest) {
-            memcpy(pDest, pTable->pEntries+currentEntry, sizeof(cassette_entry));
-         }
-         return_value = 1;
-         //select
-         break;
+           //select
+           cassette_entry *pSel = pTable->pEntries+currentEntry;
+           if (pSel->entry_type == ENTRY_TYPE_CASSETTE) {
+               strcpy(pDest, baseDir);
+               strcat(pDest, "\\");
+               strcat(pDest, pSel->filename);
+               return_value = 1;
+               break;
+           } else if (pSel->entry_type == ENTRY_TYPE_SUBDIR) {
+               strcat(baseDir, "\\");
+               strcat(baseDir, pSel->filename);
+               free(pTable);
+               pTable = 0;
+               dirLevels++;
+               continue;
+           } else if (pSel->entry_type == ENTRY_TYPE_PARENTDIR && dirLevels > 0) {
+               char *p = strrchr(baseDir, '\\');
+               if (p) {
+                   *p = 0;
+                   dirLevels--;
+                   free(pTable);
+                   pTable = 0;
+               }
+               joshlog("%s %d\n", baseDir, dirLevels);
+           }
+           continue;
        } else {
          //cancel
          break;
@@ -241,10 +349,10 @@ static int choose_cassette(cassette_entry *pDest) {
 
 
  done:
-   if (pTable) 
-    free(pTable);
+   if (pTable) {
+       free(pTable);
+   }
    return return_value;
-
 }
 
 
@@ -310,6 +418,61 @@ static void yesno_message_handler(joshem_modal_context *pContext) {
 
 }
 
+static void message_message_handler(joshem_modal_context *pContext);
+
+void joshem_modal_message(const char *pPrompt) {
+    void * c = (void *)(pPrompt ? pPrompt : "<NULL>");
+    joshem_do_modal(message_message_handler, c);
+}
+
+
+static void message_message_handler(joshem_modal_context *pContext) {
+   char *message;
+   int x,y;
+   int insety = 50;
+   int insetx = 80;
+   message =  (char *)(pContext->input);
+   GrTextOption grt;
+ 
+      GrClearScreen(GrBlack());
+
+
+   // Use the GrFont_PC8x14 - presumably i can assume 8 pixels wide and 14 pixels high
+   // so I don't have to use the text measurement functions.
+   grt.txo_font = &GrFont_PC8x14;
+   grt.txo_fgcolor.v = GrWhite();
+   grt.txo_bgcolor.v = GrBlack();
+   grt.txo_direct = GR_TEXT_RIGHT;
+   grt.txo_xalign = GR_ALIGN_CENTER;
+   grt.txo_yalign = GR_ALIGN_CENTER;
+   grt.txo_chrtype = GR_BYTE_TEXT;
+
+
+   GrFilledBox( insetx,insety,GrMaxX() - insetx,GrMaxY() - insety,GrBlack() );
+   GrBox( insetx,insety,GrMaxX() - insetx,GrMaxY() - insety,GrWhite() );
+   GrBox( insetx + 4,insety + 4,GrMaxX()-insetx-4,GrMaxY()-insety-4,GrWhite() );
+ 
+   x = GrMaxX()/2;
+   y = GrMaxY()/2;
+    joshlog("MSG %s %d %d\n",message, x, y);
+
+   GrDrawString( message,strlen( message ),x,y-10,&grt );
+   GrDrawString( "Press (Enter)",13,x,y+20,&grt );
+
+   GrKeyType key;
+   for(;;) {
+     key = GrKeyRead();
+     if (key == GrKey_Return) {
+        break;
+     }
+   }
+
+   pContext->result = 0;
+
+}
+
+
+
 
 static int ask_question(const char *prompt, char *dest, int maxLen) {
    int x,y;
@@ -359,8 +522,8 @@ static int ask_question(const char *prompt, char *dest, int maxLen) {
 
 
        GrDrawString( (void*)prompt,strlen( prompt ),x,y-30,&grt );
-       GrDrawString( "(Y)es",5,x-80,y+20,&grt );
-       GrDrawString( "(N)o",5,x+80,y+20,&grt );
+       GrDrawString( "(Enter) to accept",17,x-150,y+30,&grt );
+       GrDrawString( "(Esc) to cancel",15,x+150,y+30,&grt );
 
        GrKeyType key;
        for(;;) {
@@ -458,24 +621,25 @@ static void draw_cassette(joshem_cassette_control_args *pArgs) {
 
 static void cassette_control_handler(joshem_modal_context *pContext) {
    joshem_cassette_control_args *pArgs = pContext->input;
-   cassette_entry e;
+    cassette_entry_fn e;
     if (!pArgs) {
         return;
     }
     if (pArgs ->write_requested) {
-        if (ask_question("Save to which cassette?", e.filename, 8)) {
-            sprintf(pArgs->cassette_filename, "%s.CAS", e.filename);
-            pArgs ->cassette_format = 1;
-            pArgs -> cassette_position = 0;
-            pArgs ->cassette_writable = 1;
+        if (ask_question("Save to which cassette?", e, 8)) {
+            sprintf(pArgs->cassette_filename, "%s.CAS", e);
         } else {
-            pArgs ->cassette_writable = 0;
+            strcpy(pArgs->cassette_filename, "_NOCAS.DMP");
         }
+        pArgs ->cassette_format = 1;
+        pArgs->cassette_position = get_file_length(pArgs->cassette_filename);
+        pArgs ->cassette_writable = 1;
+
         return;
     }
    //ask_question_message_handler(0);
-   if (choose_cassette(&e)) {
-    sprintf(pArgs->cassette_filename, "%s.CAS", e.filename);
+   if (choose_cassette(e)) {
+    strcpy(pArgs->cassette_filename, e);
     pArgs->cassette_position = 0;
     pArgs->cassette_format = 1;
     pArgs->cassette_writable = 0;

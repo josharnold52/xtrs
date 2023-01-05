@@ -28,41 +28,53 @@ extern char *program_name;
 void debug(const char *fmt, ...)
 {
   va_list args;
-  char xfmt[2048];
+  char xfmt[2064];
+  FILE *f;
 
-  strcpy(xfmt, "debug: ");
+  strcpy(xfmt, "XTRS debug: ");
   strcat(xfmt, fmt);
   /*strcat(xfmt, "\n");*/
   va_start(args, fmt);
-  vfprintf(stderr, xfmt, args);
+  f = fopen("josh.log", "a");
+  vfprintf(f, xfmt, args);
+  fflush(f);
+  fclose(f);
   va_end(args);
 }
 
 void error(const char *fmt, ...)
 {
   va_list args;
-  char xfmt[2048];
+  char xfmt[2064];
+  FILE *f;
 
   strcpy(xfmt, program_name);
-  strcat(xfmt, " error: ");
+  strcat(xfmt, "XTRS error: ");
   strcat(xfmt, fmt);
   strcat(xfmt, "\n");
   va_start(args, fmt);
-  vfprintf(stderr, xfmt, args);
+  f = fopen("josh.log", "a");
+  vfprintf(f, xfmt, args);
+  fflush(f);
+  fclose(f);
   va_end(args);
 }
 
 void fatal(const char *fmt, ...)
 {
   va_list args;
-  char xfmt[2048];
+  char xfmt[2064];
+  FILE *f;
 
   strcpy(xfmt, program_name);
-  strcat(xfmt, " fatal error: ");
+  strcat(xfmt, "XTRS fatal error: ");
   strcat(xfmt, fmt);
   strcat(xfmt, "\n");
   va_start(args, fmt);
-  vfprintf(stderr, xfmt, args);
+  f = fopen("josh.log", "a");
+  vfprintf(f, xfmt, args);
+  fflush(f);
+  fclose(f);
   va_end(args);
   exit(1);
 }
