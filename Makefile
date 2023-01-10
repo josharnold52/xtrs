@@ -37,7 +37,9 @@ GTK_OBJECTS = \
 DOS_OBJECTS = \
 	trs_djgpp.o \
 	trs_realtime.o \
-	trs_djgpp_modal.o
+	trs_djgpp_modal.o \
+	trs_metafile.o \
+	newutils.o
 
 CR_OBJECTS = \
 	compile_rom.o \
@@ -213,11 +215,15 @@ load_cmd.o: load_cmd.h
 load_hex.o: z80.h config.h
 main.o: z80.h config.h trs.h trs_disk.h trs_hard.h load_cmd.h
 mkdisk.o: reed.h
+newutils.o: newutils.h trs.h z80.h config.h
 trs_cassette.o: trs.h z80.h config.h
 trs_chars.o: trs_iodefs.h
 trs_disk.o: z80.h config.h trs.h trs_disk.h trs_hard.h crc.c
 trs_djgpp.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
-trs_djgpp.o: trs_hard.h trs_imp_exp.h keytrap/scanbuf.h
+trs_djgpp.o: trs_hard.h trs_imp_exp.h keytrap/scanbuf.h trs_djgpp.h
+trs_djgpp_modal.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
+trs_djgpp_modal.o: trs_hard.h trs_imp_exp.h trs_metafile.h newutils.h
+trs_djgpp_modal.o: trs_djgpp.h
 trs_gtkinterface.o: trs.h z80.h config.h trs_iodefs.h trs_disk.h trs_uart.h
 trs_gtkinterface.o: trs_hard.h keyrepeat.h
 trs_hard.o: trs.h z80.h config.h trs_hard.h reed.h
@@ -226,7 +232,9 @@ trs_interrupt.o: z80.h config.h trs.h
 trs_io.o: z80.h config.h trs.h trs_disk.h trs_hard.h trs_uart.h
 trs_keyboard.o: z80.h config.h trs.h scantran/generated_table.inc
 trs_memory.o: z80.h config.h trs.h trs_disk.h trs_hard.h
+trs_metafile.o: trs.h z80.h config.h newutils.h trs_metafile.h
 trs_printer.o: z80.h config.h trs.h
+trs_realtime.o: z80.h config.h trs.h
 trs_stringy.o: z80.h config.h trs.h trs_disk.h
 trs_uart.o: trs.h z80.h config.h trs_uart.h trs_hard.h
 trs_xinterface.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h

@@ -56,7 +56,14 @@
   
 #include <dpmi.h>
 
+#include "trs_djgpp.h"
 
+GrColor COLOR_BORDER;
+GrColor COLOR_PRIMARY;
+GrColor COLOR_SECONDARY;
+
+
+const char* cassette_base_directory = 0;
 
 // Private data
 static unsigned char trs_screen[2048];
@@ -333,6 +340,11 @@ void trs_screen_init()
    x = GrMaxX()/2;
    y = GrMaxY()/2;
    joshlog("Midpoint: %d %d\n",x, y);
+
+    COLOR_BORDER = GrAllocColor(255, 0, 0);
+    COLOR_PRIMARY = GrAllocColor(0, 255, 255);
+    COLOR_SECONDARY = GrAllocColor(127, 127, 127);
+
    repaint_screen();
    trs_load_romfile();
 
@@ -671,6 +683,13 @@ trs_parse_command_line(int argc, char **argv, int *debug)
     scanBufferCursor = pScanBuffer->next_offset;
   }
 
+  cassette_base_directory = getcwd(0, 1024);
+  if (!cassette_base_directory) {
+      joshlog("Unable to get cassette base dir\n");
+      cassette_base_directory = ".";
+  }
+  joshlog("Cassette base dir = %s\n", cassette_base_directory);
+
   trs_model = 1;
 
   //Ugh - getopt is a horrible API
@@ -780,7 +799,7 @@ trs_parse_command_line(int argc, char **argv, int *debug)
   if (trs_model == 1) {
     // This forces the model 1 to faithfull emulate a non-uppercase conversion
     // ( Software that tries to detect a lowercase mod by checking if video ram is 8 bit will see this as an unconverted model 1)
-    joshlog("Forcing video RAM to 7 bits (TODO - Make this an option)");
+    joshlog("Forcing video RAM to 7 bits (TODO - Make this an option)\n");
       trs_video_ram_7_bit = 1; //TODO - Make this switch selectable
   }
 

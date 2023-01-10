@@ -30,6 +30,8 @@
 #define INVERSE 2
 #define ALTERNATE 4
 
+extern const char* cassette_base_directory;
+
 extern char *program_name;
 extern int trs_model; /* 1, 3, 4, 5(=4p) */
 extern int trs_paused;
