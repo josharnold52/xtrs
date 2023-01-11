@@ -53,7 +53,7 @@
 #include "trs_uart.h"
 #include "trs_imp_exp.h"
 #include "keytrap/scanbuf.h"
-  
+
 #include <dpmi.h>
 
 #include "trs_djgpp.h"
@@ -64,8 +64,8 @@ GrColor COLOR_SECONDARY;
 
 int trs_model1_lowercase = 0;
 
-const char* emulator_base_directory = 0;
-const char* cassette_base_directory = 0;
+const char *emulator_base_directory = 0;
+const char *cassette_base_directory = 0;
 
 
 /**
@@ -103,68 +103,68 @@ static void trs_load_romfile();
 
 
 static char reverse_bits(char c) {
-  char r = 0;
-  for(int i=0;i<8;i++) {
-    r = (r << 1) | (c & 1);
-    c >>= 1;
-  }
-  return r;
-}
-void reverse_bits_block(void *p, int len) {
-  char *c = (char *)p;
-  for(;len>0;c++,len--) {
-    *c = reverse_bits(*c);
-  }
+    char r = 0;
+    for (int i = 0; i < 8; i++) {
+        r = (r << 1) | (c & 1);
+        c >>= 1;
+    }
+    return r;
 }
 
+void reverse_bits_block(void *p, int len) {
+    char *c = (char *) p;
+    for (; len > 0; c++, len--) {
+        *c = reverse_bits(*c);
+    }
+}
 
 
 void rotate_left_block(void *p, int steps, int len) {
-  char *c = (char *)p;
-  //Using inline assembly, so we can do a single op-code rotation.
-  //I think it may be worth it because we are rotating on the fly
-  //in order to get our 6 pixel character at the proper 8 bit alignment).
-  //Typically, we do this for a single character cell of height,
-  //so we could maybe improve this by unrolling the loop.
-  for(;len>0;c++,len--) {
-    //*c = rotate_left(*c, steps);
-    asm ( "rolb %%cl, (%0)"
-            : /* no output registers */
-            : "r" (c), "c" (steps)
-            : "cc"
-            );
-  }
+    char *c = (char *) p;
+    //Using inline assembly, so we can do a single op-code rotation.
+    //I think it may be worth it because we are rotating on the fly
+    //in order to get our 6 pixel character at the proper 8 bit alignment).
+    //Typically, we do this for a single character cell of height,
+    //so we could maybe improve this by unrolling the loop.
+    for (; len > 0; c++, len--) {
+        //*c = rotate_left(*c, steps);
+        asm ( "rolb %%cl, (%0)"
+                : /* no output registers */
+                : "r" (c), "c" (steps)
+                : "cc"
+                );
+    }
 }
 
 static char expand_3to6bit(char c, int bitoffset) {
-  char res;
-  int i;
-  int bt;
-  res = 0;
+    char res;
+    int i;
+    int bt;
+    res = 0;
 
-  for(i = 0; i < 6; i++) {
-    bt = bitoffset + ( i / 2);
-    if ( c & (1 << bt)) {
-      res |= (1 << i);
+    for (i = 0; i < 6; i++) {
+        bt = bitoffset + (i / 2);
+        if (c & (1 << bt)) {
+            res |= (1 << i);
+        }
     }
-  }
-  //joshlog("(%d) %02X -> %02X\n", bitoffset, c & 0xFF, res);
-  return res;
+    //joshlog("(%d) %02X -> %02X\n", bitoffset, c & 0xFF, res);
+    return res;
 }
 
-static void expand_3to6bit_block(void *p ,int bitoffset, int len) {
-  char *c = (char *)p;
-  for(;len>0;c++,len--) {
-    *c = expand_3to6bit(*c, bitoffset);
-  }
+static void expand_3to6bit_block(void *p, int bitoffset, int len) {
+    char *c = (char *) p;
+    for (; len > 0; c++, len--) {
+        *c = expand_3to6bit(*c, bitoffset);
+    }
 }
 
 static void not_implemented(const char *msg) {
 
-  joshlog("Not implemented: %s\n", msg);
+    joshlog("Not implemented: %s\n", msg);
 
 
-  //exit(100);
+    //exit(100);
 }
 
 
@@ -175,110 +175,109 @@ extern void trs_xlate_pc_scancode(unsigned char scan_code, int shifted);
 void trs_get_event(int wait) {
     //Argument is ignored!  (In old xtrs it caused us to sleep for a bit if no events)
 
-  static int nest_count = 0;
+    static int nest_count = 0;
 
-  //TODO: I think there's a bug here (or in the trs_xlate_pc_scancode code that goes with it)
-  // If shifted and unshifted IBM key maps to different TRS keys, and if shift is released
-  // before IBM key, it may be that we send the incorrect key-up.   This causes the Level 1
-  // keyboard driver (and maybe others) to hang because it loops waiting for a keyup that it
-  // never sees.   Perhaps I need to keep track of whether shift is forced up or down when doing
-  // keyups.
+    //TODO: I think there's a bug here (or in the trs_xlate_pc_scancode code that goes with it)
+    // If shifted and unshifted IBM key maps to different TRS keys, and if shift is released
+    // before IBM key, it may be that we send the incorrect key-up.   This causes the Level 1
+    // keyboard driver (and maybe others) to hang because it loops waiting for a keyup that it
+    // never sees.   Perhaps I need to keep track of whether shift is forced up or down when doing
+    // keyups.
 
 
-  while(pScanBuffer->next_offset != scanBufferCursor) {
-    unsigned char keycode = pScanBuffer->key_ring[scanBufferCursor++];
-    int ignoreKey = 0;
-    if (nest_count == 0) {
-        nest_count++;
-        if (keycode == 0x3e) { //F4
-            ignoreKey = 1;
-            if (joshem_modal_ask_yn("Exit Simulator?")) {
-                exit(0);
-            }
-        } else if (keycode == 0x3F) { //F5
-           /*
-            ignoreKey = 1;
-            const char *p = josh_trace_enabled ? "Trace is ON.  Leave it on?" : "Trace is OFF.  Turn it on?";
-            if (joshem_modal_ask_yn(p)) {
-                josh_trace_enabled = 1;
-            } else {
+    while (pScanBuffer->next_offset != scanBufferCursor) {
+        unsigned char keycode = pScanBuffer->key_ring[scanBufferCursor++];
+        int ignoreKey = 0;
+        if (nest_count == 0) {
+            nest_count++;
+            if (keycode == 0x3e) { //F4
+                ignoreKey = 1;
+                if (joshem_modal_ask_yn("Exit Simulator?")) {
+                    exit(0);
+                }
+            } else if (keycode == 0x3F) { //F5
+                /*
+                 ignoreKey = 1;
+                 const char *p = josh_trace_enabled ? "Trace is ON.  Leave it on?" : "Trace is OFF.  Turn it on?";
+                 if (joshem_modal_ask_yn(p)) {
+                     josh_trace_enabled = 1;
+                 } else {
+                     josh_trace_enabled = 0;
+                 }
+                */
+                joshem_modal_message("Tracing not supported in this build");
                 josh_trace_enabled = 0;
+            } else if (keycode == 0x40) { //F6
+                ignoreKey = 1;
+                if (joshem_modal_ask_yn("Reset TRS-80?")) {
+                    trs_reset(0);
+                }
+            } else if (keycode == 0x41) { //F7
+                ignoreKey = 1;
+                if (joshem_modal_ask_yn("HARD Reset TRS-80?")) {
+                    trs_reset(1);
+                }
+            } else if (keycode == 0x42) { //F8
+                ignoreKey = 1;
+                joshem_request_tapedialog();
+            } else if (keycode == 0x43) { //F9
+                ignoreKey = 1;
+                const char *p = trs_is_realtime_enabled() ? "Fast Mode is OFF.  Turn it on?"
+                                                          : "Fast mode is ON.  Leave it on?";
+                if (joshem_modal_ask_yn(p)) {
+                    trs_realtime_disable();
+                } else {
+                    trs_realtime_force_enable();
+                }
             }
-           */
-           joshem_modal_message("Tracing not supported in this build");
-           josh_trace_enabled = 0;
-        } else if (keycode == 0x40) { //F6
-            ignoreKey = 1;
-            if (joshem_modal_ask_yn("Reset TRS-80?")) {
-                trs_reset(0);
-            }
-        } else if (keycode == 0x41) { //F7
-            ignoreKey = 1;
-            if (joshem_modal_ask_yn("HARD Reset TRS-80?")) {
-                trs_reset(1);
-            }
-        } else if (keycode == 0x42) { //F8
-            ignoreKey = 1;
-            joshem_request_tapedialog();
-        } else if (keycode == 0x43) { //F9
-            ignoreKey = 1;
-            const char *p = trs_is_realtime_enabled() ? "Fast Mode is OFF.  Turn it on?" : "Fast mode is ON.  Leave it on?";
-            if (joshem_modal_ask_yn(p)) {
-                trs_realtime_disable();
-            } else {
-                trs_realtime_force_enable();
-            }
+            nest_count--;
         }
-        nest_count--;
+        if (ignoreKey) {
+            continue;
+        }
+
+        int shifted = pScanBuffer->key_states[0x2A] || pScanBuffer->key_states[0x36];
+
+        trs_xlate_pc_scancode(keycode, shifted);
+        //joshlog("Keycode %x S=%u\n",(int)keycode, shifted);
     }
-    if (ignoreKey) {
-        continue;
-    }
 
-    int shifted = pScanBuffer->key_states[0x2A] || pScanBuffer->key_states[0x36];
-
-    trs_xlate_pc_scancode(keycode, shifted);
-    //joshlog("Keycode %x S=%u\n",(int)keycode, shifted);
-  }
-
-  //not_implemented("trs_get_event");
+    //not_implemented("trs_get_event");
 }
 
 static void repaint_screen() {
-  GrFilledBox( 0,0,GrMaxX(),GrMaxY(),GrBlack() );
+    GrFilledBox(0, 0, GrMaxX(), GrMaxY(), GrBlack());
 
-  for (int i = 0; i < screen_chars; i++) {
-      trs_screen_write_char(i, trs_screen[i]);
-  }
+    for (int i = 0; i < screen_chars; i++) {
+        trs_screen_write_char(i, trs_screen[i]);
+    }
 }
 
 void trs_exit() {
-  exit(0);
+    exit(0);
 }
 
 
-
 /* exits if something really bad happens */
-void trs_screen_init()
-{
+void trs_screen_init() {
 
     memset(trs_screen, 32, sizeof(trs_screen));
     memcpy(pattern_table_1, trs_char_data[1], sizeof(pattern_table_1));
     reverse_bits_block(pattern_table_1, sizeof(pattern_table_1));
 
-    for(int grindex=0;grindex<64;grindex++) {
-      char scans[3] = {0,0,0};
-      scans[0] |= (grindex & 1) ? 0xE0 : 0;
-      scans[0] |= (grindex & 2) ? 0x1C : 0; 
-      scans[1] |= (grindex & 4) ? 0xE0 : 0;
-      scans[1] |= (grindex & 8) ? 0x1C : 0; 
-      scans[2] |= (grindex & 16) ? 0xE0 : 0;
-      scans[2] |= (grindex & 32) ? 0x1C : 0; 
-      for(int scanline=0;scanline<TRS_CHAR_HEIGHT;scanline++) {
-        int row = scanline / (TRS_CHAR_HEIGHT / 3);
-        pattern_table_1[128 + grindex][scanline] = scans[row];
-        pattern_table_1[192 + grindex][scanline] = scans[row];
-      }
+    for (int grindex = 0; grindex < 64; grindex++) {
+        char scans[3] = {0, 0, 0};
+        scans[0] |= (grindex & 1) ? 0xE0 : 0;
+        scans[0] |= (grindex & 2) ? 0x1C : 0;
+        scans[1] |= (grindex & 4) ? 0xE0 : 0;
+        scans[1] |= (grindex & 8) ? 0x1C : 0;
+        scans[2] |= (grindex & 16) ? 0xE0 : 0;
+        scans[2] |= (grindex & 32) ? 0x1C : 0;
+        for (int scanline = 0; scanline < TRS_CHAR_HEIGHT; scanline++) {
+            int row = scanline / (TRS_CHAR_HEIGHT / 3);
+            pattern_table_1[128 + grindex][scanline] = scans[row];
+            pattern_table_1[192 + grindex][scanline] = scans[row];
+        }
     }
 
     memcpy(pattern_table_1_wideleft, pattern_table_1, sizeof(pattern_table_1));
@@ -310,45 +309,45 @@ void trs_screen_init()
 
      //exit(0);
     */
-     
-  /*
-   char *message = "Booting...";
-   int x, y;
-   GrTextOption grt;
- 
-   GrSetMode( GR_width_height_graphics, 640, 200 );
-  
 
-   grt.txo_font = &GrDefaultFont;
-   grt.txo_fgcolor.v = GrWhite();
-   grt.txo_bgcolor.v = GrBlack();
-   grt.txo_direct = GR_TEXT_RIGHT;
-   grt.txo_xalign = GR_ALIGN_CENTER;
-   grt.txo_yalign = GR_ALIGN_CENTER;
-   grt.txo_chrtype = GR_BYTE_TEXT;
- 
-   GrBox( 0,0,GrMaxX(),GrMaxY(),GrWhite() );
-   GrBox( 4,4,GrMaxX()-4,GrMaxY()-4,GrWhite() );
- 
-   x = GrMaxX()/2;
-   y = GrMaxY()/2;
-  joshlog("II %s %d %d\n",message, x, y);
+    /*
+     char *message = "Booting...";
+     int x, y;
+     GrTextOption grt;
 
-   GrDrawString( message,strlen( message ),x,y,&grt );
- 
-   //GrKeyRead();
- 
-   //sleep(1);
-    */
+     GrSetMode( GR_width_height_graphics, 640, 200 );
 
-   //TODO: This really should be done elsewhere... It's in trs_djgpp.c because it
-   //uses our command line options.
 
-   GrSetMode( GR_width_height_graphics, 640, 200 );
-   int x,y;
-   x = GrMaxX()/2;
-   y = GrMaxY()/2;
-   joshlog("Midpoint: %d %d\n",x, y);
+     grt.txo_font = &GrDefaultFont;
+     grt.txo_fgcolor.v = GrWhite();
+     grt.txo_bgcolor.v = GrBlack();
+     grt.txo_direct = GR_TEXT_RIGHT;
+     grt.txo_xalign = GR_ALIGN_CENTER;
+     grt.txo_yalign = GR_ALIGN_CENTER;
+     grt.txo_chrtype = GR_BYTE_TEXT;
+
+     GrBox( 0,0,GrMaxX(),GrMaxY(),GrWhite() );
+     GrBox( 4,4,GrMaxX()-4,GrMaxY()-4,GrWhite() );
+
+     x = GrMaxX()/2;
+     y = GrMaxY()/2;
+    joshlog("II %s %d %d\n",message, x, y);
+
+     GrDrawString( message,strlen( message ),x,y,&grt );
+
+     //GrKeyRead();
+
+     //sleep(1);
+      */
+
+    //TODO: This really should be done elsewhere... It's in trs_djgpp.c because it
+    //uses our command line options.
+
+    GrSetMode(GR_width_height_graphics, 640, 200);
+    int x, y;
+    x = GrMaxX() / 2;
+    y = GrMaxY() / 2;
+    joshlog("Midpoint: %d %d\n", x, y);
 
 
     trs_screen_pattern.gp_bitmap.bmp_ispixmap = 0;
@@ -363,51 +362,54 @@ void trs_screen_init()
     COLOR_PRIMARY = GrAllocColor(0, 255, 255);
     COLOR_SECONDARY = GrAllocColor(127, 127, 127);
 
-   repaint_screen();
-   trs_load_romfile();
-
-   return;
-
-  //not_implemented("trs_screen_init"); 
-}
-
-void trs_screen_expanded(int flag)
-{
-  int bit = flag ? EXPANDED : 0;
-  if ((currentmode ^ bit) & EXPANDED) {
-    currentmode ^= EXPANDED;
     repaint_screen();
-  }
+    trs_load_romfile();
+
+    return;
+
+    //not_implemented("trs_screen_init");
 }
+
+void trs_screen_expanded(int flag) {
+    int bit = flag ? EXPANDED : 0;
+    if ((currentmode ^ bit) & EXPANDED) {
+        currentmode ^= EXPANDED;
+        repaint_screen();
+    }
+}
+
 void trs_screen_alternate(int flag) {
-  not_implemented("trs_screen_alternate"); 
+    not_implemented("trs_screen_alternate");
 }
+
 void trs_screen_80x24(int flag) {
-  not_implemented("trs_screen_80x24"); 
+    not_implemented("trs_screen_80x24");
 }
+
 void trs_screen_inverse(int flag) {
-  not_implemented("trs_screen_inverse"); 
+    not_implemented("trs_screen_inverse");
 }
+
 void trs_screen_scroll() {
-  //int i = 0;
-  //for (i = row_chars; i < screen_chars; i++)
-  //  trs_screen[i-row_chars] = trs_screen[i];
-  //repaint_screen();
+    //int i = 0;
+    //for (i = row_chars; i < screen_chars; i++)
+    //  trs_screen[i-row_chars] = trs_screen[i];
+    //repaint_screen();
 
-  //TODO: Need to define variables for some of these magic numbers (120, 6, etc.)
-  //   Note that they can change due to grafix mode
+    //TODO: Need to define variables for some of these magic numbers (120, 6, etc.)
+    //   Note that they can change due to grafix mode
 
-  trs_realtime_sync(5000);
-  memmove(trs_screen, trs_screen + row_chars, screen_chars - row_chars);
-  GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
+    trs_realtime_sync(5000);
+    memmove(trs_screen, trs_screen + row_chars, screen_chars - row_chars);
+    GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
 
 }
 
 static void trs_screen_write_glyph(char *glyphRows, int position) {
 
-   char patData[TRS_CHAR_HEIGHT];
-   memcpy(patData, glyphRows, TRS_CHAR_HEIGHT);
-   rotate_left_block(patData, (position & 3) << 1, TRS_CHAR_HEIGHT);
+    char patData[TRS_CHAR_HEIGHT];
+    memcpy(patData, glyphRows, TRS_CHAR_HEIGHT);
+    rotate_left_block(patData, (position & 3) << 1, TRS_CHAR_HEIGHT);
 
     /*
    GrPattern pat;
@@ -420,110 +422,139 @@ static void trs_screen_write_glyph(char *glyphRows, int position) {
    */
     trs_screen_pattern.gp_bitmap.bmp_data = patData;
 
-  int x,y;
+    int x, y;
 
-   x = (position & 63);
-   y = position >> 6;
-   int px, py;
-   px = x * 6 + 120;   //offset (640-384)/2 then round down to a multiple of 24 so rotates work correctly
-   py = y * TRS_CHAR_HEIGHT + 0;  //offset (200-192)/2 then round down to a multiple of 12 so patterns line up
+    x = (position & 63);
+    y = position >> 6;
+    int px, py;
+    px = x * 6 + 120;   //offset (640-384)/2 then round down to a multiple of 24 so rotates work correctly
+    py = y * TRS_CHAR_HEIGHT + 0;  //offset (200-192)/2 then round down to a multiple of 12 so patterns line up
 
 
-   GrPatternFilledBox(px, py, px+5, py+TRS_CHAR_HEIGHT - 1, &trs_screen_pattern);
-   trs_screen_pattern.gp_bitmap.bmp_data = 0;
+    GrPatternFilledBox(px, py, px + 5, py + TRS_CHAR_HEIGHT - 1, &trs_screen_pattern);
+    trs_screen_pattern.gp_bitmap.bmp_data = 0;
 }
 
 void trs_screen_write_char(int position, int char_index) {
-   //joshlog("WC %d %d\n", position, char_index);
+    //joshlog("WC %d %d\n", position, char_index);
 
 
 
 
-   //trs_realtime_sync(5000);
-   /*
-   NB - This is no longer needed since it is done in trs_memory
-   
-   if (trs_model == 1) {
-      //TODO - Maybe this changes with a lowercase conversion, but 
-      //the model 1 sets bit 6 to Bit 5 NOR bit 7 
-      if ((char_index & 0xA0) != 0) 
-        char_index &= (~0x40);
-      else
-        char_index |= 0x40;
-   }
-   */
-   char_index = char_index & 0xff;
+    //trs_realtime_sync(5000);
+    /*
+    NB - This is no longer needed since it is done in trs_memory
 
-   position = position & 1023;  //TODO - Assume 64x16
-   trs_screen[position] = (char)char_index;
-
-   if (!(currentmode & EXPANDED)) {
-    trs_screen_write_glyph(pattern_table_1[char_index], position);
-   } else {
-    if (position & 1) {
-      return;
+    if (trs_model == 1) {
+       //TODO - Maybe this changes with a lowercase conversion, but
+       //the model 1 sets bit 6 to Bit 5 NOR bit 7
+       if ((char_index & 0xA0) != 0)
+         char_index &= (~0x40);
+       else
+         char_index |= 0x40;
     }
-    trs_screen_write_glyph(pattern_table_1_wideleft[char_index], position);
-    trs_screen_write_glyph(pattern_table_1_wideright[char_index], position | 1);
-   }
-   return; 
-}
+    */
+    char_index = char_index & 0xff;
 
+    position = position & 1023;  //TODO - Assume 64x16
+    trs_screen[position] = (char) char_index;
+
+    if (!(currentmode & EXPANDED)) {
+        trs_screen_write_glyph(pattern_table_1[char_index], position);
+    } else {
+        if (position & 1) {
+            return;
+        }
+        trs_screen_write_glyph(pattern_table_1_wideleft[char_index], position);
+        trs_screen_write_glyph(pattern_table_1_wideright[char_index], position | 1);
+    }
+    return;
+}
 
 
 void trs_get_mouse_pos(int *x, int *y, unsigned int *buttons) {
-  not_implemented("trs_get_mouse_pos");
+    not_implemented("trs_get_mouse_pos");
 }
+
 void trs_set_mouse_pos(int x, int y) {
-  not_implemented("trs_set_mouse_pos");
+    not_implemented("trs_set_mouse_pos");
 }
+
 void trs_get_mouse_max(int *x, int *y, unsigned int *sens) {
-  not_implemented("trs_get_mouse_max");
+    not_implemented("trs_get_mouse_max");
 }
+
 void trs_set_mouse_max(int x, int y, unsigned int sens) {
-  not_implemented("trs_set_mouse_max");
+    not_implemented("trs_set_mouse_max");
 }
+
 int trs_get_mouse_type() {
-  not_implemented("trs_get_mouse_type");
-  return 0;
+    not_implemented("trs_get_mouse_type");
+    return 0;
 }
-
-
-
-
 
 
 void grafyx_write_byte(int x, int y, char byte) { not_implemented("grafyx_write_byte"); }
+
 void grafyx_write_x(int value) { not_implemented("grafyx_write_x"); }
+
 void grafyx_write_y(int value) { not_implemented("grafyx_write_y"); }
+
 void grafyx_write_data(int value) { not_implemented("grafyx_write_data"); }
-int grafyx_read_data() { not_implemented("grafyx_read_data"); return 0; }
-void grafyx_write_mode(int value) { not_implemented("grafyx_write_mode"); }
-void grafyx_write_xoffset(int value) { not_implemented("grafyx_write_xoffset"); }
-void grafyx_write_yoffset(int value) { not_implemented("grafyx_write_yoffset"); }
-void grafyx_write_overlay(int value) { not_implemented("grafyx_write_overlay"); }
-int grafyx_get_microlabs() { not_implemented("grafyx_get_microlabs"); return 0; }
-void grafyx_set_microlabs(int on_off) { not_implemented("grafyx_set_microlabs"); }
-void grafyx_m3_reset() { not_implemented("grafyx_m3_reset"); }
-void grafyx_m3_write_mode(int value) { not_implemented("grafyx_m3_write_mode"); }
-int grafyx_m3_write_byte(int position, int byte) { not_implemented("grafyx_m3_write_byte"); return 0; }
-unsigned char grafyx_m3_read_byte(int position) { not_implemented("grafyx_m3_read_byte"); return 0; }
-int grafyx_m3_active() { 
-  static volatile char logged = 0;
-  if (!logged) {
-    logged = 1;
-    not_implemented("grafyx_m3_active"); 
-  }
-  return 0; 
+
+int grafyx_read_data() {
+    not_implemented("grafyx_read_data");
+    return 0;
 }
 
-int hrg_read_data()  { not_implemented("hrg_read_data"); return 0; }
+void grafyx_write_mode(int value) { not_implemented("grafyx_write_mode"); }
+
+void grafyx_write_xoffset(int value) { not_implemented("grafyx_write_xoffset"); }
+
+void grafyx_write_yoffset(int value) { not_implemented("grafyx_write_yoffset"); }
+
+void grafyx_write_overlay(int value) { not_implemented("grafyx_write_overlay"); }
+
+int grafyx_get_microlabs() {
+    not_implemented("grafyx_get_microlabs");
+    return 0;
+}
+
+void grafyx_set_microlabs(int on_off) { not_implemented("grafyx_set_microlabs"); }
+
+void grafyx_m3_reset() { not_implemented("grafyx_m3_reset"); }
+
+void grafyx_m3_write_mode(int value) { not_implemented("grafyx_m3_write_mode"); }
+
+int grafyx_m3_write_byte(int position, int byte) {
+    not_implemented("grafyx_m3_write_byte");
+    return 0;
+}
+
+unsigned char grafyx_m3_read_byte(int position) {
+    not_implemented("grafyx_m3_read_byte");
+    return 0;
+}
+
+int grafyx_m3_active() {
+    static volatile char logged = 0;
+    if (!logged) {
+        logged = 1;
+        not_implemented("grafyx_m3_active");
+    }
+    return 0;
+}
+
+int hrg_read_data() {
+    not_implemented("hrg_read_data");
+    return 0;
+}
+
 void hrg_write_addr(int addr, int mask) { not_implemented("hrg_write_addr"); }
+
 void hrg_write_data(int data) { not_implemented("hrg_write_data"); }
+
 void hrg_onoff(int enable) { not_implemented("hrg_onoff"); }
-
-
-
 
 
 /*
@@ -548,404 +579,402 @@ char *opt_stepmap = NULL;
 char *opt_sizemap = NULL;
 
 struct option {
-  const char *name;
-  int has_arg;
-  int * flag;
-  int val;
+    const char *name;
+    int has_arg;
+    int *flag;
+    int val;
 };
 
 struct option options[] = {
-  /* Name, takes argument?, store int value at, value to store */
-  {"iconic",         FALSE, &opt_iconic,       TRUE  },
-  {"noiconic",       FALSE, &opt_iconic,       FALSE },
-  {"background",     TRUE,  NULL,              0     },
-  {"bg",       TRUE,  NULL,              0     },
-  {"foreground",     TRUE,  NULL,              0     },
-  {"fg",             TRUE,  NULL,              0     },
-  {"title",          TRUE,  NULL,              0     },
-  {"borderwidth",    TRUE,  NULL,              0     },
-  {"scale",          TRUE,  NULL,              0     },
-  {"scale1",         FALSE, &scale_x,          1     },
-  {"scale2",         FALSE, &scale_x,          2     },
-  {"scale3",         FALSE, &scale_x,          3     },
-  {"scale4",         FALSE, &scale_x,          4     },
-  {"resize",       FALSE, &resize,           TRUE  },
-  {"noresize",       FALSE, &resize,           FALSE },
-  {"charset",        TRUE,  NULL,              0     },
-  {"microlabs",      FALSE, &grafyx_microlabs, TRUE  },
-  {"nomicrolabs",    FALSE, &grafyx_microlabs, FALSE },
-  {"debug",      FALSE, &opt_debug,        TRUE  },
-  {"nodebug",        FALSE, &opt_debug,        FALSE },
-  {"romfile",      TRUE,  NULL,              0     },
-  {"romfile3",       TRUE,  NULL,              0     },
-  {"romfile4p",      TRUE,  NULL,              0     },
-  {"model",          TRUE,  NULL,              0     },
-  {"model1",         FALSE, &trs_model,        1     },
-  {"model3",         FALSE, &trs_model,        3     },
-  {"model4",         FALSE, &trs_model,        4     },
-  {"model4p",        FALSE, &trs_model,        5     },
-  {"delay",          TRUE,  NULL,              0     },
-  {"autodelay",      FALSE, &trs_autodelay,    TRUE  },
-  {"noautodelay",    FALSE, &trs_autodelay,    FALSE },
-  {"keystretch",     TRUE,  NULL,              0     },
-  {"shiftbracket",   FALSE, &opt_shiftbracket, TRUE  },
-  {"noshiftbracket", FALSE, &opt_shiftbracket, FALSE },
-  {"diskdir",        TRUE,  NULL,              0     },
-  {"doubler",        TRUE,  NULL,              0     },
-  {"doublestep",     FALSE, &opt_stepdefault,  2     },
-  {"nodoublestep",   FALSE, &opt_stepdefault,  1     },
-  {"stepmap",        TRUE,  NULL,              0     },
-  {"sizemap",        TRUE,  NULL,              0     },
-  {"truedam",        FALSE, &trs_disk_truedam, TRUE  },
-  {"notruedam",      FALSE, &trs_disk_truedam, FALSE },
-  {"samplerate",     TRUE,  NULL,              0     },
-  {"serial",         TRUE,  NULL,              0     },
-  {"switches",       TRUE,  NULL,              0     },
-  {"emtsafe",        FALSE, &trs_emtsafe,      TRUE  },
-  {"noemtsafe",      FALSE, &trs_emtsafe,      FALSE },
-  {"m1lc",        FALSE, &trs_model1_lowercase,      TRUE  },
-  {"nom1lc",        FALSE, &trs_model1_lowercase,      FALSE },
-  {"expintf", FALSE, &trs_expansion_interface, TRUE},
-  {"noexpintf", FALSE, &trs_expansion_interface, FALSE},
-  {NULL, 0, 0, 0}
+        /* Name, takes argument?, store int value at, value to store */
+        {"iconic",         FALSE, &opt_iconic,              TRUE},
+        {"noiconic",       FALSE, &opt_iconic,              FALSE},
+        {"background",     TRUE, NULL,              0},
+        {"bg",             TRUE, NULL,              0},
+        {"foreground",     TRUE, NULL,              0},
+        {"fg",             TRUE, NULL,              0},
+        {"title",          TRUE, NULL,              0},
+        {"borderwidth",    TRUE, NULL,              0},
+        {"scale",          TRUE, NULL,              0},
+        {"scale1",         FALSE, &scale_x,         1},
+        {"scale2",         FALSE, &scale_x,         2},
+        {"scale3",         FALSE, &scale_x,         3},
+        {"scale4",         FALSE, &scale_x,         4},
+        {"resize",         FALSE, &resize,                  TRUE},
+        {"noresize",       FALSE, &resize,                  FALSE},
+        {"charset",        TRUE, NULL,              0},
+        {"microlabs",      FALSE, &grafyx_microlabs,        TRUE},
+        {"nomicrolabs",    FALSE, &grafyx_microlabs,        FALSE},
+        {"debug",          FALSE, &opt_debug,               TRUE},
+        {"nodebug",        FALSE, &opt_debug,               FALSE},
+        {"romfile",        TRUE, NULL,              0},
+        {"romfile3",       TRUE, NULL,              0},
+        {"romfile4p",      TRUE, NULL,              0},
+        {"model",          TRUE, NULL,              0},
+        {"model1",         FALSE, &trs_model,       1},
+        {"model3",         FALSE, &trs_model,       3},
+        {"model4",         FALSE, &trs_model,       4},
+        {"model4p",        FALSE, &trs_model,       5},
+        {"delay",          TRUE, NULL,              0},
+        {"autodelay",      FALSE, &trs_autodelay,           TRUE},
+        {"noautodelay",    FALSE, &trs_autodelay,           FALSE},
+        {"keystretch",     TRUE, NULL,              0},
+        {"shiftbracket",   FALSE, &opt_shiftbracket,        TRUE},
+        {"noshiftbracket", FALSE, &opt_shiftbracket,        FALSE},
+        {"diskdir",        TRUE, NULL,              0},
+        {"doubler",        TRUE, NULL,              0},
+        {"doublestep",     FALSE, &opt_stepdefault, 2},
+        {"nodoublestep",   FALSE, &opt_stepdefault, 1},
+        {"stepmap",        TRUE, NULL,              0},
+        {"sizemap",        TRUE, NULL,              0},
+        {"truedam",        FALSE, &trs_disk_truedam,        TRUE},
+        {"notruedam",      FALSE, &trs_disk_truedam,        FALSE},
+        {"samplerate",     TRUE, NULL,              0},
+        {"serial",         TRUE, NULL,              0},
+        {"switches",       TRUE, NULL,              0},
+        {"emtsafe",        FALSE, &trs_emtsafe,             TRUE},
+        {"noemtsafe",      FALSE, &trs_emtsafe,             FALSE},
+        {"m1lc",           FALSE, &trs_model1_lowercase,    TRUE},
+        {"nom1lc",         FALSE, &trs_model1_lowercase,    FALSE},
+        {"expintf",        FALSE, &trs_expansion_interface, TRUE},
+        {"noexpintf",      FALSE, &trs_expansion_interface, FALSE},
+        {NULL, 0,                 0,                0}
 };
 
 static int find_opt_match(const char *arg, const struct option *longopts) {
-  int i;
-  for(i=0; longopts && longopts->name; longopts++, i++) {
-    if (strcmp(arg, longopts->name) == 0) {
-      return i;
+    int i;
+    for (i = 0; longopts && longopts->name; longopts++, i++) {
+        if (strcmp(arg, longopts->name) == 0) {
+            return i;
+        }
     }
-  }
-  return -1;
+    return -1;
 }
 
-static int getopt_long_only(int argc, char * const argv[],
-           const char *optstring,
-           const struct option *longopts, int *longindex) {
+static int getopt_long_only(int argc, char *const argv[],
+                            const char *optstring,
+                            const struct option *longopts, int *longindex) {
 
-  const char *cur;
-  int match_index;
-  static const struct option * match;
-  if (optind <= 1) {
-    optind = 1;
-  }
-  for(;optind < argc;) {
-    cur  = argv[optind++];
-    joshlog("on %s\n", cur);
-    if (cur[0] != '-') {
-      fatal("Bad option: %s",cur);
+    const char *cur;
+    int match_index;
+    static const struct option *match;
+    if (optind <= 1) {
+        optind = 1;
     }
-    cur += 1;
-    match_index = find_opt_match(cur, longopts);
-    if (match_index < 0) {
-      fatal("Bad option: -%s",cur);
-      return -1;
-    }
-    match = longopts + match_index;
-    *longindex = match_index;
+    for (; optind < argc;) {
+        cur = argv[optind++];
+        joshlog("on %s\n", cur);
+        if (cur[0] != '-') {
+            fatal("Bad option: %s", cur);
+        }
+        cur += 1;
+        match_index = find_opt_match(cur, longopts);
+        if (match_index < 0) {
+            fatal("Bad option: -%s", cur);
+            return -1;
+        }
+        match = longopts + match_index;
+        *longindex = match_index;
 
-    if (match->has_arg) {
-      if (optind>=argc) {
-        fatal("Missing argument to -%s",cur);
-        return -1;
-      }
-      optarg = argv[optind++];
-      joshlog("getopt : -%s with %s\n", cur, optarg);
-    } else {
-      joshlog("getopt : -%s\n", cur);
+        if (match->has_arg) {
+            if (optind >= argc) {
+                fatal("Missing argument to -%s", cur);
+                return -1;
+            }
+            optarg = argv[optind++];
+            joshlog("getopt : -%s with %s\n", cur, optarg);
+        } else {
+            joshlog("getopt : -%s\n", cur);
+        }
+        if (match->flag) {
+            *(match->flag) = match->val;
+            return 0;
+        }
+        return match->val;
     }
-    if (match->flag) {
-      *(match->flag) = match->val;
-      return 0;
-    }
-    return match->val;
-  }
-  return -1;
+    return -1;
 
 
 }
 
-  
+
 int
-trs_parse_command_line(int argc, char **argv, int *debug)
-{
-  int i;
-  int s[8];
-  char *charpeek;
+trs_parse_command_line(int argc, char **argv, int *debug) {
+    int i;
+    int s[8];
+    char *charpeek;
 
-  charpeek = getenv("CHARPEEK");
-  if (!charpeek) {
-    fatal("Unable to read CHARPEEK environment variable");
-  } else {
-    unsigned short cps, cpo;
-    if (sscanf(charpeek, "%hx:%hx", &cps, &cpo) != 2) {
-      fatal("Cannot parse CHARPEEK");
-    }
-    unsigned int real_addr = ((unsigned long)cps) * 16 + cpo;
-    unsigned int real_page = real_addr & (~4095);
-    unsigned int real_offset = real_addr - real_page;
-    joshlog("CHARPEEK REAL MODE ADDRESS RADDR=%x RPAGE=%x ROFF=%x\n", real_addr, real_page, real_offset);
-
-
-    char * p;
-    p = malloc(3*4096);
-    p += 4096 - (((unsigned int)p) & 4095);
-
-    //printf("A %p %d\n", p, errno);
-    int x = -1;
-    //printf("B %x %p %x %d\n", real_page, p,x,errno);
-    x = __djgpp_map_physical_memory(p, 8192, real_page);
-    joshlog("CHARPEAK MAPPED RPAGE=%x PPAGE=%p MAPRES=%x ERRNO=%d\n", real_page, p,x,errno);
-
-
-    pScanBuffer = (struct scan_buffer *)(p + real_offset);
-    joshlog("CHARPEAK MAPPED BUFFER=%p\n", pScanBuffer);
-
-    pScanBuffer->suppress_flag = 1;
-    //sleep(1);
-    scanBufferCursor = pScanBuffer->next_offset;
-  }
-
-
-  emulator_base_directory = getcwd(0, 1024);
-  if (!emulator_base_directory) {
-      joshlog("Unable to get emulator base dir\n");
-      emulator_base_directory = ".";
-  }
-  joshlog("Emulator base dir = %s\n", emulator_base_directory);
-
-  cassette_base_directory = malloc( 32 + strlen(emulator_base_directory));
-  if (!cassette_base_directory) {
-      joshlog("Unable to allocate cassette base directory");
-      cassette_base_directory = "./CAS";
-  } else {
-      sprintf((char *)cassette_base_directory, "%s/CAS",emulator_base_directory);
-  }
-
-  trs_model = 1;
-  trs_model1_lowercase = FALSE;
-
-  //Ugh - getopt is a horrible API
-  optind = 1;
-  opterr = 0;
-  for (;;) {
-    int c;
-    int option_index = 0;
-    const char *name;
-
-    c = getopt_long_only(argc, argv, "", options, &option_index);
-    if (c == -1) break;
-    if (c == '?') {
-      fatal("unrecognized option %s", argv[optind - 1]);
-    }
-    name = options[option_index].name;
-    if (strcmp(name, "background") == 0 ||
-               strcmp(name, "bg") == 0) {
-      opt_background = optarg;
-    } else if (strcmp(name, "foreground") == 0 ||
-               strcmp(name, "fg") == 0) {
-      opt_foreground = optarg;
-    } else if (strcmp(name, "title") == 0) {
-      opt_title = optarg;
-    } else if (strcmp(name, "borderwidth") == 0) {
-      border_width = strtoul(optarg, NULL, 0);
-    } else if (strcmp(name, "scale") == 0) {
-      sscanf(optarg, "%u,%u", &scale_x, &scale_y);
-    } else if (strcmp(name, "charset") == 0) {
-      opt_charset = optarg;
-    } else if (strcmp(name, "romfile") == 0) {
-      opt_romfile = optarg;
-    } else if (strcmp(name, "romfile3") == 0) {
-      opt_romfile3 = optarg;
-    } else if (strcmp(name, "romfile4p") == 0) {
-      opt_romfile4p = optarg;
-    } else if (strcmp(name, "model") == 0) {
-      if (strcmp(optarg, "1") == 0 ||
-    strcasecmp(optarg, "I") == 0) {
-  trs_model = 1;
-      } else if (strcmp(optarg, "3") == 0 ||
-     strcasecmp(optarg, "III") == 0) {
-  trs_model = 3;
-      } else if (strcmp(optarg, "4") == 0 ||
-     strcasecmp(optarg, "IV") == 0) {
-  trs_model = 4;
-      } else if (strcasecmp(optarg, "4P") == 0 ||
-     strcasecmp(optarg, "IVp") == 0) {
-  trs_model = 5;
-      } else {
-  fatal("TRS-80 Model %s not supported", optarg);
-      }
-    } else if (strcmp(name, "delay") == 0) {
-      z80_state.delay = strtol(optarg, NULL, 0);
-    } else if (strcmp(name, "keystretch") == 0) {
-      stretch_amount = strtol(optarg, NULL, 0);
-    } else if (strcmp(name, "diskdir") == 0) {
-      trs_disk_dir = strdup(optarg);
-      if (trs_disk_dir[0] == '~' &&
-    (trs_disk_dir[1] == '/' || trs_disk_dir[1] == '\0')) {
-  char* home = getenv("HOME");
-  if (home) {
-    char *p = (char*)malloc(strlen(home) + strlen(trs_disk_dir) + 1);
-    sprintf(p, "%s/%s", home, trs_disk_dir+1);
-    trs_disk_dir = p;
-  }
-      }
-    } else if (strcmp(name, "doubler") == 0) {
-      switch (optarg[0]) {
-      case 'p':
-      case 'P':
-  trs_disk_doubler = TRSDISK_PERCOM;
-  break;
-      case 'r':
-      case 'R':
-      case 't':
-      case 'T':
-  trs_disk_doubler = TRSDISK_TANDY;
-  break;
-      case 'b':
-      case 'B':
-  trs_disk_doubler = TRSDISK_BOTH;
-  break;
-      case 'n':
-      case 'N':
-  trs_disk_doubler = TRSDISK_NODOUBLER;
-  break;
-      default:
-  fatal("unrecognized doubler type %s\n", optarg);
-      }
-    } else if (strcmp(name, "stepmap") == 0) {
-      opt_stepmap = optarg;
-    } else if (strcmp(name, "sizemap") == 0) {
-      opt_sizemap = optarg;
-    } else if (strcmp(name, "samplerate") == 0) {
-      cassette_default_sample_rate = strtol(optarg, NULL, 0);
-    } else if (strcmp(name, "serial") == 0) {
-      trs_uart_name = strdup(optarg);
-    } else if (strcmp(name, "switches") == 0) {
-      trs_uart_switches = strtol(optarg, NULL, 0);
-    }
-  }
-  if (optind != argc) {
-    fatal("unrecognized argument %s", argv[optind]);
-  }
-
-  trs_video_ram_7_bit = trs_model == 1 && trs_model1_lowercase;
-
-  if (trs_video_ram_7_bit) {
-      joshlog("Video RAM is 7 bits\n");
-  }
-  if (trs_model == 1 && !trs_expansion_interface) {
-      trs_ram_end = 0x8000;
-  }
-
-  /*
-   * Some additional processing needed after all options are parsed.
-   * In some cases the order is important; e.g., trs_model must be known.
-   */
-  *debug = opt_debug;
-
-  if (resize == -1) {
-    resize = (trs_model == 3);
-  }
-
-  if (opt_shiftbracket == -1) {
-    opt_shiftbracket = trs_model >= 4;
-  }
-  trs_kb_bracket(opt_shiftbracket);
-
-  if (scale_y == 0) scale_y = 2 * scale_x;
-
-  /* Note: charset numbers must match trs_chars.c */
-  if (trs_model == 1) {
-    if (opt_charset == NULL) {
-      opt_charset = "wider"; /* default */
-    }
-    if (isdigit(*opt_charset)) {
-      trs_charset = strtol(opt_charset, NULL, 0);
-      cur_char_width = 8 * scale_x;
+    charpeek = getenv("CHARPEEK");
+    if (!charpeek) {
+        fatal("Unable to read CHARPEEK environment variable");
     } else {
-      if (opt_charset[0] == 'e'/*early*/) {
-  trs_charset = 0;
-  cur_char_width = 6 * scale_x;
-      } else if (opt_charset[0] == 's'/*stock*/) {
-  trs_charset = 1;
-  cur_char_width = 6 * scale_x;
-      } else if (opt_charset[0] == 'l'/*lcmod*/) {
-  trs_charset = 2;
-  cur_char_width = 6 * scale_x;
-      } else if (opt_charset[0] == 'w'/*wider*/) {
-  trs_charset = 3;
-  cur_char_width = 8 * scale_x;
-      } else if (opt_charset[0] == 'g'/*genie or german*/) {
-  trs_charset = 10;
-  cur_char_width = 8 * scale_x;
-      } else {
-  fatal("unknown charset name %s", opt_charset);
-      }
-    }
-    cur_char_height = TRS_CHAR_HEIGHT * scale_y;
-  } else /* trs_model > 1 */ {
-    if (opt_charset == NULL) {
-      /* default */
-      opt_charset = (trs_model == 3) ? "katakana" : "international";
-    }
-    if (isdigit(*opt_charset)) {
-      trs_charset = strtol(opt_charset, NULL, 0);
-    } else {
-      if (opt_charset[0] == 'k'/*katakana*/) {
-  trs_charset = 4 + 3*(trs_model > 3);
-      } else if (opt_charset[0] == 'i'/*international*/) {
-  trs_charset = 5 + 3*(trs_model > 3);
-      } else if (opt_charset[0] == 'b'/*bold*/) {
-  trs_charset = 6 + 3*(trs_model > 3);
-      } else {
-  fatal("unknown charset name %s", opt_charset);
-      }
-    }
-    cur_char_width = TRS_CHAR_WIDTH * scale_x;
-    cur_char_height = TRS_CHAR_HEIGHT * scale_y;
-  }
+        unsigned short cps, cpo;
+        if (sscanf(charpeek, "%hx:%hx", &cps, &cpo) != 2) {
+            fatal("Cannot parse CHARPEEK");
+        }
+        unsigned int real_addr = ((unsigned long) cps) * 16 + cpo;
+        unsigned int real_page = real_addr & (~4095);
+        unsigned int real_offset = real_addr - real_page;
+        joshlog("CHARPEEK REAL MODE ADDRESS RADDR=%x RPAGE=%x ROFF=%x\n", real_addr, real_page, real_offset);
 
-  for (i = 0; i <= 7; i++) {
-    s[i] = opt_stepdefault;
-  }
-  if (opt_stepmap) {
-    sscanf(opt_stepmap, "%d,%d,%d,%d,%d,%d,%d,%d",
-           &s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
-  }
-  for (i = 0; i <= 7; i++) {
-    if (s[i] != 1 && s[i] != 2) {
-      fatal("bad value %d for disk %d single/double step\n", s[i], i);
-    } else {
-      trs_disk_setstep(i, s[i]);
-    }
-  }
 
-  /* Defaults for sizemap */
-  s[0] = 5;
-  s[1] = 5;
-  s[2] = 5;
-  s[3] = 5;
-  s[4] = 8;
-  s[5] = 8;
-  s[6] = 8;
-  s[7] = 8;
-  if (opt_sizemap) {
-    sscanf(opt_sizemap, "%d,%d,%d,%d,%d,%d,%d,%d",
-     &s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
-  }
-  for (i = 0; i <= 7; i++) {
-    if (s[i] != 5 && s[i] != 8) {
-      fatal("bad value %d for disk %d size", s[i], i);
-    } else {
-      trs_disk_setsize(i, s[i]);
-    }
-  }
+        char *p;
+        p = malloc(3 * 4096);
+        p += 4096 - (((unsigned int) p) & 4095);
 
-  return 1;
+        //printf("A %p %d\n", p, errno);
+        int x = -1;
+        //printf("B %x %p %x %d\n", real_page, p,x,errno);
+        x = __djgpp_map_physical_memory(p, 8192, real_page);
+        joshlog("CHARPEAK MAPPED RPAGE=%x PPAGE=%p MAPRES=%x ERRNO=%d\n", real_page, p, x, errno);
+
+
+        pScanBuffer = (struct scan_buffer *) (p + real_offset);
+        joshlog("CHARPEAK MAPPED BUFFER=%p\n", pScanBuffer);
+
+        pScanBuffer->suppress_flag = 1;
+        //sleep(1);
+        scanBufferCursor = pScanBuffer->next_offset;
+    }
+
+
+    emulator_base_directory = getcwd(0, 1024);
+    if (!emulator_base_directory) {
+        joshlog("Unable to get emulator base dir\n");
+        emulator_base_directory = ".";
+    }
+    joshlog("Emulator base dir = %s\n", emulator_base_directory);
+
+    cassette_base_directory = malloc(32 + strlen(emulator_base_directory));
+    if (!cassette_base_directory) {
+        joshlog("Unable to allocate cassette base directory");
+        cassette_base_directory = "./CAS";
+    } else {
+        sprintf((char *) cassette_base_directory, "%s/CAS", emulator_base_directory);
+    }
+
+    trs_model = 1;
+    trs_model1_lowercase = FALSE;
+
+    //Ugh - getopt is a horrible API
+    optind = 1;
+    opterr = 0;
+    for (;;) {
+        int c;
+        int option_index = 0;
+        const char *name;
+
+        c = getopt_long_only(argc, argv, "", options, &option_index);
+        if (c == -1) break;
+        if (c == '?') {
+            fatal("unrecognized option %s", argv[optind - 1]);
+        }
+        name = options[option_index].name;
+        if (strcmp(name, "background") == 0 ||
+            strcmp(name, "bg") == 0) {
+            opt_background = optarg;
+        } else if (strcmp(name, "foreground") == 0 ||
+                   strcmp(name, "fg") == 0) {
+            opt_foreground = optarg;
+        } else if (strcmp(name, "title") == 0) {
+            opt_title = optarg;
+        } else if (strcmp(name, "borderwidth") == 0) {
+            border_width = strtoul(optarg, NULL, 0);
+        } else if (strcmp(name, "scale") == 0) {
+            sscanf(optarg, "%u,%u", &scale_x, &scale_y);
+        } else if (strcmp(name, "charset") == 0) {
+            opt_charset = optarg;
+        } else if (strcmp(name, "romfile") == 0) {
+            opt_romfile = optarg;
+        } else if (strcmp(name, "romfile3") == 0) {
+            opt_romfile3 = optarg;
+        } else if (strcmp(name, "romfile4p") == 0) {
+            opt_romfile4p = optarg;
+        } else if (strcmp(name, "model") == 0) {
+            if (strcmp(optarg, "1") == 0 ||
+                strcasecmp(optarg, "I") == 0) {
+                trs_model = 1;
+            } else if (strcmp(optarg, "3") == 0 ||
+                       strcasecmp(optarg, "III") == 0) {
+                trs_model = 3;
+            } else if (strcmp(optarg, "4") == 0 ||
+                       strcasecmp(optarg, "IV") == 0) {
+                trs_model = 4;
+            } else if (strcasecmp(optarg, "4P") == 0 ||
+                       strcasecmp(optarg, "IVp") == 0) {
+                trs_model = 5;
+            } else {
+                fatal("TRS-80 Model %s not supported", optarg);
+            }
+        } else if (strcmp(name, "delay") == 0) {
+            z80_state.delay = strtol(optarg, NULL, 0);
+        } else if (strcmp(name, "keystretch") == 0) {
+            stretch_amount = strtol(optarg, NULL, 0);
+        } else if (strcmp(name, "diskdir") == 0) {
+            trs_disk_dir = strdup(optarg);
+            if (trs_disk_dir[0] == '~' &&
+                (trs_disk_dir[1] == '/' || trs_disk_dir[1] == '\0')) {
+                char *home = getenv("HOME");
+                if (home) {
+                    char *p = (char *) malloc(strlen(home) + strlen(trs_disk_dir) + 1);
+                    sprintf(p, "%s/%s", home, trs_disk_dir + 1);
+                    trs_disk_dir = p;
+                }
+            }
+        } else if (strcmp(name, "doubler") == 0) {
+            switch (optarg[0]) {
+                case 'p':
+                case 'P':
+                    trs_disk_doubler = TRSDISK_PERCOM;
+                    break;
+                case 'r':
+                case 'R':
+                case 't':
+                case 'T':
+                    trs_disk_doubler = TRSDISK_TANDY;
+                    break;
+                case 'b':
+                case 'B':
+                    trs_disk_doubler = TRSDISK_BOTH;
+                    break;
+                case 'n':
+                case 'N':
+                    trs_disk_doubler = TRSDISK_NODOUBLER;
+                    break;
+                default:
+                    fatal("unrecognized doubler type %s\n", optarg);
+            }
+        } else if (strcmp(name, "stepmap") == 0) {
+            opt_stepmap = optarg;
+        } else if (strcmp(name, "sizemap") == 0) {
+            opt_sizemap = optarg;
+        } else if (strcmp(name, "samplerate") == 0) {
+            cassette_default_sample_rate = strtol(optarg, NULL, 0);
+        } else if (strcmp(name, "serial") == 0) {
+            trs_uart_name = strdup(optarg);
+        } else if (strcmp(name, "switches") == 0) {
+            trs_uart_switches = strtol(optarg, NULL, 0);
+        }
+    }
+    if (optind != argc) {
+        fatal("unrecognized argument %s", argv[optind]);
+    }
+
+    trs_video_ram_7_bit = trs_model == 1 && trs_model1_lowercase;
+
+    if (trs_video_ram_7_bit) {
+        joshlog("Video RAM is 7 bits\n");
+    }
+    if (trs_model == 1 && !trs_expansion_interface) {
+        trs_ram_end = 0x8000;
+    }
+
+    /*
+     * Some additional processing needed after all options are parsed.
+     * In some cases the order is important; e.g., trs_model must be known.
+     */
+    *debug = opt_debug;
+
+    if (resize == -1) {
+        resize = (trs_model == 3);
+    }
+
+    if (opt_shiftbracket == -1) {
+        opt_shiftbracket = trs_model >= 4;
+    }
+    trs_kb_bracket(opt_shiftbracket);
+
+    if (scale_y == 0) scale_y = 2 * scale_x;
+
+    /* Note: charset numbers must match trs_chars.c */
+    if (trs_model == 1) {
+        if (opt_charset == NULL) {
+            opt_charset = "wider"; /* default */
+        }
+        if (isdigit(*opt_charset)) {
+            trs_charset = strtol(opt_charset, NULL, 0);
+            cur_char_width = 8 * scale_x;
+        } else {
+            if (opt_charset[0] == 'e'/*early*/) {
+                trs_charset = 0;
+                cur_char_width = 6 * scale_x;
+            } else if (opt_charset[0] == 's'/*stock*/) {
+                trs_charset = 1;
+                cur_char_width = 6 * scale_x;
+            } else if (opt_charset[0] == 'l'/*lcmod*/) {
+                trs_charset = 2;
+                cur_char_width = 6 * scale_x;
+            } else if (opt_charset[0] == 'w'/*wider*/) {
+                trs_charset = 3;
+                cur_char_width = 8 * scale_x;
+            } else if (opt_charset[0] == 'g'/*genie or german*/) {
+                trs_charset = 10;
+                cur_char_width = 8 * scale_x;
+            } else {
+                fatal("unknown charset name %s", opt_charset);
+            }
+        }
+        cur_char_height = TRS_CHAR_HEIGHT * scale_y;
+    } else /* trs_model > 1 */ {
+        if (opt_charset == NULL) {
+            /* default */
+            opt_charset = (trs_model == 3) ? "katakana" : "international";
+        }
+        if (isdigit(*opt_charset)) {
+            trs_charset = strtol(opt_charset, NULL, 0);
+        } else {
+            if (opt_charset[0] == 'k'/*katakana*/) {
+                trs_charset = 4 + 3 * (trs_model > 3);
+            } else if (opt_charset[0] == 'i'/*international*/) {
+                trs_charset = 5 + 3 * (trs_model > 3);
+            } else if (opt_charset[0] == 'b'/*bold*/) {
+                trs_charset = 6 + 3 * (trs_model > 3);
+            } else {
+                fatal("unknown charset name %s", opt_charset);
+            }
+        }
+        cur_char_width = TRS_CHAR_WIDTH * scale_x;
+        cur_char_height = TRS_CHAR_HEIGHT * scale_y;
+    }
+
+    for (i = 0; i <= 7; i++) {
+        s[i] = opt_stepdefault;
+    }
+    if (opt_stepmap) {
+        sscanf(opt_stepmap, "%d,%d,%d,%d,%d,%d,%d,%d",
+               &s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
+    }
+    for (i = 0; i <= 7; i++) {
+        if (s[i] != 1 && s[i] != 2) {
+            fatal("bad value %d for disk %d single/double step\n", s[i], i);
+        } else {
+            trs_disk_setstep(i, s[i]);
+        }
+    }
+
+    /* Defaults for sizemap */
+    s[0] = 5;
+    s[1] = 5;
+    s[2] = 5;
+    s[3] = 5;
+    s[4] = 8;
+    s[5] = 8;
+    s[6] = 8;
+    s[7] = 8;
+    if (opt_sizemap) {
+        sscanf(opt_sizemap, "%d,%d,%d,%d,%d,%d,%d,%d",
+               &s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
+    }
+    for (i = 0; i <= 7; i++) {
+        if (s[i] != 5 && s[i] != 8) {
+            fatal("bad value %d for disk %d size", s[i], i);
+        } else {
+            trs_disk_setsize(i, s[i]);
+        }
+    }
+
+    return 1;
 }
-
 
 
 /*
@@ -953,86 +982,84 @@ trs_parse_command_line(int argc, char **argv, int *debug)
  * communicate the opt_romfile* values, though.
  */
 void
-trs_load_romfile()
-{
-  char *romfile = NULL;
-  struct stat statbuf;
+trs_load_romfile() {
+    char *romfile = NULL;
+    struct stat statbuf;
 
-  switch (trs_model) {
-  case 1:
-    if (opt_romfile) {
-      romfile = opt_romfile;
+    switch (trs_model) {
+        case 1:
+            if (opt_romfile) {
+                romfile = opt_romfile;
 #ifdef DEFAULT_ROM
-    } else if (stat(DEFAULT_ROM, &statbuf) == 0) {
-      romfile = DEFAULT_ROM;
+            } else if (stat(DEFAULT_ROM, &statbuf) == 0) {
+                romfile = DEFAULT_ROM;
 #endif
-    }
-    if (romfile != NULL) {
-      joshlog("Loading rom %s\n", romfile);
-      trs_load_rom(romfile);
-      joshlog("Loaded rom %s\n", romfile);
-    } else if (trs_rom1_size > 0) {
-      trs_load_compiled_rom(trs_rom1_size, trs_rom1);
-    } else {
-      fatal("ROM file not specified!");
-    }
-    break;
+            }
+            if (romfile != NULL) {
+                joshlog("Loading rom %s\n", romfile);
+                trs_load_rom(romfile);
+                joshlog("Loaded rom %s\n", romfile);
+            } else if (trs_rom1_size > 0) {
+                trs_load_compiled_rom(trs_rom1_size, trs_rom1);
+            } else {
+                fatal("ROM file not specified!");
+            }
+            break;
 
-  case 3: case 4:
-    if (opt_romfile3) {
-      romfile = opt_romfile3;
+        case 3:
+        case 4:
+            if (opt_romfile3) {
+                romfile = opt_romfile3;
 #ifdef DEFAULT_ROM3
-    } else if (stat(DEFAULT_ROM3, &statbuf) == 0) {
-      romfile = DEFAULT_ROM3;
+            } else if (stat(DEFAULT_ROM3, &statbuf) == 0) {
+                romfile = DEFAULT_ROM3;
 #endif
-    }
-    if (romfile != NULL) {
-      trs_load_rom(romfile);
-    } else if (trs_rom3_size > 0) {
-      trs_load_compiled_rom(trs_rom3_size, trs_rom3);
-    } else {
-      fatal("ROM file not specified!");
-    }
-    break;
+            }
+            if (romfile != NULL) {
+                trs_load_rom(romfile);
+            } else if (trs_rom3_size > 0) {
+                trs_load_compiled_rom(trs_rom3_size, trs_rom3);
+            } else {
+                fatal("ROM file not specified!");
+            }
+            break;
 
-  default: /* 4P */
-    if (opt_romfile4p) {
-      romfile = opt_romfile4p;
+        default: /* 4P */
+            if (opt_romfile4p) {
+                romfile = opt_romfile4p;
 #ifdef DEFAULT_ROM4P
-    } else if (stat(DEFAULT_ROM4P, &statbuf) == 0) {
-      romfile = DEFAULT_ROM4P;
+            } else if (stat(DEFAULT_ROM4P, &statbuf) == 0) {
+                romfile = DEFAULT_ROM4P;
 #endif
+            }
+            if (romfile != NULL) {
+                trs_load_rom(romfile);
+            } else if (trs_rom4p_size > 0) {
+                trs_load_compiled_rom(trs_rom4p_size, trs_rom4p);
+            } else {
+                fatal("ROM file not specified!");
+            }
+            break;
     }
-    if (romfile != NULL) {
-      trs_load_rom(romfile);
-    } else if (trs_rom4p_size > 0) {
-      trs_load_compiled_rom(trs_rom4p_size, trs_rom4p);
-    } else {
-      fatal("ROM file not specified!");
-    }
-    break;
-  }
 }
 
 
-
-
 int joshem_do_modal(joshem_modal_handler handler, void *input) {
-  joshem_modal_context context;
+    joshem_modal_context context;
 
-  memset(&context, 0, sizeof(context));
+    memset(&context, 0, sizeof(context));
 
-  context.input = input;
+    context.input = input;
 
-  trs_wait_for_all_keys_up();
-  pScanBuffer->suppress_flag = 0;
+    trs_wait_for_all_keys_up();
+    pScanBuffer->suppress_flag = 0;
 
-  handler(&context);
-  repaint_screen();
-  pScanBuffer->suppress_flag = 1;
-  
-  scanBufferCursor = pScanBuffer->next_offset;
-  trs_realtime_reset();
-  return context.result;
+    handler(&context);
+    repaint_screen();
+    pScanBuffer->suppress_flag = 1;
+
+    scanBufferCursor = pScanBuffer->next_offset;
+    trs_realtime_reset();
+    return context.result;
 
 }

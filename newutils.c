@@ -25,10 +25,10 @@ static unsigned int get_file_length(const char *fn) {
     if (len == -1LL) {
         return 0;
     }
-    if (len >  0xFFFFFFFFLL) {
+    if (len > 0xFFFFFFFFLL) {
         return 0xFFFFFFFFU;
     }
-    return (unsigned int)len;
+    return (unsigned int) len;
 }
 
 
