@@ -359,6 +359,9 @@ tstate_t trs_timer_get_period() {
 
 void trs_timer_trigger_pulse() {
   if (timer_on) {
+    if (trs_model == 1 && !trs_expansion_interface) {
+        return;
+    }
     trs_timer_interrupt(1); /* generate */
     trs_disk_motoroff_interrupt(trs_disk_motoroff());
     //trs_kb_heartbeat(); /* part of keyboard stretch kludge */

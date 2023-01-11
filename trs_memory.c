@@ -32,6 +32,7 @@
 #include "trs_disk.h"
 #include "trs_hard.h"
 #include <string.h>
+#include <limits.h>
 
 #define MAX_ROM_SIZE	(0x3800)
 #define MAX_VIDEO_SIZE	(0x0800)
@@ -64,6 +65,10 @@ int romin = 0; /* Model 4p */
 unsigned short trs_changecount = 0;
 
 int trs_video_ram_7_bit = 0;
+
+int trs_ram_end = INT_MAX;
+int trs_expansion_interface = 1;
+
 
 /*SUPPRESS 53*/
 /*SUPPRESS 112*/
@@ -190,10 +195,15 @@ void mem_init()
 	/* +1 so strings from mem_pointer are NUL-terminated */
 	rom = (Uchar *) calloc(MAX_ROM_SIZE+1, 1);
 	video = (Uchar *) calloc(MAX_VIDEO_SIZE+1, 1);
-    if (trs_video_ram_7_bit) {
-        memset(video, 0x40, MAX_VIDEO_SIZE);
-    }
 	trs_video_size = MAX_VIDEO_SIZE;
+    }
+    if (trs_video_ram_7_bit && trs_model == 1) {
+        for(int i=0;i<trs_video_size;i++) {
+            if(video[i] & 0xa0)
+                video[i]  &= 0xbf;
+            else
+                video[i]  |= 0x40;
+        }
     }
     mem_map(0);
     mem_bank(0);
@@ -304,6 +314,9 @@ void mem_write(int address, int value)
 
     switch (memory_map) {
       case 0x10: /* Model I */
+        if (address >= trs_ram_end) {
+            return;
+        }
 	if (address >= RAM_START) {
 	    memory[address] = value;
 	} else if (address >= VIDEO_START) {
@@ -325,7 +338,9 @@ void mem_write(int address, int value)
 		trs_screen_write_char(vaddr, value);
 	    }
 	} else if (address == PRINTER_ADDRESS) {
-	    trs_printer_write(value);
+            trs_printer_write(value);
+        } else if (!trs_expansion_interface) {
+            return;
 	} else if (address == CASSETTE_SELECT) {
 	    trs_cassette_select(value);
 	} else if (address == TRSDISK_DATA) {

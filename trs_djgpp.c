@@ -62,8 +62,17 @@ GrColor COLOR_BORDER;
 GrColor COLOR_PRIMARY;
 GrColor COLOR_SECONDARY;
 
+int trs_model1_lowercase = 0;
 
+const char* emulator_base_directory = 0;
 const char* cassette_base_directory = 0;
+
+
+/**
+ * This gets initialized during screen init, and the
+ * pat data is updated each time we write a glyph
+ */
+static GrPattern trs_screen_pattern;
 
 // Private data
 static unsigned char trs_screen[2048];
@@ -341,6 +350,15 @@ void trs_screen_init()
    y = GrMaxY()/2;
    joshlog("Midpoint: %d %d\n",x, y);
 
+
+    trs_screen_pattern.gp_bitmap.bmp_ispixmap = 0;
+    trs_screen_pattern.gp_bitmap.bmp_height = TRS_CHAR_HEIGHT;
+    trs_screen_pattern.gp_bitmap.bmp_data = 0;
+    trs_screen_pattern.gp_bitmap.bmp_fgcolor = GrWhite();
+    trs_screen_pattern.gp_bitmap.bmp_bgcolor = GrBlack();
+    trs_screen_pattern.gp_bitmap.bmp_memflags = 0;
+
+
     COLOR_BORDER = GrAllocColor(255, 0, 0);
     COLOR_PRIMARY = GrAllocColor(0, 255, 255);
     COLOR_SECONDARY = GrAllocColor(127, 127, 127);
@@ -386,11 +404,12 @@ void trs_screen_scroll() {
 }
 
 static void trs_screen_write_glyph(char *glyphRows, int position) {
+
    char patData[TRS_CHAR_HEIGHT];
    memcpy(patData, glyphRows, TRS_CHAR_HEIGHT);
    rotate_left_block(patData, (position & 3) << 1, TRS_CHAR_HEIGHT);
 
-
+    /*
    GrPattern pat;
    pat.gp_bitmap.bmp_ispixmap = 0;
    pat.gp_bitmap.bmp_height = TRS_CHAR_HEIGHT;
@@ -398,19 +417,20 @@ static void trs_screen_write_glyph(char *glyphRows, int position) {
    pat.gp_bitmap.bmp_fgcolor = GrWhite();
    pat.gp_bitmap.bmp_bgcolor = GrBlack();
    pat.gp_bitmap.bmp_memflags = 0;
+   */
+    trs_screen_pattern.gp_bitmap.bmp_data = patData;
 
   int x,y;
 
    x = (position & 63);
    y = position >> 6;
    int px, py;
-   px = x * 6 + 120;   //offset (640-384)/2 then round down to a multiple of 24 so rotates work correctlt
-   py = y * TRS_CHAR_HEIGHT + 0;  //offset (200-192)/2 then rown down to a multiple of 12 so patterns line up
+   px = x * 6 + 120;   //offset (640-384)/2 then round down to a multiple of 24 so rotates work correctly
+   py = y * TRS_CHAR_HEIGHT + 0;  //offset (200-192)/2 then round down to a multiple of 12 so patterns line up
 
 
-   GrPatternFilledBox(px, py, px+5, py+TRS_CHAR_HEIGHT - 1, &pat);
-   return;
-
+   GrPatternFilledBox(px, py, px+5, py+TRS_CHAR_HEIGHT - 1, &trs_screen_pattern);
+   trs_screen_pattern.gp_bitmap.bmp_data = 0;
 }
 
 void trs_screen_write_char(int position, int char_index) {
@@ -419,7 +439,7 @@ void trs_screen_write_char(int position, int char_index) {
 
 
 
-   trs_realtime_sync(5000);
+   //trs_realtime_sync(5000);
    /*
    NB - This is no longer needed since it is done in trs_memory
    
@@ -583,6 +603,10 @@ struct option options[] = {
   {"switches",       TRUE,  NULL,              0     },
   {"emtsafe",        FALSE, &trs_emtsafe,      TRUE  },
   {"noemtsafe",      FALSE, &trs_emtsafe,      FALSE },
+  {"m1lc",        FALSE, &trs_model1_lowercase,      TRUE  },
+  {"nom1lc",        FALSE, &trs_model1_lowercase,      FALSE },
+  {"expintf", FALSE, &trs_expansion_interface, TRUE},
+  {"noexpintf", FALSE, &trs_expansion_interface, FALSE},
   {NULL, 0, 0, 0}
 };
 
@@ -683,14 +707,24 @@ trs_parse_command_line(int argc, char **argv, int *debug)
     scanBufferCursor = pScanBuffer->next_offset;
   }
 
-  cassette_base_directory = getcwd(0, 1024);
-  if (!cassette_base_directory) {
-      joshlog("Unable to get cassette base dir\n");
-      cassette_base_directory = ".";
+
+  emulator_base_directory = getcwd(0, 1024);
+  if (!emulator_base_directory) {
+      joshlog("Unable to get emulator base dir\n");
+      emulator_base_directory = ".";
   }
-  joshlog("Cassette base dir = %s\n", cassette_base_directory);
+  joshlog("Emulator base dir = %s\n", emulator_base_directory);
+
+  cassette_base_directory = malloc( 32 + strlen(emulator_base_directory));
+  if (!cassette_base_directory) {
+      joshlog("Unable to allocate cassette base directory");
+      cassette_base_directory = "./CAS";
+  } else {
+      sprintf((char *)cassette_base_directory, "%s/CAS",emulator_base_directory);
+  }
 
   trs_model = 1;
+  trs_model1_lowercase = FALSE;
 
   //Ugh - getopt is a horrible API
   optind = 1;
@@ -796,11 +830,13 @@ trs_parse_command_line(int argc, char **argv, int *debug)
     fatal("unrecognized argument %s", argv[optind]);
   }
 
-  if (trs_model == 1) {
-    // This forces the model 1 to faithfull emulate a non-uppercase conversion
-    // ( Software that tries to detect a lowercase mod by checking if video ram is 8 bit will see this as an unconverted model 1)
-    joshlog("Forcing video RAM to 7 bits (TODO - Make this an option)\n");
-      trs_video_ram_7_bit = 1; //TODO - Make this switch selectable
+  trs_video_ram_7_bit = trs_model == 1 && trs_model1_lowercase;
+
+  if (trs_video_ram_7_bit) {
+      joshlog("Video RAM is 7 bits\n");
+  }
+  if (trs_model == 1 && !trs_expansion_interface) {
+      trs_ram_end = 0x8000;
   }
 
   /*

@@ -31,6 +31,7 @@
 #define ALTERNATE 4
 
 extern const char* cassette_base_directory;
+#define CASSETTE_USER_DIRECTORY ("USER")
 
 extern char *program_name;
 extern int trs_model; /* 1, 3, 4, 5(=4p) */
@@ -46,6 +47,9 @@ extern int trs_io_debug_flags;
 extern int trs_emtsafe;
 
 extern int trs_video_ram_7_bit;
+extern int trs_model1_lowercase;
+extern int trs_ram_end;
+extern int trs_expansion_interface;
 
 int trs_parse_command_line(int argc, char **argv, int *debug);
 

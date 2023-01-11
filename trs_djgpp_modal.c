@@ -56,6 +56,19 @@ typedef struct cassette_table {
 } cassette_table;
 
 
+static void fill_standard_text_option(GrTextOption *grt) {
+    memset(grt, 0, sizeof(GrTextOption));
+    // Use the GrFont_PC8x14 - presumably i can assume 8 pixels wide and 14 pixels high
+    // so I don't have to use the text measurement functions.
+    grt->txo_font = &GrFont_PC8x14;
+    grt->txo_fgcolor.v = COLOR_PRIMARY;
+    grt->txo_bgcolor.v = GrBlack();
+    grt->txo_direct = GR_TEXT_RIGHT;
+    grt->txo_xalign = GR_ALIGN_CENTER;
+    grt->txo_yalign = GR_ALIGN_CENTER;
+    grt->txo_chrtype = GR_BYTE_TEXT;
+}
+
 static unsigned int get_file_length(const char *fn) {
     FILE *f;
     int fhandle;
@@ -257,15 +270,23 @@ static int choose_cassette(cassette_entry_fn pDest) {
    baseDir[sizeof(cassette_filename_buffer) - 1 ] = 0;
    const unsigned long initial_basedir_len = strlen(baseDir);
    int dirLevels = 0;
+   int reload_table = 1;
 
    static const choice choices[]={"(B)ack", "(S)elect", "(C)ancel", "(N)ext"};
    static const char *chooseMsg = "Choose Cassette";
    cassette_table *pTable = 0;
    int currentEntry = 0;
    GrClearScreen(GrBlack());
-   GrTextOption grt, baset;
-   for(;;) {
-       if (!pTable) {
+   GrTextOption grt;
+    fill_standard_text_option(&grt);
+    const GrTextOption baset = grt;
+
+    for(;;) {
+       if (!pTable || reload_table) {
+           reload_table = 0;
+           if (pTable) {
+               free(pTable);
+           }
            pTable = load_cassette_table(baseDir,dirLevels);
            if (!pTable) {
                joshlog("ERR: Failed to load_cassette_table\n");
@@ -277,16 +298,7 @@ static int choose_cassette(cassette_entry_fn pDest) {
            }
            currentEntry = 0;
        }
-       // Use the GrFont_PC8x14 - presumably i can assume 8 pixels wide and 14 pixels high
-       // so I don't have to use the text measurement functions.
-       grt.txo_font = &GrFont_PC8x14;
-       grt.txo_fgcolor.v = COLOR_PRIMARY;
-       grt.txo_bgcolor.v = GrBlack();
-       grt.txo_direct = GR_TEXT_RIGHT;
-       grt.txo_xalign = GR_ALIGN_CENTER;
-       grt.txo_yalign = GR_ALIGN_CENTER;
-       grt.txo_chrtype = GR_BYTE_TEXT;
-       baset = grt;
+       grt= baset;
 
 
        GrFilledBox( insetx,insety,GrMaxX() - insetx,GrMaxY() - insety,GrBlack() );
@@ -334,13 +346,13 @@ static int choose_cassette(cassette_entry_fn pDest) {
                grt.txo_font = &GrFont_PC6x8;
                grt.txo_xalign = GR_ALIGN_LEFT;
                grt.txo_fgcolor.v = COLOR_SECONDARY;
-               GrDrawString(baseDir + initial_basedir_len, curdirlen - initial_basedir_len, insetx + 14, insety+14, &grt);
+               GrDrawString(baseDir + initial_basedir_len, (int)(curdirlen - initial_basedir_len), insetx + 14, insety+14, &grt);
                grt = baset;
            }
        }
 
        for(int ii=0;ii<4;ii++) {
-           GrDrawString( (void*)choices[ii],strlen(choices[ii]),x-180 + ii * 120,y+35,&grt );
+           GrDrawString( (void*)choices[ii],(int)strlen(choices[ii]),x-180 + ii * 120,y+35,&grt );
        }
 
        int choice = -1;
@@ -396,17 +408,14 @@ static int choose_cassette(cassette_entry_fn pDest) {
            } else if (pSel->entry_type == ENTRY_TYPE_SUBDIR) {
                strcat(baseDir, "\\");
                strcat(baseDir, pSel->filename);
-               free(pTable);
-               pTable = 0;
+               reload_table = 1;
                dirLevels++;
-               continue;
            } else if (pSel->entry_type == ENTRY_TYPE_PARENTDIR && dirLevels > 0) {
                char *p = strrchr(baseDir, '\\');
                if (p) {
                    *p = 0;
                    dirLevels--;
-                   free(pTable);
-                   pTable = 0;
+                   reload_table = 1;
                }
                joshlog("%s %d\n", baseDir, dirLevels);
            }
@@ -453,19 +462,9 @@ static void yesno_message_handler(joshem_modal_context *pContext) {
    int insetx = 80;
    message =  (char *)(pContext->input);
    GrTextOption grt;
+    fill_standard_text_option(&grt);
  
       GrClearScreen(GrBlack());
-
-
-   // Use the GrFont_PC8x14 - presumably i can assume 8 pixels wide and 14 pixels high
-   // so I don't have to use the text measurement functions.
-   grt.txo_font = &GrFont_PC8x14;
-   grt.txo_fgcolor.v = COLOR_PRIMARY;
-   grt.txo_bgcolor.v = GrBlack();
-   grt.txo_direct = GR_TEXT_RIGHT;
-   grt.txo_xalign = GR_ALIGN_CENTER;
-   grt.txo_yalign = GR_ALIGN_CENTER;
-   grt.txo_chrtype = GR_BYTE_TEXT;
 
 
    GrFilledBox( insetx,insety,GrMaxX() - insetx,GrMaxY() - insety,GrBlack() );
@@ -515,20 +514,8 @@ static void message_message_handler(joshem_modal_context *pContext) {
    int insetx = 80;
    message =  (char *)(pContext->input);
    GrTextOption grt;
- 
+    fill_standard_text_option(&grt);
       GrClearScreen(GrBlack());
-
-
-   // Use the GrFont_PC8x14 - presumably i can assume 8 pixels wide and 14 pixels high
-   // so I don't have to use the text measurement functions.
-   grt.txo_font = &GrFont_PC8x14;
-   grt.txo_fgcolor.v = COLOR_PRIMARY;
-   grt.txo_bgcolor.v = GrBlack();
-   grt.txo_direct = GR_TEXT_RIGHT;
-   grt.txo_xalign = GR_ALIGN_CENTER;
-   grt.txo_yalign = GR_ALIGN_CENTER;
-   grt.txo_chrtype = GR_BYTE_TEXT;
-
 
    GrFilledBox( insetx,insety,GrMaxX() - insetx,GrMaxY() - insety,GrBlack() );
    GrBox( insetx,insety,GrMaxX() - insetx,GrMaxY() - insety,COLOR_BORDER );
@@ -538,7 +525,7 @@ static void message_message_handler(joshem_modal_context *pContext) {
    y = GrMaxY()/2;
     joshlog("MSG %s %d %d\n",message, x, y);
 
-   GrDrawString( message,strlen( message ),x,y-10,&grt );
+   GrDrawString( message,(int)strlen( message ),x,y-10,&grt );
    GrDrawString( "Press (Enter)",13,x,y+20,&grt );
 
    GrKeyType key;
@@ -556,35 +543,23 @@ static void message_message_handler(joshem_modal_context *pContext) {
 
 
 
-static int ask_question(const char *prompt, char *dest, int maxLen) {
+static int ask_question(const char *prompt, char *dest, unsigned int maxLen) {
    int x,y;
    int insety = 50;
    int insetx = 80;
     int retVal = 0;
 
-   char *buf = maxLen > 0 ? malloc(maxLen + 2) : 0;
+   char *buf =  malloc(maxLen + 2);
     if (!buf) {
         joshlog("ERR: ask_question alloc failed\n");
         return 0;
     }
     buf[0] = 0;
-    int cur_len = 0;
+    unsigned int cur_len = 0;
 
    GrTextOption grt;
- 
+    fill_standard_text_option(&grt);
    GrClearScreen(GrBlack());
-
-
-   // Use the GrFont_PC8x14 - presumably i can assume 8 pixels wide and 14 pixels high
-   // so I don't have to use the text measurement functions.
-   grt.txo_font = &GrFont_PC8x14;
-   grt.txo_fgcolor.v = COLOR_PRIMARY;
-   grt.txo_bgcolor.v = GrBlack();
-   grt.txo_direct = GR_TEXT_RIGHT;
-   grt.txo_xalign = GR_ALIGN_CENTER;
-   grt.txo_yalign = GR_ALIGN_CENTER;
-   grt.txo_chrtype = GR_BYTE_TEXT;
-
 
    GrFilledBox( insetx,insety,GrMaxX() - insetx,GrMaxY() - insety,GrBlack() );
    GrBox( insetx,insety,GrMaxX() - insetx,GrMaxY() - insety,COLOR_BORDER );
@@ -597,13 +572,13 @@ static int ask_question(const char *prompt, char *dest, int maxLen) {
        GrBox(x-60,y-10,x+60,y+10,GrWhite());
 
        grt.txo_xalign = GR_ALIGN_LEFT;
-       buf[cur_len]=0xB0;
+       buf[cur_len]=(char)0xB0;
        buf[cur_len+1] = 0;
-       GrDrawString(buf,cur_len+1, x-50, y, &grt);
+       GrDrawString(buf,(int)(cur_len+1), x-50, y, &grt);
        grt.txo_xalign = GR_ALIGN_CENTER;
 
 
-       GrDrawString( (void*)prompt,strlen( prompt ),x,y-30,&grt );
+       GrDrawString( (void*)prompt,(int)strlen( prompt ),x,y-30,&grt );
        GrDrawString( "(Enter) to accept",17,x-150,y+30,&grt );
        GrDrawString( "(Esc) to cancel",15,x+150,y+30,&grt );
 
@@ -619,7 +594,7 @@ static int ask_question(const char *prompt, char *dest, int maxLen) {
        }
        if ((key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9') || key=='_') {
          if (cur_len < maxLen) {
-             buf[cur_len++] = key;
+             buf[cur_len++] = (char)key;
          }
        } else if (key == GrKey_BackSpace) {
          if (cur_len > 0)
@@ -637,8 +612,7 @@ static int ask_question(const char *prompt, char *dest, int maxLen) {
         memcpy(dest, buf, cur_len);
         dest[cur_len] = 0;
     }
-    if (buf)
-        free(buf);
+    free(buf);
     return retVal;
 }
 
@@ -664,7 +638,10 @@ void joshem_cassette_control(joshem_cassette_control_args *pArgs) {
 
 
 static void draw_cassette(joshem_cassette_control_args *pArgs) {
-   int midx, midy;
+    GrTextOption grt;
+    fill_standard_text_option(&grt);
+
+    int midx, midy;
    midx = GrMaxX() / 2;
    midy = GrMaxY() / 2;
    int ry = midy - 50;
@@ -688,15 +665,7 @@ static void draw_cassette(joshem_cassette_control_args *pArgs) {
    GrPolygon(4, poly, GrWhite());
    //GrLine(poly[0][0], poly[0][1], poly[1][0], poly[1][1], GrWhite());
 
-   GrTextOption grt;
-   grt.txo_font = &GrFont_PC8x14;
-   grt.txo_fgcolor.v = GrWhite();
-   grt.txo_bgcolor.v = GrBlack();
-   grt.txo_direct = GR_TEXT_RIGHT;
-   grt.txo_xalign = GR_ALIGN_CENTER;
-   grt.txo_yalign = GR_ALIGN_CENTER;
-   grt.txo_chrtype = GR_BYTE_TEXT;
-   GrDrawString( pArgs->cassette_filename,min(10,strlen( pArgs->cassette_filename )),midx,midy-30,&grt );
+   GrDrawString( pArgs->cassette_filename,min(10,(int)strlen( pArgs->cassette_filename )),midx,midy-30,&grt );
 
 
 }
@@ -708,13 +677,17 @@ static void cassette_control_handler(joshem_modal_context *pContext) {
         return;
     }
     if (pArgs ->write_requested) {
+        //A convenient buffer
+        sprintf(pArgs->cassette_filename, "%s/%s", cassette_base_directory, CASSETTE_USER_DIRECTORY);
+        mkdir(pArgs->cassette_filename, S_IWUSR);  //S_IWUSR ==> not read only
+
         if (ask_question("Save to which cassette?", e, 8)) {
-            sprintf(pArgs->cassette_filename, "%s.CAS", e);
+            sprintf(pArgs->cassette_filename, "%s/%s/%s.CAS", cassette_base_directory, CASSETTE_USER_DIRECTORY, e);
         } else {
-            strcpy(pArgs->cassette_filename, "_NOCAS.DMP");
+            sprintf(pArgs->cassette_filename, "%s/%s/_NOCAS.DMP", cassette_base_directory, CASSETTE_USER_DIRECTORY);
         }
         pArgs ->cassette_format = 1;
-        pArgs->cassette_position = get_file_length(pArgs->cassette_filename);
+        pArgs->cassette_position = (int)get_file_length(pArgs->cassette_filename);
         pArgs ->cassette_writable = 1;
 
         return;
@@ -727,8 +700,9 @@ static void cassette_control_handler(joshem_modal_context *pContext) {
     pArgs->cassette_writable = 0;
     pArgs->initial_selection = 0;
    }
-   //draw_cassette(pArgs);
+   GrClearScreen(GrBlack());
+   draw_cassette(pArgs);
 
-   //GrKeyRead();
+   GrKeyRead();
 }
 
