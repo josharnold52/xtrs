@@ -66,7 +66,7 @@ int trs_model1_lowercase = 0;
 
 const char *emulator_base_directory = 0;
 const char *cassette_base_directory = 0;
-
+const char *emulator_printer_directory =0;
 
 /**
  * This gets initialized during screen init, and the
@@ -229,6 +229,9 @@ void trs_get_event(int wait) {
                 } else {
                     trs_realtime_force_enable();
                 }
+            } else if (keycode == 0x44) { //F10
+                ignoreKey = 1;
+                joshem_request_tapedialog_status();
             }
             nest_count--;
         }
@@ -292,7 +295,9 @@ void trs_screen_init() {
 
 
     //FILE * modout;
-    GrSetDriver("VESA");
+    //GrSetDriver("VESA");
+    GrSetDriver("s3");
+
 
     /*
 
@@ -344,6 +349,8 @@ void trs_screen_init() {
     //uses our command line options.
 
     GrSetMode(GR_width_height_graphics, 640, 200);
+    joshlog("Video Driver is %s %d\n", GrCurrentVideoDriver()->name, (int)GrAdapterType());
+
     int x, y;
     x = GrMaxX() / 2;
     y = GrMaxY() / 2;
@@ -753,6 +760,14 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
         sprintf((char *) cassette_base_directory, "%s/CAS", emulator_base_directory);
     }
 
+    emulator_printer_directory = malloc(32 + strlen(emulator_base_directory));
+    if (!emulator_printer_directory) {
+        joshlog("Unable to allocate printer base directory");
+        emulator_printer_directory = "./PRINT";
+    } else {
+        sprintf((char *) emulator_printer_directory, "%s/PRINT", emulator_base_directory);
+    }
+
     trs_model = 1;
     trs_model1_lowercase = FALSE;
 
@@ -860,7 +875,7 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
         fatal("unrecognized argument %s", argv[optind]);
     }
 
-    trs_video_ram_7_bit = trs_model == 1 && trs_model1_lowercase;
+    trs_video_ram_7_bit = trs_model == 1 && !trs_model1_lowercase;
 
     if (trs_video_ram_7_bit) {
         joshlog("Video RAM is 7 bits\n");

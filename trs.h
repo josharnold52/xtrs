@@ -30,7 +30,10 @@
 #define INVERSE 2
 #define ALTERNATE 4
 
-extern const char* cassette_base_directory;
+extern const char *emulator_printer_directory;
+extern const char *emulator_base_directory;
+extern const char *cassette_base_directory;
+
 #define CASSETTE_USER_DIRECTORY ("USER")
 
 extern char *program_name;
@@ -228,6 +231,7 @@ typedef struct joshem_cassette_control_args {
    int cassette_writable;
    int write_requested;
    int initial_selection;
+   int view_current_status;
 } joshem_cassette_control_args;
 
 
@@ -236,6 +240,7 @@ void joshem_cassette_control(joshem_cassette_control_args *pArgs);
 
 
 void joshem_request_tapedialog();
+void joshem_request_tapedialog_status();
 
 
 

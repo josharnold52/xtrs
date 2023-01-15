@@ -15,18 +15,23 @@
 
 /* $Id$ */
 
+#include <sys/stat.h>
+#include <string.h>
 #include "z80.h"
 #include "trs.h"
+#include "newutils.h"
 
 void trs_printer_write(int value)
 {
-    if(value == 0x0D)
-    {
-	putchar('\n');
-    }
-    else
-    {
-	putchar(value);
+    char buf[2000];
+    mkdir(emulator_printer_directory, S_IWUSR);  //S_IWUSR ==> not read only
+    safe_strcpy(buf, emulator_printer_directory, sizeof(buf) - 20);
+    strcat(buf, "/PRINTER.OUT");
+
+    FILE *f = fopen(buf, "ab");
+    if (f) {
+        putc(value & 0xFF, f);
+        fclose(f);
     }
 }
 

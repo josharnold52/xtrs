@@ -59,6 +59,7 @@
 
 #include "trs.h"
 #include "z80.h"
+#include "newutils.h"
 #include <string.h>
 //#include <signal.h>
 #include <errno.h>
@@ -235,15 +236,17 @@ static long wave_datasize_offset = WAVE_DATASIZE_OFFSET;
 static long wave_data_offset = WAVE_DATA_OFFSET;
 
 
-//0 = none, 1=doing tapeswitch dialog, -1 = requested
+//0 = none, 1=doing tapeswitch dialog, -1 = requested, -2 = requested_status
 #define JOSHEM_TAPESWITCH_NONE (0)
 #define JOSHEM_TAPESWITCH_REQUESTED (-1)
+#define JOSHEM_TAPESWITCH_REQUESTED_STATUS (-2)
 #define JOSHEM_TAPESWITCH_ACTIVE (1)
 
 static int joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
 
 
 static void do_joshem_tapedialog(int writeRequested) {
+    int requested_status = joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED_STATUS;
     joshem_tapeswitch_state = JOSHEM_TAPESWITCH_ACTIVE;
 
     joshem_cassette_control_args args;
@@ -253,18 +256,19 @@ static void do_joshem_tapedialog(int writeRequested) {
         args.cassette_writable = cassette_writable;
         args.write_requested  = writeRequested;
         args.initial_selection = !cassette_did_initial_selection;
+        args.view_current_status = requested_status;
         joshem_cassette_control(&args);
         memcpy(cassette_filename, args.cassette_filename, sizeof(cassette_filename_buffer));
         cassette_position = args.cassette_position;
         cassette_format = args.cassette_format;
         cassette_writable = args.cassette_writable;
-        cassette_did_initial_selection = !args.initial_selection;
+        cassette_did_initial_selection = cassette_did_initial_selection || !args.initial_selection;
         put_control();
         joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
 }
 
 void joshem_request_tapedialog() {
-        joshlog("HERE %u %u", cassette_state, joshem_tapeswitch_state);
+        //joshlog("HERE %u %u", cassette_state, joshem_tapeswitch_state);
         if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
                 return;
         }
@@ -274,6 +278,18 @@ void joshem_request_tapedialog() {
                 //do_joshem_tapedialog(0);
         }
 }
+void joshem_request_tapedialog_status() {
+    //joshlog("HERE STATUS %u %u", cassette_state, joshem_tapeswitch_state);
+    if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
+        return;
+    }
+    joshem_tapeswitch_state = JOSHEM_TAPESWITCH_REQUESTED_STATUS;
+    if (cassette_state == CLOSE) {
+        get_control();  //Responds to JOSHEM_TAPESWITCH_REQUESTED_STATUS
+        //do_joshem_tapedialog(0);
+    }
+}
+
 
 
 #if HAVE_OSS
@@ -563,7 +579,9 @@ static void get_control()
   //TODO: This will make it so that the first CLOAD after starting the emulator
   // prompts for a tape.   Is this desired, or should we reuse whatever the previous
   // session had?
-  if (!cassette_did_initial_selection || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED) {
+  if (!cassette_did_initial_selection
+    || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED
+    || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED_STATUS) {
       do_joshem_tapedialog(0);
   }
   if (!cassette_did_initial_selection) {
@@ -1343,7 +1361,8 @@ trs_cassette_update(int dummy)
   if (cassette_motor && cassette_state != WRITE && assert_state(READ) >= 0) {
     int newtrans = 0;
     while ((z80_state.t_count - cassette_transition) >= cassette_delta) {
-        if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED) {
+        if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED
+                || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED_STATUS) {
             put_control();
             assert_state(CLOSE);
             get_control(); //Responds to JOSHEM_TAPESWITCH_REQUESTED
@@ -1443,3 +1462,4 @@ trs_cassette_reset()
 int trs_cassette_is_motor_on() {
   return trs_model != 0;
 }
+

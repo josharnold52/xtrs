@@ -11,49 +11,6 @@ static size_t min(size_t i, size_t i1);
 
 static void log_fragment(const char *name, const char *data, size_t start, size_t end);
 
-static size_t find_next_line_offset(const char *data, size_t size, size_t offset) {
-    if (offset >= size) {
-        return size;
-    }
-    size_t p = offset;
-    //Line terminators ar 0A or 0D or 0A0D or 0D0A
-    for (;;) {
-        char c = data[p];
-        if ((++p) >= size) {
-            break;
-        }
-        if (c == 0xa || c == 0xd) {
-            char c2 = data[p];
-            if (c != c2 && (c2 == 0xa || c2 == 0xd)) {
-                p++;
-            }
-            break;
-        }
-    }
-    return p;
-}
-
-//returns the new end if we trim whitespace from the right
-static size_t rtrim_offset(const char *data, size_t start, size_t end) {
-    for (; end > start; end--) {
-        char c = data[end - 1];
-        if (c > 32) {
-            break;
-        }
-    }
-    return end;
-}
-
-//returns the new end if we trim whitespace from the left
-static size_t ltrim_offset(const char *data, size_t start, size_t end) {
-    for (; end > start; start++) {
-        char c = data[start];
-        if (c > 32) {
-            break;
-        }
-    }
-    return start;
-}
 
 
 void meta_reader_init(const struct mem_block *source_block, struct meta_reader_cursor *cursor) {
@@ -147,9 +104,15 @@ static void log_fragment(const char *name, const char *data, size_t start, size_
 }
 
 
+/** If source block is null, returns {0,0} */
 boundary find_meta_data(const struct mem_block *source_block, const char *label) {
     struct meta_reader_cursor cursor;
     boundary res;
+    if (!source_block) {
+        res.start = 0;
+        res.end = 0;
+        return res;
+    }
 
     meta_reader_init(source_block, &cursor);
     while (meta_reader_next(&cursor)) {
