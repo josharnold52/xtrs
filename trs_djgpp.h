@@ -10,5 +10,7 @@
 extern GrColor COLOR_BORDER;
 extern GrColor COLOR_PRIMARY;
 extern GrColor COLOR_SECONDARY;
+extern GrColor COLOR_SECONDARY_BRIGHT;
+extern GrColor COLOR_DISABLED;
 
 #endif //XTRS_TRS_DJGPP_H

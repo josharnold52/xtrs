@@ -3,6 +3,7 @@
 //
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 #include "trs.h"
 #include "newutils.h"
 #include "trs_metafile.h"
@@ -45,7 +46,7 @@ int meta_reader_next(struct meta_reader_cursor *cursor) {
         (cursor->state != META_READER_CURSOR_STATE_INIT && cursor->state != META_READER_CURSOR_STATE_VALID)) {
         return 0;
     }
-    joshlog("JHERE+\n");
+    //joshlog("JHERE+\n");
     size_t p;
     p = cursor->data_length + cursor->data_offset;
     for (;;) {
@@ -96,11 +97,14 @@ static size_t min(size_t a, size_t b) {
 
 
 static void log_fragment(const char *name, const char *data, size_t start, size_t end) {
+    return;
+    /*
     char cpy[1024];
     size_t len = min(end - start, sizeof(cpy) - 1);
     memcpy(cpy, data + start, len);
     cpy[len] = 0;
     joshlog("META FRAGMENT %s : <%s>\n", name, cpy);
+     */
 }
 
 
@@ -131,4 +135,50 @@ boundary find_meta_data(const struct mem_block *source_block, const char *label)
     }
     res.start = res.end = 0;
     return res;
+}
+static int compare_track_positions(const struct track_entry *e1, const struct track_entry *e2) {
+    if (e1->offset < e2->offset)
+        return -1;
+    if (e1->offset > e2->offset)
+        return 1;
+    return 0;
+}
+/**
+ *
+ * @param base_dir base dir or null
+ * @param cas_file path to the cassette file relative to the base dir
+ * @param metadata the metadata
+ */
+void loadTrackList(const char *base_dir, const char *cas_file, const struct mem_block *metadata, struct track_list *tracks) {
+    boundary metatracks = find_meta_data(metadata, "tracks");
+    if (metatracks.end > metatracks.start) {
+        tracks->track_count = 0;
+        while(metatracks.end > metatracks.start && tracks->track_count < MAX_TRACK_COUNT) {
+            char pos[20];
+            metatracks.start = extract_next_token(metadata->data, metatracks.start, metatracks.end,
+                                                  '|', pos, sizeof(pos));
+            metatracks.start = extract_next_token(metadata->data, metatracks.start, metatracks.end,
+                                                  '|', tracks->tracks[tracks->track_count].track_name,
+                                                  TRACK_NAME_BUF_SIZE);
+            tracks->tracks[tracks->track_count].offset = atoi(pos); // NOLINT(cert-err34-c)
+            tracks->track_count++;
+        }
+    } else {
+        char cas_path[2000];
+        join_path(cas_path, sizeof(cas_path), base_dir, cas_file);
+        int detected_tracks[MAX_TRACK_COUNT];
+        int detected_count = find_cas_tracks(cas_file, detected_tracks, MAX_TRACK_COUNT);
+        if (detected_count > MAX_TRACK_COUNT) {
+            detected_count = MAX_TRACK_COUNT;
+        }
+        tracks->track_count = detected_count;
+        for(int i=0;i<detected_count; i++) {
+            sprintf(tracks->tracks[i].track_name, "Track %d", i+1);
+            tracks->tracks[i].offset = detected_tracks[i];
+        }
+    }
+    if (tracks->track_count > 1) {
+        qsort(tracks->tracks, tracks->track_count, sizeof(struct track_entry),
+              (int (*)(const void *, const void *)) compare_track_positions);
+    }
 }

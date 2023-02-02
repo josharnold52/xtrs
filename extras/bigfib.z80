@@ -1,0 +1,57 @@
+; NOTE: Uses the new zmac from http://48k.ca/zmac.html
+
+    ORG 5000H
+
+
+
+
+video equ 3C00H
+numsz equ 32
+
+
+bss_ptr defl end_of_asm
+
+var_a equ bss_ptr
+bss_ptr += (numsz + 1)
+var_b equ bss_ptr
+bss_ptr += (numsz + 1)
+var_c equ bss_ptr
+bss_ptr += (numsz + 1)
+stack_bottom equ bss_ptr
+bss_ptr += 32
+stack_top equ bss_ptr
+bss_ptr = (bss_ptr + 255) & 0FF00H
+low_chars equ bss_ptr
+bss_ptr += 256
+high_chars equ bss_ptr
+
+
+
+
+entrypoint: 
+    ld hl, low_chars    
+    ld d,0
+    
+    xor a,a
+
+
+
+
+    ret
+
+
+
+; HL = source, DE = dest
+copy_num:
+    ld a, (hl)
+
+
+
+
+end_of_asm:
+
+
+
+
+
+    end entrypoint

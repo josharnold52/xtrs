@@ -1,0 +1,2 @@
+* FIXED: The LEV1BAS (Basic instruction course, track 21 fails to load - maybe a problem tape?) 
+* Also Track 20 in an example, uses R as an array - Maybe switch that to an A?

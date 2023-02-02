@@ -57,27 +57,6 @@ size_t ltrim_offset(const char *data, size_t start, size_t end) {
 
 
 
-static unsigned int get_file_length(const char *fn) {
-    FILE *f;
-    int fhandle;
-    long long len;
-
-    f = fopen(fn, "rb");
-    if (!f) {
-        return 0;
-    }
-    fhandle = fileno(f);
-    len = lfilelength(fhandle);
-    fclose(f);
-    if (len == -1LL) {
-        return 0;
-    }
-    if (len > 0xFFFFFFFFLL) {
-        return 0xFFFFFFFFU;
-    }
-    return (unsigned int) len;
-}
-
 
 //Does nothing if null
 void free_mem_block(struct mem_block *p) {
@@ -172,4 +151,74 @@ size_t safe_strcpy(char *dest, const char *src, size_t buf_size_include_null) {
         memcpy(dest, src, toCopy);
     dest[toCopy] = 0;
     return toCopy;
+}
+
+size_t join_path(char *buf, size_t buf_size_include_null, const char *p1, const char *p2) {
+    if (!buf_size_include_null)
+        return 0;
+    if (!p1 || !p1[0])
+        return safe_strcpy(buf, p2 ? p2 : "", buf_size_include_null);
+    size_t x = safe_strcpy(buf, p1, buf_size_include_null);
+    if (!p2 || !p2[0])
+        return x;
+
+    if (buf[x-1] != '/' && buf[x-1] != '\\') {
+        if ((x+1)>=buf_size_include_null)
+            return x;
+        buf[x++] = '/';
+        buf[x] = 0;
+    }
+    while (p2[0] == '/')
+        p2++;
+    size_t x2 = safe_strcpy(buf+x,  p2, buf_size_include_null - x);
+    return x + x2;
+}
+
+unsigned int get_file_length(const char *fn) {
+    FILE *f;
+    int fhandle;
+    long long len;
+
+    f = fopen(fn, "rb");
+    if (!f) {
+        return 0;
+    }
+    fhandle = fileno(f);
+    len = lfilelength(fhandle);
+    fclose(f);
+    if (len == -1LL) {
+        return 0;
+    }
+    if (len > 0xFFFFFFFFLL) {
+        return 0xFFFFFFFF;
+    }
+    return (unsigned int) len;
+}
+
+size_t find_char(const char *data, size_t start, size_t end, char c) {
+    for(size_t x = start; x < end; x ++) {
+        if (data[x] == c)
+            return x;
+    }
+    return end;
+}
+/** Return position just after delim or end if not found */
+size_t extract_next_token(const char *data, size_t start, size_t end, char delim, char *dest, size_t dest_buf_size) {
+    if (dest && dest_buf_size)
+        dest[0] = 0;
+    if(start >= end)
+        return end;
+    size_t delim_pos = find_char(data, start, end, delim);
+    if (dest && dest_buf_size) {
+        size_t s = ltrim_offset(data, start, delim_pos);
+        size_t e = rtrim_offset(data, s, delim_pos);
+        size_t len = e - s;
+        if (len >= dest_buf_size) {
+            len = dest_buf_size - 1;
+        }
+        if (len)
+            memcpy(dest, data + s, len);
+        dest[len] = 0;
+    }
+    return delim_pos < end ? delim_pos + 1 : end;
 }

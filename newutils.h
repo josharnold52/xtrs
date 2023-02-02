@@ -31,4 +31,21 @@ int find_cas_tracks2(const char *baseDir, const char *file, int *trackArray, int
 /** Copies the string, truncating if need be, ensures always null terminated. Returns length of copied string (not including null term) */
 size_t safe_strcpy(char *dest, const char *src, size_t buf_size_include_null);
 
+size_t join_path(char *buf, size_t buf_size_include_null, const char *p1, const char *p2);
+
+unsigned int get_file_length(const char *fn);
+
+/**
+ * Returns end if not found
+ * @param data
+ * @param start
+ * @param end
+ * @param c
+ * @return
+ */
+size_t find_char(const char *data, size_t start, size_t end, char c);
+
+
+/** Return position just after delim or end if not found */
+size_t extract_next_token(const char *data, size_t start, size_t end, char delim, char *dest, size_t dest_buf_size);
 #endif //XTRS_NEWUTILS_H

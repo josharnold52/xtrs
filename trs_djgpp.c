@@ -61,6 +61,8 @@
 GrColor COLOR_BORDER;
 GrColor COLOR_PRIMARY;
 GrColor COLOR_SECONDARY;
+GrColor COLOR_DISABLED;
+GrColor COLOR_SECONDARY_BRIGHT;
 
 int trs_model1_lowercase = 0;
 
@@ -368,6 +370,8 @@ void trs_screen_init() {
     COLOR_BORDER = GrAllocColor(255, 0, 0);
     COLOR_PRIMARY = GrAllocColor(0, 255, 255);
     COLOR_SECONDARY = GrAllocColor(127, 127, 127);
+    COLOR_DISABLED = GrAllocColor(64,64,64);
+    COLOR_SECONDARY_BRIGHT = GrAllocColor(255,255,255);
 
     repaint_screen();
     trs_load_romfile();

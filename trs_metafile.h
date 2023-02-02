@@ -63,4 +63,19 @@ typedef struct boundary boundary;
  */
 boundary find_meta_data(const struct mem_block *source_block, const char *label);
 
+#define TRACK_NAME_BUF_SIZE (20)
+#define TRACK_NAME_MAX_LENGTH (TRACK_NAME_BUF_SIZE - 1)
+struct track_entry {
+    char track_name[TRACK_NAME_BUF_SIZE]; //Zero terminated
+    int offset;
+};
+
+#define MAX_TRACK_COUNT (99)
+struct track_list {
+    int track_count;
+    struct track_entry tracks[MAX_TRACK_COUNT]; //only defined up to track count
+};
+
+void loadTrackList(const char *base_dir, const char *cas_file, const struct mem_block *metadata, struct track_list *tracks);
+
 #endif //XTRS_TRS_METAFILE_H

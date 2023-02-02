@@ -1,15 +1,9 @@
 
 #include <stdio.h>
-#include <fcntl.h>
-//#include <signal.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/file.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <grx20.h>
 #include <grxkeys.h>
 
@@ -24,7 +18,6 @@
 #include <dirent.h>
 #include <assert.h>
 #include <io.h>
-//#include <dpmi.h>
 #include "trs_metafile.h"
 #include "trs_djgpp.h"
 
@@ -56,11 +49,49 @@ typedef struct cassette_table {
 } cassette_table;
 
 
+
 struct dialogOption {
-    const unsigned short *keys;
+    char key;
     const char *display;
     int enabled;
 };
+
+struct optionDisplay {
+    GrTextOption gtr;
+    size_t optionCount;
+    int xmin;
+    int xmax;
+    int y;
+    struct dialogOption options[10];
+};
+
+static void drawOptions(const struct optionDisplay *o, int toggleIndex) {
+    char buf[64];
+    int dx = (o->xmax - o->xmin) / (int)o->optionCount;
+    for(int indx = 0; indx < (int)(o->optionCount) ; indx++) {
+        GrTextOption cpy = o ->gtr;
+        cpy.txo_xalign = GR_ALIGN_CENTER;
+        if (!o->options[indx].enabled) {
+            cpy.txo_fgcolor.v = COLOR_DISABLED;
+        } else if (toggleIndex == indx) {
+            cpy.txo_bgcolor.v = GrWhite();
+        }
+        safe_strcpy(buf, o->options[indx].display, sizeof(buf));
+        GrDrawString(buf, (int) strlen(buf),o->xmin + dx * (1 + 2*indx) / 2, o->y, &cpy);
+    }
+}
+
+int matchOption(const struct optionDisplay *o, char c) {
+    for(int i=0;i<(int)(o->optionCount);i++) {
+        if(o->options[i].enabled && o->options[i].key == c) {
+            drawOptions(o, i);
+            usleep(50000);
+            drawOptions(o, -1);
+            return i;
+        }
+    }
+    return -1;
+}
 
 static void show_help(char *disp_name, struct mem_block *meta);
 
@@ -77,26 +108,6 @@ static void fill_standard_text_option(GrTextOption *grt) {
     grt->txo_chrtype = GR_BYTE_TEXT;
 }
 
-static unsigned int get_file_length(const char *fn) {
-    FILE *f;
-    int fhandle;
-    long long len;
-
-    f = fopen(fn, "rb");
-    if (!f) {
-        return 0;
-    }
-    fhandle = fileno(f);
-    len = lfilelength(fhandle);
-    fclose(f);
-    if (len == -1LL) {
-        return 0;
-    }
-    if (len > 0xFFFFFFFFLL) {
-        return 0xFFFFFFFF;
-    }
-    return (unsigned int) len;
-}
 
 static unsigned char get_cassette_entry_type(struct dirent *dir) {
     if (!dir) {
@@ -656,7 +667,7 @@ static int ask_question(const char *prompt, char *dest, unsigned int maxLen) {
     return retVal;
 }
 
-static void create_display_name(const char *filename, cassette_display_name *display_name) {
+static void create_display_name(const char *filename,  cassette_display_name  *  const display_name) {
     const char *slashpos = filename;
     const char *dotpos = filename;;
     const char *pos;
@@ -760,61 +771,192 @@ static void show_help(char *disp_name, struct mem_block *meta) {
     }
 }
 
-static void draw_cassette(joshem_cassette_control_args *pArgs) {
+static void select_tape_for_reading(joshem_cassette_control_args *pArgs) {
+    cassette_entry_fn e;
+    if (choose_cassette(e)) {
+        strcpy(pArgs->cassette_filename, e);
+        pArgs->cassette_position = 0;
+        pArgs->cassette_format = 1;
+        pArgs->cassette_writable = 0;
+        pArgs->initial_selection = 0;
+        boundary  b;
+        struct mem_block * p = load_cassette_meta(0, e);
+        if (p) {
+            b = find_meta_data(p, "help");
+            if (b.end > b.start) {
+                cassette_display_name x;
+                create_display_name(e, &x);
+                show_help(x, p);
+            }
+            free_mem_block(p);
+        }
+    }
+    GrClearScreen(GrBlack());
+
+}
+
+
+//TODO - Maybe do not need this!
+struct draw_cassette_result {
+    int choose_new_tape;
+};
+
+static struct draw_cassette_result draw_cassette(joshem_cassette_control_args *pArgs) {
     cassette_display_name disp_name;
     create_display_name(pArgs->cassette_filename, &disp_name);
 
+    struct draw_cassette_result res = {0};
     struct mem_block *meta = load_cassette_meta(0, pArgs->cassette_filename);
+
+    struct track_list tracks;
+    loadTrackList(0, pArgs->cassette_filename, meta, &tracks);
+
+    int current_track = 0;
+    while(current_track < tracks.track_count && tracks.tracks[current_track].offset < pArgs->cassette_position) {
+        current_track++;
+    }
+
     //show_help(disp_name, meta);
 
     //This is legal even if meta is null
-    boundary description = find_meta_data(meta, "description");
-
-    GrClearScreen(GrBlack());
+    const boundary description = find_meta_data(meta, "description");
+    const boundary help = find_meta_data(meta, "help");
     GrTextOption grt;
     fill_standard_text_option(&grt);
     const GrTextOption base_grt = grt;
+    const int midx = GrMaxX() / 2;
+    const int midy = GrMaxY() / 2 - 20;
+    const int ry = GrMaxY() / 2 - 40;
+    const int rx = GrMaxX() / 2 - 120;
+    const int bx1 = rx * 3 / 4;
+    const int bx2 = bx1 - rx / 10;
+    const int by1 = ry;
+    const int by2 = by1 - ry * 5 / 10;
 
-    int midx, midy;
-    midx = GrMaxX() / 2;
-    midy = GrMaxY() / 2;
-    int ry = midy - 40;
-    int rx = midx - 120;
-    //GrFilledBox(midx - rx, midy - ry, midx + rx, midy + ry, COLOR_BORDER);
-    GrBox(midx - rx, midy - ry, midx + rx, midy + ry, COLOR_BORDER);
-    GrEllipse(midx - rx / 2, midy - ry / 5, rx / 7, ry / 4, COLOR_BORDER);
-    GrEllipse(midx + rx / 2, midy - ry / 5, rx / 7, ry / 4, COLOR_BORDER);
-
-
-    int bx1 = rx * 3 / 4;
-    int bx2 = bx1 - rx / 10;
-    int by1 = ry;
-    int by2 = by1 - ry * 5 / 10;
-    int poly[][2] = {
-            {midx - bx1, midy + by1},
-            {midx - bx2, midy + by2},
-            {midx + bx2, midy + by2},
-            {midx + bx1, midy + by1}
-    };
-    GrPolygon(4, poly, COLOR_BORDER);
-    //GrLine(poly[0][0], poly[0][1], poly[1][0], poly[1][1], GrWhite());
-
-
-    GrDrawString(disp_name, (int) strlen(disp_name), midx, midy - 30, &grt);
-    if (description.end > description.start) {
-        grt.txo_font = &GrFont_PC6x8;
-        grt.txo_fgcolor.v = COLOR_SECONDARY;
-        GrDrawString(meta->data + description.start, description.end - description.start,
-                     midx, midy - 16, &grt);
+    for(;;) {
+        GrClearScreen(GrBlack());
         grt = base_grt;
+        //GrFilledBox(midx - rx, midy - ry, midx + rx, midy + ry, COLOR_BORDER);
+        GrBox(midx - rx, midy - ry, midx + rx, midy + ry, COLOR_BORDER);
+        GrEllipse(midx - rx / 2, midy - ry / 5, rx / 7, ry / 4, COLOR_BORDER);
+        GrEllipse(midx + rx / 2, midy - ry / 5, rx / 7, ry / 4, COLOR_BORDER);
+
+
+        int poly[][2] = {
+                {midx - bx1, midy + by1},
+                {midx - bx2, midy + by2},
+                {midx + bx2, midy + by2},
+                {midx + bx1, midy + by1}
+        };
+        GrPolygon(4, poly, COLOR_BORDER);
+        //GrLine(poly[0][0], poly[0][1], poly[1][0], poly[1][1], GrWhite());
+
+        if (tracks.track_count > 0) {
+            grt.txo_font = &GrFont_PC8x8;
+            grt.txo_fgcolor.v = COLOR_SECONDARY_BRIGHT;
+            grt.txo_xalign = GR_ALIGN_LEFT;
+            grt.txo_yalign = GR_ALIGN_BOTTOM;
+            char* track_name = tracks.tracks[current_track].track_name;
+            GrDrawString(track_name, (int) strlen(track_name), midx - bx2, midy + by1 - 5, &grt);
+            char track_posstr[20];
+            sprintf(track_posstr, "%d", pArgs->cassette_position);
+            grt.txo_xalign = GR_ALIGN_RIGHT;
+            grt.txo_fgcolor.v = COLOR_SECONDARY;
+            GrDrawString(track_posstr, (int) strlen(track_posstr), midx + bx2, midy + by1 - 5, &grt);
+            grt = base_grt;
+        }
+
+        grt.txo_yalign = GR_ALIGN_CENTER;
+        grt.txo_xalign = GR_ALIGN_CENTER;
+        grt.txo_fgcolor.v = COLOR_SECONDARY;
+        GrDrawString(disp_name, (int) strlen(disp_name), midx , midy - ry / 5, &grt);
+        grt = base_grt;
+        if (description.end > description.start) {
+            grt.txo_yalign = GR_ALIGN_TOP;
+            grt.txo_font = &GrFont_PC8x8;
+            grt.txo_fgcolor.v = COLOR_SECONDARY_BRIGHT;
+            grt.txo_xalign = GR_ALIGN_CENTER;
+            GrDrawString(meta->data + description.start, (int)(description.end - description.start),
+                         midx, midy - ry + 11, &grt);
+            grt = base_grt;
+        }
+
+        struct optionDisplay move_options = {
+                base_grt,4,midx - rx, midx + rx, midy + ry + 20,
+                {
+                {'S', "(S)tart",   tracks.track_count > 0 && current_track > 0},
+                {'B', "(B)ack",    tracks.track_count > 0 &&  current_track > 0},
+                {'F', "(F)orward", tracks.track_count > 0 && current_track < (tracks.track_count - 1)},
+                {'E', "(E)nd",     tracks.track_count > 0 &&  current_track < (tracks.track_count - 1)},
+        }};
+        drawOptions(&move_options, -1);
+
+        struct optionDisplay other_options = {
+                base_grt, 2, midx - rx, midx + rx, midy + ry + 40,
+            {
+                    {'C', "(C)hange Tape",     TRUE},
+                    {'A', "(A)bout This Tape", help.end > help.start},
+                    }};
+
+        drawOptions(&other_options,-1);
+
+        char opt;
+        for(;;) {
+            GrKeyType  key = GrKeyRead();
+            if (key >= 'a' && key <= 'z')
+                key = key - 'a' + 'A';
+            if (key == GrKey_Return) {
+                opt = 'X';
+                break;
+            }
+            switch (key) {
+                case GrKey_Up: key = 'S'; break;
+                case GrKey_Down: key = 'E'; break;
+                case GrKey_Left: key = 'B'; break;
+                case GrKey_Right: key = 'F'; break;
+                default: break;
+            }
+            if (key != GrKey_NoKey && key < 127) {
+                opt = (char)key;
+                break;
+            }
+        }
+        matchOption(&move_options, opt);
+        matchOption(&other_options, opt);
+
+        if (opt == 'X') {
+            break;
+        }
+        if (opt == 'C') {
+            res.choose_new_tape = 1;
+            break;
+        }
+        if (opt == 'A') {
+            show_help(disp_name, meta);
+            GrClearScreen(GrBlack());
+            continue;
+        }
+
+        int new_track = current_track;
+        switch (opt) {
+            case 'S': new_track = 0; break;
+            case 'B': new_track = current_track > 0 ? current_track - 1 : current_track; break;
+            case 'F': new_track = min(current_track+1, tracks.track_count - 1); break;
+            case 'E': new_track = tracks.track_count - 1; break;
+            default: break;
+        }
+        if (new_track != current_track && tracks.track_count > 0) {
+            current_track = new_track;
+            pArgs->cassette_position = tracks.tracks[current_track].offset;
+            joshlog("Repositions %s to %d\n", pArgs->cassette_filename, pArgs->cassette_position);
+        }
     }
-
-
 
     if (meta) {
         free_mem_block(meta);
         meta = 0;
     }
+    return res;
 }
 
 static void cassette_control_handler(joshem_modal_context *pContext) {
@@ -824,8 +966,20 @@ static void cassette_control_handler(joshem_modal_context *pContext) {
         return;
     }
     if (pArgs->view_current_status) {
-        draw_cassette(pArgs);
-        GrKeyRead();
+        if (pArgs->initial_selection) {
+            select_tape_for_reading(pArgs);
+            if (pArgs->initial_selection) {
+                return;
+            }
+        }
+        struct draw_cassette_result res;
+        for(;;) {
+            res = draw_cassette(pArgs);
+            if (!res.choose_new_tape) {
+                break;
+            }
+            select_tape_for_reading(pArgs);
+        }
         return;
     }
     if (pArgs->write_requested) {
@@ -844,15 +998,8 @@ static void cassette_control_handler(joshem_modal_context *pContext) {
 
         return;
     }
-    //ask_question_message_handler(0);
-    if (choose_cassette(e)) {
-        strcpy(pArgs->cassette_filename, e);
-        pArgs->cassette_position = 0;
-        pArgs->cassette_format = 1;
-        pArgs->cassette_writable = 0;
-        pArgs->initial_selection = 0;
-    }
-    GrClearScreen(GrBlack());
+
+    select_tape_for_reading(pArgs);
 
 
     //draw_cassette(pArgs);

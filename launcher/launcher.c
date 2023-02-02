@@ -21,6 +21,8 @@ struct emu *emu_list;
 
 char emus_base[MAXPATH+14];
 
+char start_wd[MAXPATH+14];
+
 int emu_count() {
     struct emu *p;
     int res;
@@ -157,13 +159,16 @@ int move(int cur_emu, int dx, int dy) {
 }
 
 void mainloop() {
-    int c,is_special,next_emu, cur_emu;
+    static const char escape_hatch[] = "exit";
+
+    int c,is_special,next_emu, cur_emu, escape_counter;
     is_special = 0;
+    escape_counter = 0;
 
     next_emu = 0;
     cur_emu = -1;
 
-    for(;;) {
+    for(;escape_hatch[escape_counter];) {
         if (cur_emu != next_emu) {
             cur_emu = next_emu;
             show_options(cur_emu);
@@ -171,6 +176,7 @@ void mainloop() {
         c = getch();
         if (c == 0 && !is_special) { /*TODO - Some refereces imply I should check for 0xE0 too*/
             is_special = 1;
+            escape_counter = 0;
             continue;
         }
         if (is_special) {
@@ -181,6 +187,7 @@ void mainloop() {
                 case 0x4D: next_emu = move(cur_emu, 1, 0); break;
             }
             is_special = 0;
+            escape_counter = 0;
             continue;
         }
         if (c == 0xd) {
@@ -188,7 +195,13 @@ void mainloop() {
                 clrscr();
                 show_options(cur_emu);
             }
+            escape_counter = 0;
             continue;
+        }
+        if (c == escape_hatch[escape_counter]) {
+            escape_counter++;
+        } else {
+            escape_counter = 0;
         }
     }
 }
@@ -200,6 +213,11 @@ int init() {
     int find_res;
     int emu_counter;
     struct emu *first, *last, *p;
+
+    if (!getcwd(start_wd, MAXPATH)) {
+        printf("getcwd error %u\n", errno);
+        return 0;
+    }
 
     if (!getcwd(emus_base, MAXPATH)) {
         printf("getcwd error %u\n", errno);
@@ -263,6 +281,7 @@ void main(int argc, char **argv, char **env) {
     textmode(C80);
     clrscr();
     mainloop();
+    chdir(start_wd);
     return;
 }
 

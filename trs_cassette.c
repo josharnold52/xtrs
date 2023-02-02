@@ -109,7 +109,7 @@ static int cassette_format;
 static int cassette_writable = 0;
 static int cassette_state = CLOSE;
 static int cassette_motor = 0;
-static FILE *cassette_file;
+static FILE *cassette_file = NULL;
 static float cassette_avg;
 static float cassette_env;
 static int cassette_noisefloor;
@@ -245,6 +245,29 @@ static long wave_data_offset = WAVE_DATA_OFFSET;
 static int joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
 
 
+static void ensure_cassette_file_closed() {
+    if (cassette_file != NULL) {
+        fclose(cassette_file);
+        cassette_file = NULL;
+    }
+}
+static int safe_open_cassette_file(const char *mode) {
+    ensure_cassette_file_closed();
+    cassette_file = fopen(cassette_filename, mode);
+    return cassette_file != NULL;
+}
+
+static int open_non_wav_cassette_for_writing() {
+    safe_open_cassette_file("r+b");
+    if (cassette_file == NULL) {
+        safe_open_cassette_file("wb");
+    }
+    if (cassette_file != NULL) {
+        fseek(cassette_file, cassette_position, 0);
+    }
+    return cassette_file != NULL;
+}
+
 static void do_joshem_tapedialog(int writeRequested) {
     int requested_status = joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED_STATUS;
     joshem_tapeswitch_state = JOSHEM_TAPESWITCH_ACTIVE;
@@ -290,7 +313,13 @@ void joshem_request_tapedialog_status() {
     }
 }
 
-
+static int select_and_open_non_wav_cassette() {
+    //TODO - Allow the user to cancel, in which case we black hole the writes
+    while (!cassette_writable) {
+        do_joshem_tapedialog(1);
+    }
+    return open_non_wav_cassette_for_writing();
+}
 
 #if HAVE_OSS
 /* Orchestra 80/85/90 stuff */
@@ -643,7 +672,7 @@ static int assert_state(int state)
       //sigaddset(&set, SIGALRM);
       //sigprocmask(SIG_BLOCK, &set, &oldset);
       trs_paused = 1;  /* disable speed measurement for this round */
-      fclose(cassette_file);
+      ensure_cassette_file_closed();
       //sigprocmask(SIG_SETMASK, &oldset, NULL);
       cassette_position = 0;
     } else {
@@ -654,7 +683,7 @@ static int assert_state(int state)
 	fseek(cassette_file, wave_datasize_offset, 0);
 	put_fourbyte(cassette_position - wave_data_offset, cassette_file);
       }
-      fclose(cassette_file);
+      ensure_cassette_file_closed();
     }
     if (cassette_state != SOUND && cassette_state != ORCH90) {
       put_control();
@@ -674,7 +703,7 @@ static int assert_state(int state)
         return -1;
     }
     if (cassette_format == DIRECT_FORMAT) {
-      cassette_file = fopen(cassette_filename, "rb");
+      safe_open_cassette_file("rb");
       if (cassette_file == NULL) {
 	error("couldn't read %s: %s", cassette_filename, strerror(errno));
 	cassette_state = FAILED;
@@ -685,15 +714,15 @@ static int assert_state(int state)
       if (set_audio_format(cassette_file, state) < 0) {
 	error("couldn't set audio format on %s: %s",
 	      cassette_filename, strerror(errno));
-	cassette_file = NULL;
+        ensure_cassette_file_closed();
 	cassette_state = FAILED;
 	return -1;
       }
     } else {
-      cassette_file = fopen(cassette_filename, "rb");
+      safe_open_cassette_file("rb");
       if (cassette_format == WAV_FORMAT &&
 	  cassette_file != NULL && parse_wav_header(cassette_file) < 0) {
-	cassette_file = NULL;
+        ensure_cassette_file_closed();
       }
       if (cassette_file == NULL) {
 	error("couldn't read %s: %s", cassette_filename, strerror(errno));
@@ -711,9 +740,11 @@ static int assert_state(int state)
       cassette_format = DIRECT_FORMAT;
       strcpy(cassette_filename, DSP_FILENAME);
     } else {
-      while (!cassette_writable) {
-          do_joshem_tapedialog(1);
-      }
+      ensure_cassette_file_closed();
+      cassette_format = CAS_FORMAT;  //Only support CAS for now
+      //while (!cassette_writable) {
+      //    do_joshem_tapedialog(1);
+      //}
     }
     if (cassette_format == DIRECT_FORMAT) {
 #if !HAVE_OSS
@@ -721,7 +752,7 @@ static int assert_state(int state)
       return -1;
 #endif
       cassette_sample_rate = cassette_default_sample_rate;
-      cassette_file = fopen(cassette_filename, "wb");
+      safe_open_cassette_file("wb");
       if (cassette_file == NULL) {
 	error("couldn't write %s: %s", cassette_filename, strerror(errno));
 	cassette_state = FAILED;
@@ -741,35 +772,31 @@ static int assert_state(int state)
       if (set_audio_format(cassette_file, state) < 0) {
 	error("couldn't set audio format on %s: %s",
 	      cassette_filename, strerror(errno));
-	cassette_file = NULL;
+        ensure_cassette_file_closed();
 	cassette_state = FAILED;
 	return -1;
       }	
     } else if (cassette_format == WAV_FORMAT) {
-      cassette_file = fopen(cassette_filename, "r+b");
+      safe_open_cassette_file("r+b");
       if (cassette_file == NULL) {
 	cassette_sample_rate = cassette_default_sample_rate;
-	cassette_file = fopen(cassette_filename, "wb");
+	safe_open_cassette_file("wb");
 	if (cassette_file && create_wav_header(cassette_file) < 0) {
-	  cassette_file = NULL;
+            ensure_cassette_file_closed();
 	}
       } else {
 	if (parse_wav_header(cassette_file) < 0) {
-	  fclose(cassette_file);
-	  cassette_file = NULL;
+	  ensure_cassette_file_closed();
 	}
       }
       if (cassette_file != NULL) {
 	fseek(cassette_file, cassette_position, 0);
       }
     } else {
-      cassette_file = fopen(cassette_filename, "r+b");
-      if (cassette_file == NULL) {
-	cassette_file = fopen(cassette_filename, "wb");
-      }
-      if (cassette_file != NULL) {
-	fseek(cassette_file, cassette_position, 0);
-      }
+      //open_non_wav_cassette_for_writing();
+      //Defer opening until time to write
+      cassette_state = state;
+      return 0;
     }
     if (cassette_file == NULL) {
       error("couldn't write %s: %s", cassette_filename, strerror(errno));
@@ -808,6 +835,10 @@ transition_out(int value)
 
   switch (cassette_format) {
   case DEBUG_FORMAT:
+    if (!select_and_open_non_wav_cassette()) {
+        assert_state(FAILED);
+        break;
+    }
     /* Print value and delta_us in ASCII for easier examination */
     if (value == FLUSH) value = cassette_value;
     delta_us = (unsigned long) (ddelta_us + 0.5);
@@ -819,6 +850,10 @@ transition_out(int value)
     /* Encode value and delta_us in two bytes if delta_us is small enough.
        Pack bits as ddddddddddddddvv and store this value in little-
        endian order. */
+      if (!select_and_open_non_wav_cassette()) {
+          assert_state(FAILED);
+          break;
+      }
     if (value == FLUSH) value = cassette_value;
     delta_us = (unsigned long) (ddelta_us + 0.5);
     cassette_roundoff_error = delta_us - ddelta_us;
@@ -836,6 +871,11 @@ transition_out(int value)
 
   case WAV_FORMAT:
   case DIRECT_FORMAT:
+      //Not currently supported
+      joshlog("Format %d not supported\n", cassette_format);
+      assert_state(FAILED);
+      break;
+
 #if HAVE_OSS
     if (cassette_state == SOUND) {
       if (ddelta_us > 20000.0) {
@@ -882,6 +922,10 @@ transition_out(int value)
 
   case CAS_FORMAT:
     if (value == FLUSH && cassette_bitnumber != 0) {
+      if (!select_and_open_non_wav_cassette()) {
+          assert_state(FAILED);
+          break;
+      }
       putc(cassette_byte, cassette_file);
       cassette_byte = 0;
       break;
@@ -971,6 +1015,10 @@ transition_out(int value)
     if (cassette_bitnumber < 0) cassette_bitnumber = 7;
     cassette_byte |= (sample << cassette_bitnumber);
     if (cassette_bitnumber == 0) {
+      if (!select_and_open_non_wav_cassette()) {
+        assert_state(FAILED);
+        break;
+      }
       putc(cassette_byte, cassette_file);
       cassette_byte = 0;
     }
