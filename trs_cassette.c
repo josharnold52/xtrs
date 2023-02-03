@@ -315,10 +315,13 @@ void joshem_request_tapedialog_status() {
 
 static int select_and_open_non_wav_cassette() {
     //TODO - Allow the user to cancel, in which case we black hole the writes
-    while (!cassette_writable) {
+    if (!cassette_writable) {
         do_joshem_tapedialog(1);
     }
-    return open_non_wav_cassette_for_writing();
+    if (cassette_writable)
+        return open_non_wav_cassette_for_writing();
+    ensure_cassette_file_closed();
+    return 0;
 }
 
 #if HAVE_OSS
@@ -653,6 +656,8 @@ static int assert_state(int state)
   if (cassette_state == state) {
     return 1;
   }
+  joshlog("assert_state %d -> %d\n", cassette_state, state);
+
   if (cassette_state == FAILED && state != CLOSE) {
     return -1;
   }
@@ -676,14 +681,16 @@ static int assert_state(int state)
       //sigprocmask(SIG_SETMASK, &oldset, NULL);
       cassette_position = 0;
     } else {
-      cassette_position = ftell(cassette_file);
-      if (cassette_format == WAV_FORMAT && cassette_state == WRITE) {
-	fseek(cassette_file, WAVE_RIFFSIZE_OFFSET, 0);
-	put_fourbyte(cassette_position - WAVE_RIFF_OFFSET, cassette_file);
-	fseek(cassette_file, wave_datasize_offset, 0);
-	put_fourbyte(cassette_position - wave_data_offset, cassette_file);
+      if (cassette_file) {
+          cassette_position = ftell(cassette_file);
+          if (cassette_format == WAV_FORMAT && cassette_state == WRITE) {
+              fseek(cassette_file, WAVE_RIFFSIZE_OFFSET, 0);
+              put_fourbyte(cassette_position - WAVE_RIFF_OFFSET, cassette_file);
+              fseek(cassette_file, wave_datasize_offset, 0);
+              put_fourbyte(cassette_position - wave_data_offset, cassette_file);
+          }
+          ensure_cassette_file_closed();
       }
-      ensure_cassette_file_closed();
     }
     if (cassette_state != SOUND && cassette_state != ORCH90) {
       put_control();
@@ -817,6 +824,7 @@ static int assert_state(int state)
 static void
 transition_out(int value)
 {
+    joshlog("Transition out %d\n", value);
   Uchar sample;
   long nsamples, delta_us;
   Ushort code;
@@ -922,7 +930,8 @@ transition_out(int value)
 
   case CAS_FORMAT:
     if (value == FLUSH && cassette_bitnumber != 0) {
-      if (!select_and_open_non_wav_cassette()) {
+        joshlog("WROTE ME A FLUSH\n");
+      if (!cassette_file && !select_and_open_non_wav_cassette()) {
           assert_state(FAILED);
           break;
       }
@@ -1015,7 +1024,8 @@ transition_out(int value)
     if (cassette_bitnumber < 0) cassette_bitnumber = 7;
     cassette_byte |= (sample << cassette_bitnumber);
     if (cassette_bitnumber == 0) {
-      if (!select_and_open_non_wav_cassette()) {
+        joshlog("Gonna CAS out a %02X\n", 0xFF & cassette_byte);
+      if (!cassette_file && !select_and_open_non_wav_cassette()) {
         assert_state(FAILED);
         break;
       }

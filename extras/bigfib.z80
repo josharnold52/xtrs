@@ -1,51 +1,136 @@
 ; NOTE: Uses the new zmac from http://48k.ca/zmac.html
 
-    ORG 5000H
+    ORG 4200H
+
 
 
 
 
 video equ 3C00H
-numsz equ 32
+numsz equ 512 
 
 
 bss_ptr defl end_of_asm
 
 var_a equ bss_ptr
-bss_ptr += (numsz + 1)
+bss_ptr += numsz
 var_b equ bss_ptr
-bss_ptr += (numsz + 1)
+bss_ptr += numsz
 var_c equ bss_ptr
-bss_ptr += (numsz + 1)
+bss_ptr += numsz
 stack_bottom equ bss_ptr
 bss_ptr += 32
 stack_top equ bss_ptr
-bss_ptr = (bss_ptr + 255) & 0FF00H
-low_chars equ bss_ptr
-bss_ptr += 256
-high_chars equ bss_ptr
 
 
 
 
 entrypoint: 
-    ld hl, low_chars    
-    ld d,0
-    
-    xor a,a
+    ld hl, video
+    ld (hl), ' '
+    ld de, video + 1
+    ld bc, 1023
+    ldir
+
+    ld hl, var_a
+    call clr_num
+    ld hl, var_b
+    call clr_num
+    ld hl, var_b
+    ld (hl), 1
+
+main_loop:
+    ld hl, var_b
+    ld de, video
+    call display_num
+
+    ld hl, var_b
+    ld bc, numsz - 1
+    add hl, bc
+    ld a, (hl)
+    and 0F0H
+    jrnz stop 
+
+    ld hl, var_b
+    ld de, var_c
+    call copy_num
+    ld hl, var_c
+    ld de, var_a 
+    call add_nums
+    ld hl, var_b
+    ld de, var_a
+    call copy_num
+    ld hl, var_c
+    ld de, var_b
+    call copy_num
+    jmp main_loop
 
 
 
 
-    ret
+stop: 
+    jmp stop
+
+
 
 
 
 ; HL = source, DE = dest
 copy_num:
+    ld bc, numsz
+    ldir
+    ret
+
+; HL = source, DE = begining of video line
+display_num:
+    ld bc, numsz
+    add hl, bc
+display_num_l0:
+    dec hl
     ld a, (hl)
+    rlca
+    rlca
+    rlca
+    rlca
+    and a, 0FH
+    add a,'0'
+    ld (de), a
+    inc de
+    ld a, (hl)
+    and a, 0FH
+    add a,'0'
+    ld (de), a
+    inc de
+    dec bc
+    ld a,b
+    or a,c
+    jrnz display_num_l0
+    ret
 
+; HL = accumulator , DE = operand
+add_nums:
+    ld bc, numsz
+    ccf
+add_nums_l0:
+    ld a, (de)
+    adc a, (hl)
+    daa
+    ld (hl), a
+    inc hl
+    inc de
+    dec bc
+    jrnz add_nums_l0
+    ret
 
+; Set HL num to zero
+clr_num:
+    ld (hl), 0
+    ld d, h
+    ld e, l
+    inc de
+    ld bc, numsz - 1
+    ldir
+    ret
 
 
 end_of_asm:
