@@ -83,7 +83,7 @@ static void drawOptions(const struct optionDisplay *o, int toggleIndex) {
 
 int matchOption(const struct optionDisplay *o, char c) {
     for(int i=0;i<(int)(o->optionCount);i++) {
-        if(o->options[i].enabled && o->options[i].key == c) {
+        if(o->options[i].enabled && tolower(o->options[i].key) == tolower(c)) {
             drawOptions(o, i);
             usleep(50000);
             drawOptions(o, -1);
@@ -1008,3 +1008,74 @@ static void cassette_control_handler(joshem_modal_context *pContext) {
     //GrKeyRead();
 }
 
+
+
+
+static void emulator_control_handler(joshem_modal_context *pContext);
+
+int joshem_emulator_control() {
+    return joshem_do_modal(emulator_control_handler, 0);
+}
+
+
+static void emulator_control_handler(joshem_modal_context *pContext) {
+    int midx, midy;
+    int insety = 50;
+    int insetx = 80;
+    int result = JOSHEM_EMULATOR_CONTROL_RESPONSE_NO_OP;
+    GrTextOption grt;
+    fill_standard_text_option(&grt);
+    const GrTextOption base_grt = grt;
+    GrClearScreen(GrBlack());
+
+    GrFilledBox(insetx, insety, GrMaxX() - insetx, GrMaxY() - insety, GrBlack());
+    GrBox(insetx, insety, GrMaxX() - insetx, GrMaxY() - insety, COLOR_BORDER);
+    GrBox(insetx + 4, insety + 4, GrMaxX() - insetx - 4, GrMaxY() - insety - 4, COLOR_BORDER);
+
+    midx = GrMaxX() / 2;
+    midy = GrMaxY() / 2;
+
+    const char *msg = "Emulator Controls";
+    GrDrawString(msg, (int) strlen(msg), midx , insety + 20, &grt);
+
+
+
+    struct optionDisplay line1 = {
+            base_grt,3,insetx + 20, midx + (midx - insetx) - 20, GrMaxY() - insety - 20,
+            {
+            {'H', "(H)ard Reset",   1},
+            {'S', "(S)oft Reset", 1},
+            {'C', "(C)ancel", 1}
+    }};
+    drawOptions(&line1, -1);
+
+
+    GrKeyType key;
+    for (;;) {
+        key = GrKeyRead();
+        if (key == GrKey_Escape) {
+            result = JOSHEM_EMULATOR_CONTROL_RESPONSE_NO_OP;
+            break;
+        }
+        if (key != GrKey_NoKey && key < 127) {
+            char opt = (char)key;
+            int o = matchOption(&line1, opt);
+            if (o == 0) {
+                result = JOSHEM_EMULATOR_CONTROL_RESPONSE_RESET_HARD;
+                break;
+            } 
+            if (o == 1) {
+                result = JOSHEM_EMULATOR_CONTROL_RESPONSE_RESET_SOFT;
+                break;
+            }
+            if (o == 3) {
+                result = JOSHEM_EMULATOR_CONTROL_RESPONSE_NO_OP;
+                break;
+            }
+        }
+
+    }
+
+    pContext->result = result;
+
+}

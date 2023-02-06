@@ -6,6 +6,7 @@
 #include <dir.h>
 #include <dos.h>
 #include <process.h>
+#include <string.h>
 /* #include <graphics.h> */
 
 #define MAX_DESCRIPTION_LEN 256
@@ -42,6 +43,36 @@ struct emu *get_emu(int index) {
             return p;
         }
     }
+}
+
+int _emu_compare(const void * v1, const void * v2) {
+    const struct emu *a1,*a2;
+    a1 = (const struct emu *)v1;
+    a2 = (const struct emu *)v2;
+    return strcmpi(a1->dir, a2->dir);
+}
+
+void sort_emus() {
+    int cnt,i;
+    struct emu *p,*table,*tmp;
+
+    cnt = emu_count();
+    table = (struct emu *)calloc(cnt, sizeof(struct emu));
+    if (!table) {
+        return;
+    }
+    for(i=0,p=emu_list;p;p = p->next,i++) {
+        table[i] = *p;
+    }
+    qsort(table, cnt, sizeof(struct emu), _emu_compare);
+    
+    for(i=0,p=emu_list;p;p = p->next,i++) {
+        tmp = p->next;
+        *p = table[i];
+        p->next = tmp;
+    }
+    
+    free(table);
 }
 
 int launch(int cur_emu) {
@@ -261,6 +292,9 @@ int init() {
     emu_list = first;
     l=strlen(emus_base);
     emus_base[l-1] = 0;
+
+    sort_emus();
+
     return 1;
 
 }

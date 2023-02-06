@@ -243,5 +243,13 @@ void joshem_request_tapedialog();
 void joshem_request_tapedialog_status();
 
 
+#define JOSHEM_EMULATOR_CONTROL_RESPONSE_NO_OP 0
+#define JOSHEM_EMULATOR_CONTROL_RESPONSE_EXIT 1
+#define JOSHEM_EMULATOR_CONTROL_RESPONSE_RESET_HARD 2
+#define JOSHEM_EMULATOR_CONTROL_RESPONSE_RESET_SOFT 3
+
+
+int joshem_emulator_control();
+
 
 #endif /*_TRS_H*/

@@ -200,28 +200,27 @@ void trs_get_event(int wait) {
             } else if (keycode == 0x3F) { //F5
                 
                  ignoreKey = 1;
+                 /*
                  const char *p = josh_trace_enabled ? "Trace is ON.  Leave it on?" : "Trace is OFF.  Turn it on?";
                  if (joshem_modal_ask_yn(p)) {
                      josh_trace_enabled = 1;
                  } else {
                      josh_trace_enabled = 0;
                  }
+                 */
 
-                //joshem_modal_message("Tracing not supported in this build");
-                //josh_trace_enabled = 0;
+                joshem_modal_message("Tracing not supported in this build");
+                josh_trace_enabled = 0;
             } else if (keycode == 0x40) { //F6
                 ignoreKey = 1;
-                if (joshem_modal_ask_yn("Reset TRS-80?")) {
-                    trs_reset(0);
-                }
+                //Unusued
             } else if (keycode == 0x41) { //F7
                 ignoreKey = 1;
-                if (joshem_modal_ask_yn("HARD Reset TRS-80?")) {
-                    trs_reset(1);
-                }
+                //Unused
             } else if (keycode == 0x42) { //F8
                 ignoreKey = 1;
-                joshem_request_tapedialog();
+                joshem_request_tapedialog_status();
+                //joshem_request_tapedialog();
             } else if (keycode == 0x43) { //F9
                 ignoreKey = 1;
                 const char *p = trs_is_realtime_enabled() ? "Fast Mode is OFF.  Turn it on?"
@@ -233,7 +232,14 @@ void trs_get_event(int wait) {
                 }
             } else if (keycode == 0x44) { //F10
                 ignoreKey = 1;
-                joshem_request_tapedialog_status();
+                int eec = joshem_emulator_control();
+                if (eec == JOSHEM_EMULATOR_CONTROL_RESPONSE_EXIT) {
+                    exit(0);
+                } else if (eec == JOSHEM_EMULATOR_CONTROL_RESPONSE_RESET_HARD) {
+                    trs_reset(1);
+                } else if (eec == JOSHEM_EMULATOR_CONTROL_RESPONSE_RESET_SOFT) {
+                    trs_reset(0);
+                }
             }
             nest_count--;
         }
