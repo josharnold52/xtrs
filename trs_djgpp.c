@@ -60,9 +60,11 @@
 
 GrColor COLOR_BORDER;
 GrColor COLOR_PRIMARY;
+GrColor COLOR_PRIMARY_DIM;
 GrColor COLOR_SECONDARY;
 GrColor COLOR_DISABLED;
 GrColor COLOR_SECONDARY_BRIGHT;
+GrColor COLOR_TERTIARY;
 
 int trs_model1_lowercase = 0;
 
@@ -375,9 +377,11 @@ void trs_screen_init() {
 
     COLOR_BORDER = GrAllocColor(255, 0, 0);
     COLOR_PRIMARY = GrAllocColor(0, 255, 255);
+    COLOR_PRIMARY_DIM = GrAllocColor(0, 127, 127);
     COLOR_SECONDARY = GrAllocColor(127, 127, 127);
     COLOR_DISABLED = GrAllocColor(64,64,64);
     COLOR_SECONDARY_BRIGHT = GrAllocColor(255,255,255);
+    COLOR_TERTIARY = GrAllocColor(0, 127, 0);
 
     repaint_screen();
     trs_load_romfile();
@@ -769,6 +773,7 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
     } else {
         sprintf((char *) cassette_base_directory, "%s/CAS", emulator_base_directory);
     }
+    mkdir(cassette_base_directory, S_IWUSR);  //S_IWUSR ==> not read only
 
     emulator_printer_directory = malloc(32 + strlen(emulator_base_directory));
     if (!emulator_printer_directory) {
@@ -777,6 +782,7 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
     } else {
         sprintf((char *) emulator_printer_directory, "%s/PRINT", emulator_base_directory);
     }
+    mkdir(emulator_printer_directory, S_IWUSR);  //S_IWUSR ==> not read only
 
     trs_model = 1;
     trs_model1_lowercase = FALSE;

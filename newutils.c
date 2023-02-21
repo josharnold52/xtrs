@@ -142,6 +142,19 @@ int find_cas_tracks(const char *file, int *trackArray, int maxTracks) {
     return trackCount;
 }
 
+size_t safe_strlen(const char *s, size_t buf_size_include_null) {
+    if (!s) {
+        return 0;
+    }
+    size_t sz;
+    for(sz =0;sz < buf_size_include_null && *s;s++,sz++) {
+        /** loop */
+    }
+    return sz;
+
+}
+
+
 size_t safe_strcpy(char *dest, const char *src, size_t buf_size_include_null) {
     if (!buf_size_include_null || !dest)
         return 0;
@@ -152,6 +165,28 @@ size_t safe_strcpy(char *dest, const char *src, size_t buf_size_include_null) {
     dest[toCopy] = 0;
     return toCopy;
 }
+
+/** Appends tp the destination string, truncating if need be, ensures always null terminated.
+ * Returns length of copied string (not including null term)
+ * @param dest the string to append to
+ * @param src the string to append
+ * @param buf_size_include_null the _total_ size of the destination buffer (not just the space remainign)
+ * @param returns the resulting string length
+ * */
+size_t safe_strcat(char *dest, const char *src, size_t buf_size_include_null) {
+    if (!dest)
+        return 0;
+    size_t dlen = safe_strlen(dest, buf_size_include_null);
+    if (!src || (dlen >= buf_size_include_null))
+        return dlen;
+    size_t room_left_inc_null = buf_size_include_null - dlen;
+    if (room_left_inc_null == 1)
+        return dlen;
+    size_t x = safe_strcpy(dest+dlen, src, room_left_inc_null);
+    return dlen + x;
+}
+
+
 
 size_t join_path(char *buf, size_t buf_size_include_null, const char *p1, const char *p2) {
     if (!buf_size_include_null)
@@ -196,12 +231,48 @@ unsigned int get_file_length(const char *fn) {
 }
 
 size_t find_char(const char *data, size_t start, size_t end, char c) {
+    if (end <= start)
+        return end;
     for(size_t x = start; x < end; x ++) {
         if (data[x] == c)
             return x;
     }
     return end;
 }
+
+size_t find_char_from_right(const char *data, size_t start, size_t end, char c) {
+    if (end <= start)
+        return start;
+    for(size_t x = end-1; x >= start; x --) {
+        if (data[x] == c)
+            return x;
+    }
+    return start;
+}
+
+/** Returns end if not found */
+size_t find_dirsep(const char *data, size_t start, size_t end) {
+    if (end <= start)
+        return end;
+    for(size_t x = start; x < end; x ++) {
+        if (data[x] == '/' || data[x] == '\\')
+            return x;
+    }
+    return end;
+}
+
+/** Returns start if not found */
+size_t find_dirsep_from_right(const char *data, size_t start, size_t end) {
+    if (end <= start)
+        return start;
+    for(size_t x = end-1; x >= start; x --) {
+        if (data[x] == '/' || data[x] == '\\')
+            return x;
+    }
+    return start;
+}
+
+
 /** Return position just after delim or end if not found */
 size_t extract_next_token(const char *data, size_t start, size_t end, char delim, char *dest, size_t dest_buf_size) {
     if (dest && dest_buf_size)
@@ -221,4 +292,20 @@ size_t extract_next_token(const char *data, size_t start, size_t end, char delim
         dest[len] = 0;
     }
     return delim_pos < end ? delim_pos + 1 : end;
+}
+
+int starts_with(const char *str, const char *prefix_to_test) {
+    if (!str || !prefix_to_test)
+        return 0;
+    const char *s, *p;
+    for(s=str,p=prefix_to_test;*p;s++,p++) {
+        if (*p != *s) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int is_dirsep(char c) {
+    return c == '/' || c == '\\';
 }

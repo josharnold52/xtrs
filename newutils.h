@@ -28,8 +28,23 @@ size_t ltrim_offset(const char *data, size_t start, size_t end);
 int find_cas_tracks(const char *file, int *trackArray, int maxTracks);
 int find_cas_tracks2(const char *baseDir, const char *file, int *trackArray, int maxTracks);
 
+/** Returns strlen but never overflows the buffer.
+ * Returns buf_size_include_null if no null term is found
+ */
+size_t safe_strlen(const char *s, size_t buf_size_include_null);
+
+
 /** Copies the string, truncating if need be, ensures always null terminated. Returns length of copied string (not including null term) */
 size_t safe_strcpy(char *dest, const char *src, size_t buf_size_include_null);
+
+/** Appends tp the destination string, truncating if need be, ensures always null terminated.
+ * Returns length of copied string (not including null term)
+ * @param dest the string to append to
+ * @param src the string to append
+ * @param buf_size_include_null the _total_ size of the destination buffer (not just the space remainign)
+ * */
+size_t safe_strcat(char *dest, const char *src, size_t buf_size_include_null);
+
 
 size_t join_path(char *buf, size_t buf_size_include_null, const char *p1, const char *p2);
 
@@ -45,7 +60,27 @@ unsigned int get_file_length(const char *fn);
  */
 size_t find_char(const char *data, size_t start, size_t end, char c);
 
+/**
+ * Returns start if not found
+ * @param data
+ * @param start
+ * @param end exclusive
+ * @param c
+ * @return
+ */
+size_t find_char_from_right(const char *data, size_t start, size_t end, char c);
+
 
 /** Return position just after delim or end if not found */
 size_t extract_next_token(const char *data, size_t start, size_t end, char delim, char *dest, size_t dest_buf_size);
 #endif //XTRS_NEWUTILS_H
+
+int starts_with(const char *str, const char *prefix_to_test);
+
+/** Returns end if not found */
+size_t find_dirsep(const char *data, size_t start, size_t end);
+
+/** Returns start if not found */
+size_t find_dirsep_from_right(const char *data, size_t start, size_t end);
+
+int is_dirsep(char c);

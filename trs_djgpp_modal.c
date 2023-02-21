@@ -278,7 +278,7 @@ static struct mem_block *load_cassette_meta(const char *base_dir, const char *ca
     return read_mem_block_from_file(fn);
 }
 
-static int choose_cassette(cassette_entry_fn pDest) {
+static int choose_cassette(cassette_entry_fn pDest, const char *initial_selection) {
     assert(pDest != 0);
     int x, y;
     int insety = 50;
@@ -286,11 +286,30 @@ static int choose_cassette(cassette_entry_fn pDest) {
     int return_value = 0;
     typedef const char *choice;
     char baseDir[sizeof(cassette_filename_buffer)];
-    strncpy(baseDir, cassette_base_directory, sizeof(cassette_filename_buffer));
-    baseDir[sizeof(cassette_filename_buffer) - 1] = 0;
-    const unsigned long initial_basedir_len = strlen(baseDir);
     int dirLevels = 0;
     int reload_table = 1;
+    safe_strcpy(baseDir, cassette_base_directory, sizeof(baseDir));
+    const unsigned long initial_basedir_len = strlen(baseDir);
+    if (initial_selection && starts_with(initial_selection, baseDir)) {
+        size_t bdlen = strlen(baseDir);
+        size_t islen = strlen(initial_selection);
+        if ((islen - bdlen) >= 2 && is_dirsep(initial_selection[bdlen])) {
+            size_t lastsep = find_dirsep_from_right(initial_selection, bdlen, islen);
+            if (lastsep > bdlen && lastsep < sizeof(baseDir)) {
+                memcpy(baseDir, initial_selection, lastsep);
+                baseDir[lastsep] = 0;
+                for(size_t x=bdlen;;) {
+                    size_t y = find_dirsep(baseDir, x, lastsep);
+                    if (y >= lastsep) {
+                        break;
+                    }
+                    x = y+1;
+                    dirLevels++;
+                }
+            }
+        }
+        joshlog("Prefill dir (%d levels): %s\n", dirLevels, baseDir);
+    }
 
     static const choice choices[] = {"(B)ack", "(S)elect", "(A)bout", "(C)ancel", "(N)ext"};
     static const char *chooseMsg = "Choose Cassette";
@@ -721,59 +740,101 @@ static void show_help(char *disp_name, struct mem_block *meta) {
     GrTextOption grt;
     fill_standard_text_option(&grt);
     const GrTextOption baset = grt;
+    int first_line = 0;
 
-    GrClearScreen(GrBlack());
+    for(;;) {
+        int can_scroll_up = 0;
+        int can_scroll_down = 0;
+        grt = baset;
+        GrClearScreen(GrBlack());
 
-    GrFilledBox(insetx, insety, GrMaxX() - insetx, GrMaxY() - insety, GrBlack());
-    GrBox(insetx, insety, GrMaxX() - insetx, GrMaxY() - insety, COLOR_BORDER);
-    GrBox(insetx + 4, insety + 4, GrMaxX() - insetx - 4, GrMaxY() - insety - 4, COLOR_BORDER);
+        GrFilledBox(insetx, insety, GrMaxX() - insetx, GrMaxY() - insety, GrBlack());
+        GrBox(insetx, insety, GrMaxX() - insetx, GrMaxY() - insety, COLOR_BORDER);
+        GrBox(insetx + 4, insety + 4, GrMaxX() - insetx - 4, GrMaxY() - insety - 4, COLOR_BORDER);
 
-    mx = GrMaxX() / 2;
-    my = GrMaxY() / 2;
-    grt.txo_xalign = GR_ALIGN_LEFT;
-    grt.txo_yalign = GR_ALIGN_TOP;
+        mx = GrMaxX() / 2;
+        my = GrMaxY() / 2;
+        grt.txo_xalign = GR_ALIGN_LEFT;
+        grt.txo_yalign = GR_ALIGN_TOP;
 
-    GrDrawString(disp_name, (int) strlen(disp_name), insetx + 10, insety+10, &grt);
-    boundary description = find_meta_data(meta, "description");
-    if (description.end > description.start) {
-        GrDrawString("|", 1, insetx + 18 + 8 * strlen(disp_name), insety+10, &grt);
+        GrDrawString(disp_name, (int) strlen(disp_name), insetx + 10, insety + 10, &grt);
+        boundary description = find_meta_data(meta, "description");
+        if (description.end > description.start) {
+            GrDrawString("|", 1, insetx + 18 + 8 * strlen(disp_name), insety + 10, &grt);
 
-        GrDrawString(meta->data + description.start,
-                     (int)(description.end - description.start),
-                     insetx + 34 + 8 * (int)strlen(disp_name), insety+10, &grt);
-    }
-
-    boundary help = find_meta_data(meta, "help");
-    if (help.end > help.start) {
-        size_t offset = help.start;
-        for(int line=0; line<17 && offset < help.end; line++) {
-            size_t nx = find_next_line_offset(meta->data, help.end, offset);
-            size_t s = offset; //Don't left-trim so we can preserve indents
-            size_t e = rtrim_offset(meta->data, s, nx);
-            if (e > s) {
-                grt.txo_font = &GrFont_PC8x8;
-                grt.txo_fgcolor.v = COLOR_SECONDARY;
-                GrDrawString(meta->data + s, (int)(e-s), insetx + 12, insety+10 + 20 + line * 9, &grt);
-            }
-            offset = nx;
+            GrDrawString(meta->data + description.start,
+                         (int) (description.end - description.start),
+                         insetx + 34 + 8 * (int) strlen(disp_name), insety + 10, &grt);
         }
-    }
+
+        boundary help = find_meta_data(meta, "help");
+        if (help.end > help.start) {
+            size_t offset = help.start;
+            for (int line = 0;  offset < help.end; line++) {
+                size_t nx = find_next_line_offset(meta->data, help.end, offset);
+                size_t s = offset; //Don't left-trim so we can preserve indents
+                offset = nx;
+                int screen_line = line - first_line;
+                if (screen_line < 0) {
+                    can_scroll_up = 1;
+                    continue;
+                }
+                if (screen_line >= 15) {
+                    can_scroll_down = 1;
+                    continue;
+                }
+                size_t e = rtrim_offset(meta->data, s, nx);
+                if (e > s) {
+                    grt.txo_font = &GrFont_PC8x8;
+                    grt.txo_fgcolor.v = COLOR_SECONDARY;
+                    GrDrawString(meta->data + s, (int) (e - s),
+                                 insetx + 12  , insety + 10 + 20 + screen_line * 9, &grt);
+                }
+            }
+        }
+        if (can_scroll_down) {
+            const char * msg = "( Press \x19 to scroll down )";
+            grt = baset;
+            grt.txo_font = &GrFont_PC8x8;
+            grt.txo_xalign = GR_ALIGN_CENTER;
+            grt.txo_yalign = GR_ALIGN_TOP;
+            grt.txo_fgcolor.v = COLOR_PRIMARY_DIM;
+            GrDrawString(msg, (int) (strlen(msg)),
+                         GrMaxX() / 4, insety + 10 + 20 + 15 * 9 + 4, &grt);
+        }
+        if (can_scroll_up) {
+            const char * msg = "( Press \x18 to scroll up )";
+            grt = baset;
+            grt.txo_font = &GrFont_PC8x8;
+            grt.txo_xalign = GR_ALIGN_CENTER;
+            grt.txo_yalign = GR_ALIGN_TOP;
+            grt.txo_fgcolor.v = COLOR_PRIMARY_DIM;
+            GrDrawString(msg, (int) (strlen(msg)),
+                         3 * GrMaxX() / 4, insety + 10 + 20 + 15 * 9 + 4, &grt);
+        }
 
 
-
-
-    GrKeyType key;
-    for (;;) {
-        key = GrKeyRead();
-        if (key == GrKey_Return || key == GrKey_Escape) {
-            break;
+        GrKeyType key;
+        for (;;) {
+            key = GrKeyRead();
+            if (key == GrKey_Return || key == GrKey_Escape) {
+                return;
+            }
+            if (key == GrKey_Up && can_scroll_up) {
+                first_line --;
+                break;
+            }
+            if (key == GrKey_Down && can_scroll_down) {
+                first_line ++;
+                break;
+            }
         }
     }
 }
 
 static void select_tape_for_reading(joshem_cassette_control_args *pArgs) {
     cassette_entry_fn e;
-    if (choose_cassette(e)) {
+    if (choose_cassette(e, pArgs->initial_selection ? 0 : pArgs->cassette_filename)) {
         strcpy(pArgs->cassette_filename, e);
         pArgs->cassette_position = 0;
         pArgs->cassette_format = 1;
@@ -1068,7 +1129,7 @@ static void emulator_control_handler(joshem_modal_context *pContext) {
                 result = JOSHEM_EMULATOR_CONTROL_RESPONSE_RESET_SOFT;
                 break;
             }
-            if (o == 3) {
+            if (o == 2) {
                 result = JOSHEM_EMULATOR_CONTROL_RESPONSE_NO_OP;
                 break;
             }

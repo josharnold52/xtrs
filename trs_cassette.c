@@ -273,21 +273,21 @@ static void do_joshem_tapedialog(int writeRequested) {
     joshem_tapeswitch_state = JOSHEM_TAPESWITCH_ACTIVE;
 
     joshem_cassette_control_args args;
-        memcpy(args.cassette_filename, cassette_filename, sizeof(cassette_filename_buffer));
-        args.cassette_position = cassette_position;
-        args.cassette_format = cassette_format;
-        args.cassette_writable = cassette_writable;
-        args.write_requested  = writeRequested;
-        args.initial_selection = !cassette_did_initial_selection;
-        args.view_current_status = requested_status;
-        joshem_cassette_control(&args);
-        memcpy(cassette_filename, args.cassette_filename, sizeof(cassette_filename_buffer));
-        cassette_position = args.cassette_position;
-        cassette_format = args.cassette_format;
-        cassette_writable = args.cassette_writable;
-        cassette_did_initial_selection = cassette_did_initial_selection || !args.initial_selection;
-        put_control();
-        joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
+    memcpy(args.cassette_filename, cassette_filename, sizeof(cassette_filename_buffer));
+    args.cassette_position = cassette_position;
+    args.cassette_format = cassette_format;
+    args.cassette_writable = cassette_writable;
+    args.write_requested  = writeRequested;
+    args.initial_selection = !cassette_did_initial_selection;
+    args.view_current_status = requested_status;
+    joshem_cassette_control(&args);
+    memcpy(cassette_filename, args.cassette_filename, sizeof(cassette_filename_buffer));
+    cassette_position = args.cassette_position;
+    cassette_format = args.cassette_format;
+    cassette_writable = args.cassette_writable;
+    cassette_did_initial_selection = cassette_did_initial_selection || !args.initial_selection;
+    put_control();
+    joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
 }
 
 void joshem_request_tapedialog() {
