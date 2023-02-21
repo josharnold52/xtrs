@@ -290,6 +290,9 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
     int reload_table = 1;
     safe_strcpy(baseDir, cassette_base_directory, sizeof(baseDir));
     const unsigned long initial_basedir_len = strlen(baseDir);
+    const char *pre_select = 0;
+
+    //Preselect if we have an initial selection
     if (initial_selection && starts_with(initial_selection, baseDir)) {
         size_t bdlen = strlen(baseDir);
         size_t islen = strlen(initial_selection);
@@ -307,6 +310,7 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
                     dirLevels++;
                 }
             }
+            pre_select = initial_selection + lastsep + 1;
         }
         joshlog("Prefill dir (%d levels): %s\n", dirLevels, baseDir);
     }
@@ -336,6 +340,17 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
                 goto done;
             }
             currentEntry = 0;
+            if (pre_select) {
+                for(size_t i = 0; i < pTable->size; i++) {
+                    joshlog("Checking preselect of %s\n", pTable->pEntries[i].filename);
+                    if (stricmp(pTable->pEntries[i].filename, pre_select) == 0) {
+                        currentEntry = i;
+                        break;
+                    }
+                }
+                joshlog("Pre-selected %s at %i\n", pre_select, currentEntry);
+                pre_select = 0;
+            }
         }
         grt = baset;
 

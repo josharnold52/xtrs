@@ -5,6 +5,7 @@
 
 
 
+keyboard equ 3800H
 
 video equ 3C00H
 numsz equ 512 
@@ -40,6 +41,14 @@ entrypoint:
     ld (hl), 1
 
 main_loop:
+    ld a, (keyboard + 0FFH)
+    or a
+    jr z, main_loop_nokey
+    call wait_for_nokey
+main_loop_nokey:
+    ;call wait_for_nokey
+    ;call wait_for_key
+    
     ld hl, var_b
     ld de, video
     call display_num
@@ -110,15 +119,21 @@ display_num_l0:
 ; HL = accumulator , DE = operand
 add_nums:
     ld bc, numsz
+    scf
     ccf
+    ex af, af'
 add_nums_l0:
+    ex af, af'
     ld a, (de)
     adc a, (hl)
     daa
     ld (hl), a
+    ex af, af'
     inc hl
     inc de
     dec bc
+    ld a,b
+    or c
     jrnz add_nums_l0
     ret
 
@@ -131,6 +146,29 @@ clr_num:
     ld bc, numsz - 1
     ldir
     ret
+
+wait_for_nokey:
+    ld hl, 0
+    ld de, 1000
+wait_for_nokey_l0:
+    ld a, (keyboard + 0FFH)
+    or a
+    jr nz, wait_for_nokey
+    add hl, de
+    ret c
+    jr wait_for_nokey_l0
+
+wait_for_key:
+    ld hl, 0
+    ld de, 1000
+wait_for_key_l0:
+    ld a, (keyboard + 0FFH)
+    or a
+    jr z,wait_for_key
+    add hl, de
+    ret c
+    jr wait_for_key_l0
+
 
 
 end_of_asm:
