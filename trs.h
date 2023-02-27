@@ -250,6 +250,6 @@ void joshem_request_tapedialog_status();
 
 
 int joshem_emulator_control();
-
+void trs_ich_setup();
 
 #endif /*_TRS_H*/

@@ -82,6 +82,7 @@ DEBUG = -Ofast -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter
 # If you have gcc, and you want to use it:
 
 CC = i586-pc-msdosdjgpp-gcc
+CXX = i586-pc-msdosdjgpp-g++
 
 # If you need a different path for libraries:
 

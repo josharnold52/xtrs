@@ -39,6 +39,7 @@ DOS_OBJECTS = \
 	trs_realtime.o \
 	trs_djgpp_modal.o \
 	trs_metafile.o \
+        trs_ich.o \
 	newutils.o
 
 CR_OBJECTS = \
@@ -60,6 +61,12 @@ CD_OBJECTS = \
 	cmddump.o \
 	load_cmd.o
 
+JT1_OBJECTS = \
+	jahdatst.o \
+	trs_ich.o \
+	error.o
+
+
 Z80CODE = export.cmd import.cmd settime.cmd xtrsmous.cmd \
 	xtrs8.dct xtrshard.dct \
 	fakerom.hex xtrsrom4p.hex esfrom.hex
@@ -75,7 +82,7 @@ PDFMANPAGES = cassette.man.pdf \
 HTMLDOCS = cpmutil.txt \
 	dskspec.txt
 
-PROGS = dosxtrs mkdisk hex2cmd cmddump
+PROGS = dosxtrs mkdisk hex2cmd cmddump jahdatst
 
 default: $(PROGS) docs
 
@@ -92,6 +99,8 @@ scantran/generated_table.inc: scantran/scantran.scala
 	bash -c "cd scantran && scala scantran.scala"
 
 CFLAGS += $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
+	$(APPDEFAULTS) -DKBWAIT 
+CXXFLAGS += $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
 	$(APPDEFAULTS) -DKBWAIT 
 LIBS = $(XLIB) $(READLINELIBS) $(EXTRALIBS)
 
@@ -162,6 +171,9 @@ hex2cmd: $(HC_OBJECTS)
 cmddump: $(CD_OBJECTS)
 	$(CC) $(LDFLAGS) -o cmddump $(CD_OBJECTS)
 
+jahdatst: $(JT1_OBJECTS)
+	$(CC) $(LDFLAGS) -o jahdatst $(JT1_OBJECTS)
+
 clean:
 	rm -f $(OBJECTS) $(MD_OBJECTS) \
 		$(X_OBJECTS) $(GTK_OBJECTS) \
@@ -200,7 +212,7 @@ install-docs: docs
 	$(INSTALL) -c -m 644 dskspec.txt $(DOCDIR)
 
 depend:
-	makedepend -Y. --  -- *.c 2>&1 | \
+	makedepend -Y. --  -- *.c *.cpp 2>&1 | \
 		(egrep -v 'cannot find|not in' || true)
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
@@ -211,12 +223,13 @@ debug.o: z80.h config.h trs.h
 dis.o: z80.h config.h
 error.o: z80.h config.h
 hex2cmd.o: cmd.h z80.h config.h
+jahdatst.o: z80.h config.h trs.h
 load_cmd.o: load_cmd.h
 load_hex.o: z80.h config.h
 main.o: z80.h config.h trs.h trs_disk.h trs_hard.h load_cmd.h
 mkdisk.o: reed.h
 newutils.o: newutils.h trs.h z80.h config.h
-trs_cassette.o: trs.h z80.h config.h
+trs_cassette.o: trs.h z80.h config.h newutils.h
 trs_chars.o: trs_iodefs.h
 trs_disk.o: z80.h config.h trs.h trs_disk.h trs_hard.h crc.c
 trs_djgpp.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
@@ -233,10 +246,11 @@ trs_io.o: z80.h config.h trs.h trs_disk.h trs_hard.h trs_uart.h
 trs_keyboard.o: z80.h config.h trs.h scantran/generated_table.inc
 trs_memory.o: z80.h config.h trs.h trs_disk.h trs_hard.h
 trs_metafile.o: trs.h z80.h config.h newutils.h trs_metafile.h
-trs_printer.o: z80.h config.h trs.h
+trs_printer.o: z80.h config.h trs.h newutils.h
 trs_realtime.o: z80.h config.h trs.h
 trs_stringy.o: z80.h config.h trs.h trs_disk.h
 trs_uart.o: trs.h z80.h config.h trs_uart.h trs_hard.h
 trs_xinterface.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
 trs_xinterface.o: trs_hard.h trs_imp_exp.h
 z80.o: z80.h config.h trs.h trs_imp_exp.h
+trs_ich.o: z80.h config.h

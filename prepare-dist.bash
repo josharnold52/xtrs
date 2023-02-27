@@ -15,6 +15,8 @@ rm -rf _dist_gather
 mkdir _dist_gather || exit 1
 
 cp dosxtrs.exe _dist_gather/ || exit 1
+
+cp jahdatst.exe _dist_gather/ || exit 1
 cp cwsdpmi/BIN/CWSDPMI.EXE _dist_gather/ || exit 1
 cp M1L1.ROM _dist_gather/ || exit 1
 cp M1L2.ROM _dist_gather/ || exit 1
@@ -38,6 +40,11 @@ cat dosbat/GETUPD.BAT | perl -pe 's/\n/\r\n/g' > _dist_gather/GETUPD.BAT
 cd _dist_gather || exit 1
 
 zip -r "$SCRIPT_DIR"/../dist/dosxtrs.zip *
+
+zip -r "$SCRIPT_DIR"/../dist/dxexe.zip dosxtrs.exe
+zip -r "$SCRIPT_DIR"/../dist/emus.zip EMUS
+zip -r "$SCRIPT_DIR"/../dist/jahdatst.zip jahdatst.exe
+
 
 cd "$SCRIPT_DIR"
 

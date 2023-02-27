@@ -23,6 +23,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+int joshlog_echo_to_stdout = 0;
+
 extern char *program_name;
 
 void debug(const char *fmt, ...)
@@ -87,6 +89,9 @@ void joshlog(const char *fmt, ...)
 
   f = fopen("josh.log", "a");
   va_start(args, fmt);
+  if (joshlog_echo_to_stdout) {
+      vprintf(fmt, args);
+  }
   vfprintf(f, fmt, args);
   fflush(f);
   fclose(f);
