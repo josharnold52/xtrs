@@ -762,6 +762,22 @@ public:
 
 };
 
+static void lookupLogCode(unsigned int singleCodeLength, const char *allCodes, unsigned int value, char *result ) {
+    result[0] = 0;
+    if (singleCodeLength == 0 || !allCodes) {
+        return;
+    }
+    unsigned int numCodes = strlen(allCodes) / singleCodeLength;
+    if (numCodes == 0) {
+        return;
+    }
+    if (value >= numCodes) {
+        return;
+    }
+    memcpy(result, allCodes + (singleCodeLength * value), singleCodeLength);
+    result[singleCodeLength] = 0;
+}
+
 
 
 
@@ -770,15 +786,13 @@ static const int CON_LIST_BUF_LEN = 16;
 struct amp_capabilities {
     unsigned long caps;
 
-    unsigned int getStepSize() { return (caps >> 16) & 0x7F ; }
-    unsigned int getNumSteps() { return (caps >> 8) & 0x7F ; }
-    unsigned int getOffset() { return (caps) & 0x7F ; }
-    bool getMuteCapable() { return (caps & 0x80000000u) != 0; }
-    bool isPresent() {
-        return caps != 0;
-    }
+    unsigned int getStepSize() const { return (caps >> 16) & 0x7F ; }
+    unsigned int getNumSteps() const { return (caps >> 8) & 0x7F ; }
+    unsigned int getOffset() const { return (caps) & 0x7F ; }
+    bool getMuteCapable() const { return (caps & 0x80000000u) != 0; }
+    bool isPresent() const { return caps != 0; }
 
-    void log(const char *prefix) {
+    void log(const char *prefix) const {
         joshlog("%sM=%d,SS=%u,NS=%u,O=%u\n",
                 prefix,getMuteCapable() ? 1: 0, getStepSize(), getNumSteps(), getOffset());
     }
@@ -786,24 +800,25 @@ struct amp_capabilities {
 
 struct widget_capabilities {
     unsigned long caps;
-    unsigned int getWidgetType() { return (caps >> 20) & 0xF; }
-    unsigned int getDelay() { return (caps >> 16) & 0xF; }
-    unsigned int getChannelCount() { return 1 + (((caps >> 12) & 0xE) | (caps & 0x1)); }
-    bool hasCpCaps() { return (caps & 0x1000) != 0; }
-    bool hasLrSwap() { return (caps & 0x800) != 0; }
-    bool hasPowerControl() { return (caps & 0x400) != 0; }
-    bool isDigital() { return (caps & 0x200) != 0; }
-    bool hasConnectionList() { return (caps & 0x100) != 0; }
-    bool isUnsolCapable() { return (caps & 0x80) != 0; }
-    bool isProcWidget() { return (caps & 0x40) != 0; }
-    bool isStripeSupported() { return (caps & 0x20) != 0; }
-    bool hasFormatOverride() { return (caps & 0x10) != 0; }
-    bool hasAmpOverride() { return (caps & 0x8) != 0; }
-    bool hasOutputAmp() { return (caps & 0x4) != 0; }
-    bool hasInputAmp() { return (caps & 0x2) != 0; }
-    bool isStereo() { return (caps & 0x1) != 0; }
+    unsigned int getWidgetType() const { return (caps >> 20) & 0xF; }
+    unsigned int getDelay() const { return (caps >> 16) & 0xF; }
+    unsigned int getChannelCount() const { return 1 + (((caps >> 12) & 0xE) | (caps & 0x1)); }
+    bool hasCpCaps() const { return (caps & 0x1000) != 0; }
+    bool hasLrSwap() const { return (caps & 0x800) != 0; }
+    bool hasPowerControl() const { return (caps & 0x400) != 0; }
+    bool isDigital() const { return (caps & 0x200) != 0; }
+    bool hasConnectionList() const { return (caps & 0x100) != 0; }
+    bool isUnsolCapable() const { return (caps & 0x80) != 0; }
+    bool isProcWidget() const { return (caps & 0x40) != 0; }
+    bool isStripeSupported() const { return (caps & 0x20) != 0; }
+    bool hasFormatOverride() const { return (caps & 0x10) != 0; }
+    bool hasAmpOverride() const { return (caps & 0x8) != 0; }
+    bool hasOutputAmp() const { return (caps & 0x4) != 0; }
+    bool hasInputAmp() const { return (caps & 0x2) != 0; }
+    bool isStereo() const { return (caps & 0x1) != 0; }
+    bool isPresent() const { return caps != 0; }
 
-    void log(const char *prefix) {
+    void log(const char *prefix) const {
         unsigned long widType = (caps >> 20) & 0xF;
         static const char flagNames[] = "_X*DLUP%FAOIS";
         static const char typeNames[] = "AOAIAMASPCPWVKBG08090A0B0C0D0E0F";
@@ -827,24 +842,164 @@ struct widget_capabilities {
     }
 };
 
+struct pin_capabilities {
+    unsigned long caps;
+
+    bool canHighBitRate() const { return (caps & 0x8000000) != 0; }
+    bool canDisplayPort() const { return (caps & 0x1000000) != 0; }
+    bool canEapd() const { return (caps & 0x10000) != 0; }
+    unsigned char getVrefControlBits() const { return (caps >> 8) & 0xFF; }
+    bool canHdmi() const { return (caps & 0x80) != 0; }
+    bool hasBalancedPins() const { return (caps & 0x40) != 0; }
+    bool isInputCapable() const { return (caps & 0x20) != 0; }
+    bool isOutputCapable() const { return (caps & 0x10) != 0; }
+    bool canHeadphoneDrive() const { return (caps & 0x8) != 0; }
+    bool canPresenceDetect() const { return (caps & 0x4) != 0; }
+    bool isTriggerRequiredForImpedanceSense() const { return (caps & 0x2) != 0; }
+    bool isImpedanceSenseCapable() const { return (caps & 0x1) != 0; }
+    bool isPresent() const { return caps != 0; }
+
+    void log(const char *prefix) const {
+        unsigned long eapd = canEapd() ? 1 : 0;
+        unsigned long vref = getVrefControlBits() & 0xFF;
+        static const char pinFlagNames[] = "DBIOHPTZ";
+        char pinFlags[sizeof(pinFlagNames)];
+        memcpy(pinFlags, pinFlagNames, sizeof(pinFlagNames));
+        const char pinFlagCount = sizeof(pinFlagNames) - 1;
+        for(int fi=0;fi<pinFlagCount;fi++) {
+            if (!((caps >> (pinFlagCount - 1 - fi)) & 0x1)) {
+                pinFlags[fi] = ' ';
+            }
+        }
+        joshlog("%seapd=%u,vref=%02x,flags=%s\n",
+                prefix, eapd,vref, pinFlags);
+    }
+};
+
+struct volume_knob_capabilities {
+    unsigned long caps;
+
+    bool isPresent() const { return caps != 0; }
+
+    bool isDelta() const { return (caps & 0x80) != 0; }
+
+    unsigned int getNumSteps() const { return caps & 0x7f; }
+
+    void log(const char *prefix) const {
+        joshlog("%sdelta=%u,numsteps=%u\n",
+                prefix, isDelta() ? 1 : 0, getNumSteps());
+    }
+};
+
+struct supported_pcm_caps {
+    unsigned long caps;
+    bool isPresent() const { return caps != 0; }
+    unsigned int getDepthBits() const { return ( caps >> 16) & 0x1F; }
+    unsigned int getRateBits() const { return caps & 0xFFF; }
+
+    void log(const char *prefix) const {
+        char depth[100];
+        int dlen = 0;
+        static const char depthNames[] = " 816202432";
+        for(int i = 0; i < 5; i++) {
+            if ((getDepthBits() >> i) & 0x1) {
+                if (dlen)
+                    depth[dlen++] = ',';
+                depth[dlen++] = depthNames[i*2];
+                depth[dlen++] = depthNames[i*2+1];
+            }
+        }
+        depth[dlen] = 0;
+        char rate[200];
+        int rlen = 0;
+        static const char rateNames[] = "  8 11 16 22 32 44 48 88 96176192384";
+        for(int i = 0; i < 12; i++) {
+            if ((getRateBits() >> i) & 0x1) {
+                if (rlen)
+                    rate[rlen++] = ',';
+                rate[rlen++] = rateNames[i*3];
+                rate[rlen++] = rateNames[i*3+1];
+                rate[rlen++] = rateNames[i*3+2];
+            }
+        }
+        rate[rlen] = 0;
+        joshlog("%sdepths=%s,rates=%s\n",prefix, depth, rate);
+    }
+};
+
+struct supported_stream_format_caps {
+    unsigned long caps;
+    bool isPresent() const { return caps != 0; }
+    bool canAc3() const { return (caps & 0x4) != 0; }
+    bool canFloat32() const { return (caps & 0x2) != 0; }
+    bool canPcm() const { return (caps & 0x1) != 0; }
+    void log(const char *prefix) const {
+        joshlog("%spcm=%u,float32=%u,ac3=%u\n",
+                prefix, canPcm() ? 1: 0, canFloat32() ? 1 : 0, canAc3() ? 1: 0);
+    }
+};
+
+struct config_default {
+    unsigned long dflt;
+
+    unsigned int getPortConnectivityBits() const { return (dflt >> 30) & 0x3; }
+    unsigned int getGrossLocationBits() const { return (dflt >> 28) & 0x3; }
+    unsigned int getGeometricLocationBits() const { return (dflt >> 24) & 0xf; }
+    unsigned int getDefaultDeviceBits() const { return (dflt >> 20) & 0xf; }
+    unsigned int getConnectionTypeBits() const { return (dflt >> 16) & 0xf; }
+    unsigned int getColorBits() const { return (dflt >> 12) & 0xf; }
+    bool getJackDetectOverrideToIncapable() const { return (dflt & 0x100) != 0; }
+    unsigned int getDefaultAssociation() const { return (dflt >> 4) & 0xf; }
+    unsigned int getSequence() const { return dflt & 0xf; }
+    bool isPresent() const { return dflt != 0; }
+
+    void log(const char *prefix) const {
+        char portConn[3];
+        lookupLogCode(2, "JANOFIBO",
+                      getPortConnectivityBits(), portConn);
+        char grossLoc[3];
+        lookupLogCode(2, "EXINSEOT",
+                      getGrossLocationBits(), grossLoc);
+        char geomLoc[3];
+        lookupLogCode(2, "NAREFRLERITOBO0708090A0B0C0D0E0F",
+                      getGeometricLocationBits(), geomLoc);
+        char dfltDev[3];
+        lookupLogCode(2, "LOSPHPCDSPDOMLMHLIAUMCTESPDO0EOT",
+                      getDefaultDeviceBits(), dfltDev);
+        char connTyp[3];
+        lookupLogCode(2, "UN/8/4ATRCOPODOADIXLRJCO0C0D0EOT",
+                      getConnectionTypeBits(), connTyp);
+        char color[3];
+        lookupLogCode(2, "UNBKGRBUGRREORYEPUPI0A0B0C0DWHOT",
+                      getColorBits(), color);
+        unsigned int jdoFlag = getJackDetectOverrideToIncapable() ? 1 : 0;
+        joshlog("%sLoc=%s-%s,Conn=%s-%s,Dev=%s,Col=%s,Jdo=%u,Assoc=%u/%u\n"
+                  ,prefix,grossLoc,geomLoc,portConn,connTyp,dfltDev,color
+                  ,jdoFlag,getDefaultAssociation(),getSequence());
+    };
+};
+
 struct widget_info {
+    unsigned short node;
     widget_capabilities widgetCaps;
-    unsigned long pinCaps;
+    pin_capabilities pinCaps;
     amp_capabilities inputAmpCaps;
     amp_capabilities outputAmpCaps;
     unsigned long connectionListCaps;
-    unsigned long volumeKnobCaps;
+    volume_knob_capabilities volumeKnobCaps;
     unsigned short numConns;
     unsigned short connList[CON_LIST_BUF_LEN];
-    unsigned long configDefault;
+    config_default configDefault;
+    supported_pcm_caps pcmCaps;
+    supported_stream_format_caps streamFormatCaps;
 
     void load(HdaDevice &dev, unsigned int codecNo, unsigned int nodeNo) {
         HdaDevice::Codec codec(dev, codecNo);
+        node = nodeNo;
         widgetCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_AUDIO_WIDGET_CAPABILITIES);
-        pinCaps = codec.getNodeParam(nodeNo, NODE_PARAM_PIN_CAPABILITIES);
+        pinCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_PIN_CAPABILITIES);
         inputAmpCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_INPUT_AMPLIFIER_CAPABILITIES);
         outputAmpCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_OUTPUT_AMPLIFIER_CAPABILITIES);
-
         //Workaround for Virtualbox emulator bug - output amp caps and input amp caps are switched
         //Check if widget indicates it has amplifier overrides
         if (widgetCaps.hasAmpOverride()) {
@@ -859,14 +1014,23 @@ struct widget_info {
                 outputAmpCaps.caps = x;
             }
         }
-        //Workaround for Virtualbox
-        if (widgetCaps.getWidgetType() == WIDGET_TYPE_VOLUME_KNOB) {
-            //Volume knobs shouldn't respond to amp caps
-            inputAmpCaps.caps = outputAmpCaps.caps = 0;
-        }
 
         connectionListCaps = codec.getNodeParam(nodeNo, NODE_PARAM_CONNECTION_LIST_LENGTH);
-        volumeKnobCaps = codec.getNodeParam(nodeNo, NODE_PARAM_VOLUME_KNOB_CAPABILITIES);
+        volumeKnobCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_VOLUME_KNOB_CAPABILITIES);
+        streamFormatCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_SUPPORTED_STREAM_FORMATS);
+        pcmCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_SUPPORTED_PMC_RATES);
+
+        //Workaround for Virtualbox
+        if (widgetCaps.getWidgetType() == WIDGET_TYPE_VOLUME_KNOB) {
+            //VirtualBox seems to have misread the volumeKnobCapabilities param number
+            //of 13H as a decimal number and put the configuration in 13 decimal, which
+            //is input amp capabilities.
+            if (!volumeKnobCaps.isPresent() && inputAmpCaps.isPresent()) {
+                volumeKnobCaps.caps = inputAmpCaps.caps;
+                inputAmpCaps.caps = 0;
+            }
+        }
+
         numConns = connectionListCaps & 0x7F;
         numConns = numConns > CON_LIST_BUF_LEN ? CON_LIST_BUF_LEN : numConns;
         memset(&connList, 0, sizeof(connList));
@@ -880,103 +1044,183 @@ struct widget_info {
                 r = r >> shift;
             }
         }
-        configDefault = codec.nodeVerb(nodeNo, 0xf1c, 0);
+        configDefault.dflt = codec.nodeVerb(nodeNo, 0xf1c, 0);
+
+        //NOTE: Linux seems to set the defaults itself.  Here is what virtualBox uses:
+        //https://github.com/torvalds/linux/blob/8ca09d5fa3549d142c2080a72a4c70ce389163cd/sound/pci/hda/patch_sigmatel.c#L3287
 
     }
 
     unsigned int getWidgetType() {
         return widgetCaps.getWidgetType();
     }
-
+    void logReport() const {
+        {
+            char p[20];
+            sprintf(p," WIDGET %-4u: ", node);
+            widgetCaps.log(p);
+        }
+        if (pinCaps.isPresent()) {
+            pinCaps.log("      PINCAP: ");
+        }
+        if (inputAmpCaps.isPresent()) {
+            inputAmpCaps.log("      IN AMP: ");
+        }
+        if (outputAmpCaps.isPresent()) {
+            outputAmpCaps.log("     OUT AMP: ");
+        }
+        if (numConns > 0) {
+            char connl[CON_LIST_BUF_LEN * 6 + 1];  //5 chars for num, 1 for space.
+            connl[0] = 0;
+            for(unsigned int i = 0; i < numConns; i++) {
+                char e[8];
+                sprintf(e, " %d", connList[i] & 0xFFFF); //Safety mask
+                strcat(connl, e);
+            }
+            joshlog("   CONN LIST:%s\n",connl);
+        }
+        if (configDefault.isPresent()) {
+            configDefault.log("      CONFIG: ");
+        }
+        if (volumeKnobCaps.isPresent()) {
+            volumeKnobCaps.log("       VKNOB: ");
+        }
+        if (streamFormatCaps.isPresent()) {
+            streamFormatCaps.log("         FMT: ");
+        }
+        if (pcmCaps.isPresent()) {
+            pcmCaps.log("         PCM: ");
+        }
+    }
 };
 
 
 
-static void discoverAudioWidget(HdaDevice::Codec &codec, unsigned int fgNode, unsigned int wNode) {
-    widget_info winfo;
-    winfo.load(codec.device, codec.codec, wNode);
-    {
-        char p[20];
-        sprintf(p," WIDGET %-4u: ", wNode);
-        winfo.widgetCaps.log(p);
+struct audio_function_group_capabilities {
+    unsigned long caps;
+
+    bool isPresent() const { return caps != 0; }
+    bool hasBeepGen() const { return (caps & 0x10000) != 0; }
+    unsigned int getInputDelay() const { return (caps >> 8) & 0xF; }
+    unsigned int getOutputDelay() const { return caps & 0xF; }
+
+    void log(const char *prefix) const {
+        joshlog("%sbeep=%u,inputDelay=%u,outputDelay=%u\n",
+                prefix, hasBeepGen() ? 1 : 0, getInputDelay(), getOutputDelay());
     }
-    if (winfo.getWidgetType() == WIDGET_TYPE_PIN_COMPLEX) {
-        unsigned long pinCap = codec.getNodeParam(wNode, NODE_PARAM_PIN_CAPABILITIES);
-        unsigned long eapd = (pinCap >> 16) & 1;
-        unsigned long vref = (pinCap >> 8) & 0xFF;
-        static const char pinFlagNames[] = "DBIOHPTZ";
-        char pinFlags[sizeof(pinFlagNames)];
-        memcpy(pinFlags, pinFlagNames, sizeof(pinFlagNames));
-        const char pinFlagCount = sizeof(pinFlagNames) - 1;
-        for(int fi=0;fi<pinFlagCount;fi++) {
-            if (!((pinCap >> (pinFlagCount - 1 - fi)) & 0x1)) {
-                pinFlags[fi] = ' ';
+
+};
+
+static const unsigned int max_audio_widgets = 256;
+
+struct audio_function_group_info {
+    unsigned int node;
+    unsigned char functionGroupType;
+    bool canProduceUnsolicitedMessages;
+
+    audio_function_group_capabilities fgCaps;
+    amp_capabilities inputAmpCaps;
+    amp_capabilities outputAmpCaps;
+    supported_pcm_caps pcmCaps;
+    supported_stream_format_caps streamFormatCaps;
+    unsigned short widgetCount;
+    widget_info widgets[max_audio_widgets];
+
+    void load(HdaDevice &dev, unsigned int codecNo, unsigned int node) {
+        HdaDevice::Codec codec(dev, codecNo);
+        memset(this, 0, sizeof(*this));
+        this->node = node;
+        unsigned long fgTypeRes = codec.getNodeParam(node, NODE_PARAM_FUNCTION_GROUP_TYPE);
+        this->canProduceUnsolicitedMessages = (fgTypeRes & 0x100) != 0;
+        this->functionGroupType = fgTypeRes & 0xFF;
+
+
+        if (this->functionGroupType == NODE_TYPE_AUDIO_FUNCTION_GROUP) {
+            fgCaps.caps = codec.getNodeParam(node, NODE_PARAM_AUDIO_FUNCTION_GROUP_CAPABILITIES);
+            inputAmpCaps.caps = codec.getNodeParam(node, NODE_PARAM_INPUT_AMPLIFIER_CAPABILITIES);
+            outputAmpCaps.caps = codec.getNodeParam(node, NODE_PARAM_OUTPUT_AMPLIFIER_CAPABILITIES);
+            streamFormatCaps.caps = codec.getNodeParam(node, NODE_PARAM_SUPPORTED_STREAM_FORMATS);
+            pcmCaps.caps = codec.getNodeParam(node, NODE_PARAM_SUPPORTED_PMC_RATES);
+
+            unsigned long subordinates = codec.getNodeParam(node, NODE_PARAM_SUBORDINATE_NODES);
+            unsigned long subStart = (subordinates >> 16) & 0xFF;
+            widgetCount = subordinates & 0xFF;
+            for (unsigned char i = 0; i < widgetCount; i++) {
+                widgets[i].load(dev, codecNo, subStart + i);
             }
         }
-        joshlog("      PINCAP: cap=%08x,eapd=%u,vref=%02x,flags=%s\n",
-                pinCap, eapd,vref, pinFlags);
     }
-    if (winfo.inputAmpCaps.isPresent()) {
-        winfo.inputAmpCaps.log("      IN AMP: ");
-    }
-    if (winfo.outputAmpCaps.isPresent()) {
-        winfo.outputAmpCaps.log("     OUT AMP: ");
-    }
-    if (winfo.numConns > 0) {
-        char connl[CON_LIST_BUF_LEN * 6 + 1];  //5 chars for num, 1 for space.
-        connl[0] = 0;
-        for(unsigned int i = 0; i < winfo.numConns; i++) {
-            char e[8];
-            sprintf(e, " %d", winfo.connList[i] & 0xFFFF); //Safety mask
-            strcat(connl, e);
+
+    void logReport() const {
+        char prefix[20];
+        sprintf(prefix, "FG NODE %-4u: ", node);
+        fgCaps.log(prefix);
+        if (inputAmpCaps.isPresent()) {
+            inputAmpCaps.log("      IN AMP: ");
         }
-        joshlog("   CONN LIST:%s\n",connl);
-    }
-
-}
-
-
-static void discoverFunctionGroup(HdaDevice::Codec &codec, unsigned int fgNode) {
-    unsigned long subordinates = codec.getNodeParam(fgNode, NODE_PARAM_SUBORDINATE_NODES);
-    unsigned long subStart = (subordinates >> 16) & 0xFF;
-    unsigned long subCount = subordinates & 0xFF;
-    unsigned long fgTypeRes = codec.getNodeParam(fgNode, NODE_PARAM_FUNCTION_GROUP_TYPE);
-    unsigned long unSolCapable = (fgTypeRes >> 8) & 1;
-    unsigned long fgType = fgTypeRes & 0xFF;
-
-    joshlog("FG NODE %-4u: type=%u,unsolCapable=%u,subStart=%u,subCount=%u\n",
-            fgNode, fgType, unSolCapable, subStart, subCount);
-    if (fgNode == NODE_TYPE_AUDIO_FUNCTION_GROUP) {
-        unsigned long capResp = codec.getNodeParam(fgNode, NODE_PARAM_AUDIO_FUNCTION_GROUP_CAPABILITIES);
-        unsigned long beepGen = (capResp >> 16) & 0x1;
-        unsigned long inputDelay = (capResp >> 8) & 0xF;
-        unsigned long outputDelay = capResp & 0xF;
-        joshlog("   AFG INFO : beepGen=%u,inputDelay=%u,outputDelay=%u\n",
-                beepGen, inputDelay, outputDelay);
-
-        for(unsigned int i=0;i<subCount;i++) {
-            discoverAudioWidget(codec, fgNode, subStart+i);
+        if (outputAmpCaps.isPresent()) {
+            outputAmpCaps.log("     OUT AMP: ");
         }
+        if (streamFormatCaps.isPresent()) {
+            streamFormatCaps.log("         FMT: ");
+        }
+        if (pcmCaps.isPresent()) {
+            pcmCaps.log("         PCM: ");
+        }
+        for(unsigned char i=0;i<widgetCount;i++) {
+            widgets[i].logReport();
+        }
+
     }
-}
+};
 
-static void discover(HdaDevice::Codec &codec) {
-    //First talk to the root node
-    unsigned long venDevId = codec.getNodeParam(0, NODE_PARAM_DEVICE_ID);
-    unsigned long revId = codec.getNodeParam(0, NODE_PARAM_REVISION_ID);
-    unsigned long subordinates = codec.getNodeParam(0, NODE_PARAM_SUBORDINATE_NODES);
-    unsigned long venId = (venDevId >> 16) & 0xFFFF;
-    unsigned long devId = venDevId & 0xFFFF;
-    unsigned long subStart = (subordinates >> 16) & 0xFF;
-    unsigned long subCount = subordinates & 0xFF;
 
-    joshlog("ROOT NODE   : venId=%04x,devId=%04x,revId=%08x,subStart=%u,subCount=%u\n",
-            venId, devId, revId, subStart, subCount);
+static const unsigned int max_audio_function_groups = 4;
 
-    for(unsigned long i = 0; i<subCount; i++) {
-        discoverFunctionGroup(codec, i + subStart);
+struct codec_info {
+    unsigned int codecNumber;
+    unsigned short vendorId;
+    unsigned short deviceId;
+    unsigned long revisionId;
+    unsigned short audioFunctionGroupCount;
+    audio_function_group_info audioFunctionGroups[max_audio_function_groups];
+
+    void load(HdaDevice &dev, unsigned int codecNo) {
+        HdaDevice::Codec codec(dev, codecNo);
+        this->codecNumber = codecNo;
+        unsigned long venDevId = codec.getNodeParam(0, NODE_PARAM_DEVICE_ID);
+        vendorId = (venDevId >> 16) & 0xFFFF;
+        deviceId = venDevId & 0xFFFF;
+        revisionId = codec.getNodeParam(0, NODE_PARAM_REVISION_ID);
+        unsigned long subordinates = codec.getNodeParam(0, NODE_PARAM_SUBORDINATE_NODES);
+        unsigned long subStart = (subordinates >> 16) & 0xFF;
+        unsigned long subCount = subordinates & 0xFF;
+
+        audioFunctionGroupCount = 0;
+        memset(audioFunctionGroups, 0, sizeof(audioFunctionGroups));
+        for(unsigned long i = 0; i<subCount; i++) {
+            audio_function_group_info gi{};
+            gi.load(dev, codecNo, subStart + i);
+            if (gi.functionGroupType == NODE_TYPE_AUDIO_FUNCTION_GROUP) {
+                audioFunctionGroups[audioFunctionGroupCount++] = gi;
+                if (audioFunctionGroupCount >= max_audio_function_groups) {
+                    break;
+                }
+            }
+        }
+
     }
-}
+    void logReport() const {
+        joshlog("CODEC %u\n", codecNumber);
+        joshlog("ROOT NODE   : venId=%04x,devId=%04x,revId=%08x,afgCount=%u\n",
+                vendorId, deviceId, revisionId, audioFunctionGroupCount);
+        for(unsigned long i = 0; i<audioFunctionGroupCount; i++) {
+            audioFunctionGroups[i].logReport();
+        }
+
+    }
+};
+
 
 static void setup_hda() {
     option<PciFunction> hdaFunction = PciFunction::find_hda_function();
@@ -1037,8 +1281,9 @@ static void setup_hda() {
 
 
     joshlog("TODO: PICK CODEC\n");
-    HdaDevice::Codec codec(myDev, 0);
-    discover(codec);
+    codec_info cinfo{};
+    cinfo.load(myDev, 0);
+    cinfo.logReport();
 
     for(int line=0;line<4;line++) {
         unsigned long *peeks = allpeeks + 8*line;
@@ -1058,7 +1303,7 @@ static void setup_hda() {
 extern "C" void trs_ich_setup() {
 
 
-    joshlog("Woo C++ v7\n");
+    joshlog("Woo C++ v8\n");
     joshlog("In ich setup\n");
     if (!test_for_pci()) {
         joshlog("pci bios not found\n");
