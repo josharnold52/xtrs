@@ -43,10 +43,10 @@ DOS_OBJECTS = \
 	newutils.o
 
 CR_OBJECTS = \
-	compile_rom.o \
-	error.o \
-	load_cmd.o \
-	load_hex.o
+	compile_rom.bldo \
+	error.bldo \
+	load_cmd.bldo \
+	load_hex.bldo
 
 MD_OBJECTS = \
 	mkdisk.o
@@ -84,6 +84,8 @@ HTMLDOCS = cpmutil.txt \
 
 PROGS = dosxtrs mkdisk hex2cmd cmddump jahdatst
 
+ZMACINT = ./zmac-internal/zmac
+
 default: $(PROGS) docs
 
 all: default z80code gxtrs
@@ -94,6 +96,9 @@ z80code: $(Z80CODE)
 
 # Local customizations for make variables are done in Makefile.local:
 include Makefile.local
+
+$(ZMACINT):
+	cd ./zmac-internal && make
 
 scantran/generated_table.inc: scantran/scantran.scala
 	bash -c "cd scantran && scala scantran.scala"
@@ -106,26 +111,31 @@ LIBS = $(XLIB) $(READLINELIBS) $(EXTRALIBS)
 
 ZMACFLAGS = -h
 
-.SUFFIXES: .z80 .cmd .dct .man .txt .hex .html
+.SUFFIXES: .dct .man .txt .html
 
-.z80.cmd:
-	zmac $(ZMACFLAGS) -o $*.hex -x $*.lst $<
-	hex2cmd $*.hex > $*.cmd
-	rm -f $*.hex
+%.bldo : %.c %.o
+	$(BUILD_CC) -c $< -o $@
 
-.z80.dct:
-	zmac $(ZMACFLAGS) -o $*.hex -x $*.lst $<
+
+
+%cmd : %z80  $(ZMACINT) 
+	$(ZMACINT) $(ZMACFLAGS) -o $*.hex -x $*.lst $<
+	hex2cmd %.hex > %.cmd
+	rm -f %.hex
+
+.z80.dct: $(ZMACINT)
+	$(ZMACINT) $(ZMACFLAGS) -o $*.hex -x $*.lst $<
 	hex2cmd $*.hex > $*.dct
 	rm -f $*.hex
 
-.z80.hex:
-	zmac $(ZMACFLAGS) -o $*.hex -x $*.lst $<
+%.hex : %.z80  $(ZMACINT)
+	$(ZMACINT) $(ZMACFLAGS) -o $*.hex -x $*.lst $<
 
 .man.txt:
 	nroff -man -c -Tascii $< | colcrt - | cat -s > $*.txt
 
 .html.txt:
-	html2text -nobs  $< >$@
+	lynx -dump  $< >$@
 
 %.man.pdf: %.man
 	groff -Tpdf -man $< > $@
@@ -141,11 +151,11 @@ gxtrs: $(OBJECTS) $(GTK_OBJECTS)
 		$(OBJECTS) $(GTK_OBJECTS) $(LIBS) \
 		`pkg-config --libs gtk+-2.0`
 
-#compile_rom: $(CR_OBJECTS)
-#	$(CC) $(LDFLAGS) -o compile_rom $(CR_OBJECTS)
-
 compile_rom: $(CR_OBJECTS)
-	cp /Users/arnold/scm/git/xtrs/compile_rom ./
+	$(BUILD_CC) -o compile_rom $(CR_OBJECTS)
+
+#compile_rom: $(CR_OBJECTS)
+#	cp /Users/arnold/scm/git/xtrs/compile_rom ./
 
 trs_rom1.c: compile_rom $(BUILT_IN_ROM)
 	./compile_rom 1 $(BUILT_IN_ROM) > trs_rom1.c

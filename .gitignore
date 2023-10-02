@@ -24,6 +24,7 @@ _$*
 *.Z
 *.elc
 *.ln
+/*.bldo
 core
 cscope.*
 # CVS default ignores end
@@ -92,3 +93,6 @@ _CSTE.CTL
 
 /old-dboxrun/
 /jahdatst
+
+/josh.log
+

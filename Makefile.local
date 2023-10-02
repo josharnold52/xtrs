@@ -5,7 +5,12 @@
 
 # Set these to where you want installed stuff to go, if you install
 
-PREFIX = /Users/arnold/projects/dos-xtrs/inst
+# Old MAC
+#PREFIX = /Users/arnold/projects/dos-xtrs/inst
+
+PREFIX = /home/arnold/local/xtrs
+
+
 BINDIR = $(PREFIX)/bin
 MANDIR = $(PREFIX)/share/man
 DOCDIR = $(PREFIX)/share/doc/xtrs
@@ -81,8 +86,16 @@ DEBUG = -Ofast -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter
 
 # If you have gcc, and you want to use it:
 
-CC = i586-pc-msdosdjgpp-gcc
-CXX = i586-pc-msdosdjgpp-g++
+# OLD MAC SETTINGS:
+# CC = i586-pc-msdosdjgpp-gcc
+# CXX = i586-pc-msdosdjgpp-g++
+
+CC = i686-pc-msdosdjgpp-gcc
+CXX = i686-pc-msdosdjgpp-g++
+
+# For building intermediate toolds that need to run locally
+BUILD_CC=gcc
+BUILD_CXX=g++
 
 # If you need a different path for libraries:
 
@@ -97,12 +110,17 @@ CXX = i586-pc-msdosdjgpp-g++
 #LDFLAGS= -L/Users/arnold/devtools/djgpp/extras/xlibemu/lib-goodnames -L/Users/arnold/devtools/djgpp/extras/oldgrx/contrib/libgrx/lib -Tjosh.lkr
 
 # New attempt will be to use libgrx2.0 directly
-LDFLAGS= -L/Users/arnold/devtools/djgpp/extras/grx249/lib
+# OLD MAC SETTING:
+# LDFLAGS= -L/Users/arnold/devtools/djgpp/extras/grx249/lib
+LDFLAGS= -L/home/arnold/scm/dostrs-build-extras/grx249/lib
 
 # If you need a different path for include files:
 
 #IFLAGS = -I/usr/include/X11
-IFLAGS = -DENOTSUP=101 -DSA_RESTART=0 -DJWA_DJGPP -DJWA_NEEDSIGSET -I/Users/arnold/devtools/djgpp/i586-pc-msdosdjgpp/sys-include -I/Users/arnold/devtools/djgpp/extras/grx249/include
+# Old mac settings
+#IFLAGS = -DENOTSUP=101 -DSA_RESTART=0 -DJWA_DJGPP -DJWA_NEEDSIGSET -I/Users/arnold/devtools/djgpp/i586-pc-msdosdjgpp/sys-include -I/Users/arnold/devtools/djgpp/extras/grx249/include
+
+IFLAGS = -DENOTSUP=101 -DSA_RESTART=0 -DJWA_DJGPP -DJWA_NEEDSIGSET -I/usr/i686-pc-msdosdjgpp/sys-include -I/home/arnold/scm/dostrs-build-extras/grx249/include
 
 # Re-define this if your X library is strangely named:
 # NOTE: Abandoning X11 in favor of grx
