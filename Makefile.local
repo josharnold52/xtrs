@@ -78,8 +78,11 @@ READLINELIBS=
 
 # Select debugging symbols (-g) and/or optimization (-O2, etc.)
 
-#DEBUG = -O2 -g -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter
-DEBUG = -Ofast -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter
+#TODO: What architecure do we target?  386 is safest and works with dosbox, but maybe others would be
+# be better on netbooks?
+
+#DEBUG =  -g -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter -march=i386
+DEBUG = -Ofast -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter -march=i386
 #DEBUG = -g -DKBDEBUG -DXDEBUG
 #DEBUG = -g
 #DEBUG = -Wall

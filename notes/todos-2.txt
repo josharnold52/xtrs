@@ -1,0 +1,17 @@
+I believe I have finished a bunch of the old dospm-todos and need
+to clean them up.   In the meantime, here are some more todos.
+
+1.  Figure out which -march and -mtune settings to use.   Now that I'm compiling under
+    the arch linux version of djgpp, the emulator crashes when run on dosbox with
+    illegal opcodes.  I found that setting -march=i386 fixes the problem.  Question
+    is, what is the best arch to use?  Certainly my netbooks can go higher than i386,
+    but does it matter?
+
+2.  Speed up compilation of the 16 bit programs.   I think giving them a configuration
+    with max cycles will help.   Also, maybe the whole "run a disk image" thing isn't
+    worth it.
+
+3.  Get it running on virtualbox in arch
+
+
+

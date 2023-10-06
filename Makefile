@@ -195,7 +195,7 @@ clean:
 		$(X_OBJECTS) $(GTK_OBJECTS) \
 		$(CR_OBJECTS) $(HC_OBJECTS) \
 		$(CD_OBJECTS) $(DOS_OBJECTS) trs_rom*.c *~ \
-		$(PROGS) compile_rom gxtrs dosxtrs \
+		$(PROGS) compile_rom gxtrs dosxtrs dosxtrs.exe jahdatst jahdatst.exe \
 		$(HTMLDOCS) \
 		$(DOS16)
 

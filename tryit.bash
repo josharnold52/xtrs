@@ -7,7 +7,7 @@ cd "$SCRIPT_DIR"
 
 mkdir -p dboxrun
 cd dboxrun || exit 1
-unzip -o ../../dist/dosxtrs.zip
+unzip -o ../dist/dosxtrs.zip
 cd ..
 cp dbox-extras/4DOS.COM ./dboxrun/
 if [[ -n "$1" ]]; then
