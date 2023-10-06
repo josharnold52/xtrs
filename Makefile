@@ -66,6 +66,10 @@ JT1_OBJECTS = \
 	trs_ich.o \
 	error.o
 
+DOS16 = \
+	launcher/target/LAUNCHER.COM \
+	keytrap/target/KEYTRAP.COM
+	
 
 Z80CODE = export.cmd import.cmd settime.cmd xtrsmous.cmd \
 	xtrs8.dct xtrshard.dct \
@@ -86,13 +90,15 @@ PROGS = dosxtrs mkdisk hex2cmd cmddump jahdatst
 
 ZMACINT = ./zmac-internal/zmac
 
-default: $(PROGS) docs
+default: $(PROGS) docs dos16
 
-all: default z80code gxtrs
+all: default z80code gxtrs dos16
 
 docs: $(MANPAGES) $(PDFMANPAGES) $(HTMLDOCS)
 
 z80code: $(Z80CODE)
+
+dos16: $(DOS16)
 
 # Local customizations for make variables are done in Makefile.local:
 include Makefile.local
@@ -190,7 +196,8 @@ clean:
 		$(CR_OBJECTS) $(HC_OBJECTS) \
 		$(CD_OBJECTS) $(DOS_OBJECTS) trs_rom*.c *~ \
 		$(PROGS) compile_rom gxtrs dosxtrs \
-		$(HTMLDOCS)
+		$(HTMLDOCS) \
+		$(DOS16)
 
 veryclean: clean
 	rm -f $(Z80CODE) $(MANPAGES) $(PDFMANPAGES) *.lst
@@ -224,6 +231,14 @@ install-docs: docs
 depend:
 	makedepend -Y. --  -- *.c *.cpp 2>&1 | \
 		(egrep -v 'cannot find|not in' || true)
+
+
+keytrap/target/KEYTRAP.COM: keytrap/build.bash keytrap/keytrap.c  keytrap/scanbuf.h
+	cd keytrap && bash build.bash
+
+launcher/target/LAUNCHER.COM: launcher/build.bash launcher/launcher.c
+	cd launcher && bash build.bash
+
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
