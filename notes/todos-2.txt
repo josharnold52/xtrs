@@ -13,5 +13,10 @@ to clean them up.   In the meantime, here are some more todos.
 
 3.  Get it running on virtualbox in arch
 
+4.  Consider trying it in DOSEMU, which I think runs the 32-bit code natively
+
+5.  To round it all off, maybe try QEMU
+
+
 
 
