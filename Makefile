@@ -30,9 +30,9 @@ OBJECTS = \
 X_OBJECTS = \
 	trs_xinterface.o
 
-GTK_OBJECTS = \
-	keyrepeat.o \
-	trs_gtkinterface.o
+#GTK_OBJECTS = \
+#	keyrepeat.o \
+#	trs_gtkinterface.o
 
 DOS_OBJECTS = \
 	trs_djgpp.o \
@@ -52,10 +52,10 @@ MD_OBJECTS = \
 	mkdisk.o
 
 HC_OBJECTS = \
-	cmd.o \
-	error.o \
-	load_hex.o \
-	hex2cmd.o
+	cmd.bldo \
+	error.bldo \
+	load_hex.bldo \
+	hex2cmd.bldo
 
 CD_OBJECTS = \
 	cmddump.o \
@@ -92,7 +92,7 @@ ZMACINT = ./zmac-internal/zmac
 
 default: $(PROGS) docs dos16
 
-all: default z80code gxtrs dos16
+all: default z80code dos16
 
 docs: $(MANPAGES) $(PDFMANPAGES) $(HTMLDOCS)
 
@@ -124,15 +124,11 @@ ZMACFLAGS = -h
 
 
 
-%cmd : %z80  $(ZMACINT) 
-	$(ZMACINT) $(ZMACFLAGS) -o $*.hex -x $*.lst $<
-	hex2cmd %.hex > %.cmd
-	rm -f %.hex
+%.cmd : %.hex  $(ZMACINT) hex2cmd
+	./hex2cmd $*.hex > $*.cmd
 
-.z80.dct: $(ZMACINT)
-	$(ZMACINT) $(ZMACFLAGS) -o $*.hex -x $*.lst $<
-	hex2cmd $*.hex > $*.dct
-	rm -f $*.hex
+%.dct : %.hex  $(ZMACINT) hex2cmd
+	./hex2cmd $*.hex > $*.dct
 
 %.hex : %.z80  $(ZMACINT)
 	$(ZMACINT) $(ZMACFLAGS) -o $*.hex -x $*.lst $<
@@ -152,10 +148,10 @@ dosxtrs: $(OBJECTS) $(DOS_OBJECTS)
 xtrs: $(OBJECTS) $(X_OBJECTS)
 	$(CC) $(LDFLAGS) -o xtrs $(OBJECTS) $(X_OBJECTS) $(LIBS)
 
-gxtrs: $(OBJECTS) $(GTK_OBJECTS)
-	$(CC) $(LDFLAGS) -o gxtrs -export-dynamic \
-		$(OBJECTS) $(GTK_OBJECTS) $(LIBS) \
-		`pkg-config --libs gtk+-2.0`
+#gxtrs: $(OBJECTS) $(GTK_OBJECTS)
+#	$(CC) $(LDFLAGS) -o gxtrs -export-dynamic \
+#		$(OBJECTS) $(GTK_OBJECTS) $(LIBS) \
+#		`pkg-config --libs gtk+-2.0`
 
 compile_rom: $(CR_OBJECTS)
 	$(BUILD_CC) -o compile_rom $(CR_OBJECTS)
@@ -172,17 +168,21 @@ trs_rom3.c: compile_rom $(BUILT_IN_ROM3)
 trs_rom4p.c: compile_rom $(BUILT_IN_ROM4P)
 	./compile_rom 4p $(BUILT_IN_ROM4P) > trs_rom4p.c
 
-trs_gtkinterface.o: trs_gtkinterface.c
-	$(CC) -c $(CFLAGS) `pkg-config --cflags gtk+-2.0` $<
+#trs_gtkinterface.o: trs_gtkinterface.c
+#	$(CC) -c $(CFLAGS) `pkg-config --cflags gtk+-2.0` $<
 
-keyrepeat.o: keyrepeat.c
-	$(CC) -c $(CFLAGS) `pkg-config --cflags gtk+-2.0` $<
+#keyrepeat.o: keyrepeat.c
+#	$(CC) -c $(CFLAGS) `pkg-config --cflags gtk+-2.0` $<
 
 mkdisk:	$(MD_OBJECTS)
 	$(CC) $(LDFLAGS) -o mkdisk $(MD_OBJECTS)
 
 hex2cmd: $(HC_OBJECTS)
-	$(CC) $(LDFLAGS) -o hex2cmd $(HC_OBJECTS)
+	$(BUILD_CC) -o hex2cmd $(HC_OBJECTS)
+#	$(CC) $(LDFLAGS) -o hex2cmd $(HC_OBJECTS)
+
+#hex2cmd: $(HC_OBJECTS)
+#	$(CC) $(LDFLAGS) -o hex2cmd $(HC_OBJECTS)
 
 cmddump: $(CD_OBJECTS)
 	$(CC) $(LDFLAGS) -o cmddump $(CD_OBJECTS)
@@ -262,8 +262,6 @@ trs_djgpp.o: trs_hard.h trs_imp_exp.h keytrap/scanbuf.h trs_djgpp.h
 trs_djgpp_modal.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
 trs_djgpp_modal.o: trs_hard.h trs_imp_exp.h trs_metafile.h newutils.h
 trs_djgpp_modal.o: trs_djgpp.h
-trs_gtkinterface.o: trs.h z80.h config.h trs_iodefs.h trs_disk.h trs_uart.h
-trs_gtkinterface.o: trs_hard.h keyrepeat.h
 trs_hard.o: trs.h z80.h config.h trs_hard.h reed.h
 trs_imp_exp.o: trs_imp_exp.h z80.h config.h trs.h trs_disk.h trs_hard.h
 trs_interrupt.o: z80.h config.h trs.h
