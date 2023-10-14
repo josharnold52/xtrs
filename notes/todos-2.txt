@@ -17,6 +17,7 @@ to clean them up.   In the meantime, here are some more todos.
 
 5.  To round it all off, maybe try QEMU
 
+6.  Try TPAUSE on more modern cpus (Use with TSC) for timing/sleepig
 
 
 
