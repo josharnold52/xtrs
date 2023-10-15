@@ -30,10 +30,6 @@ OBJECTS = \
 X_OBJECTS = \
 	trs_xinterface.o
 
-#GTK_OBJECTS = \
-#	keyrepeat.o \
-#	trs_gtkinterface.o
-
 DOS_OBJECTS = \
 	trs_djgpp.o \
 	trs_realtime.o \
@@ -110,9 +106,9 @@ scantran/generated_table.inc: scantran/scantran.scala
 	bash -c "cd scantran && scala scantran.scala"
 
 CFLAGS += $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
-	$(APPDEFAULTS) -DKBWAIT 
+	$(APPDEFAULTS) -DKBWAIT
 CXXFLAGS += $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
-	$(APPDEFAULTS) -DKBWAIT 
+	$(APPDEFAULTS) -DKBWAIT
 LIBS = $(XLIB) $(READLINELIBS) $(EXTRALIBS)
 
 ZMACFLAGS = -h
@@ -148,16 +144,8 @@ dosxtrs: $(OBJECTS) $(DOS_OBJECTS)
 xtrs: $(OBJECTS) $(X_OBJECTS)
 	$(CC) $(LDFLAGS) -o xtrs $(OBJECTS) $(X_OBJECTS) $(LIBS)
 
-#gxtrs: $(OBJECTS) $(GTK_OBJECTS)
-#	$(CC) $(LDFLAGS) -o gxtrs -export-dynamic \
-#		$(OBJECTS) $(GTK_OBJECTS) $(LIBS) \
-#		`pkg-config --libs gtk+-2.0`
-
 compile_rom: $(CR_OBJECTS)
 	$(BUILD_CC) -o compile_rom $(CR_OBJECTS)
-
-#compile_rom: $(CR_OBJECTS)
-#	cp /Users/arnold/scm/git/xtrs/compile_rom ./
 
 trs_rom1.c: compile_rom $(BUILT_IN_ROM)
 	./compile_rom 1 $(BUILT_IN_ROM) > trs_rom1.c
@@ -179,10 +167,6 @@ mkdisk:	$(MD_OBJECTS)
 
 hex2cmd: $(HC_OBJECTS)
 	$(BUILD_CC) -o hex2cmd $(HC_OBJECTS)
-#	$(CC) $(LDFLAGS) -o hex2cmd $(HC_OBJECTS)
-
-#hex2cmd: $(HC_OBJECTS)
-#	$(CC) $(LDFLAGS) -o hex2cmd $(HC_OBJECTS)
 
 cmddump: $(CD_OBJECTS)
 	$(CC) $(LDFLAGS) -o cmddump $(CD_OBJECTS)
@@ -194,7 +178,9 @@ clean:
 	rm -f $(OBJECTS) $(MD_OBJECTS) \
 		$(X_OBJECTS) $(GTK_OBJECTS) \
 		$(CR_OBJECTS) $(HC_OBJECTS) \
+		$(JT1_OBJECTS) \
 		$(CD_OBJECTS) $(DOS_OBJECTS) trs_rom*.c *~ \
+		compile_rom.o  hex2cmd.o \
 		$(PROGS) compile_rom gxtrs dosxtrs dosxtrs.exe jahdatst jahdatst.exe \
 		$(HTMLDOCS) \
 		$(DOS16)
@@ -239,6 +225,8 @@ keytrap/target/KEYTRAP.COM: keytrap/build.bash keytrap/keytrap.c  keytrap/scanbu
 launcher/target/LAUNCHER.COM: launcher/build.bash launcher/launcher.c
 	cd launcher && bash build.bash
 
+
+idebuild: dosxtrs jahdatst
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
