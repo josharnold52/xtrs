@@ -61,6 +61,26 @@ static const int WIDGET_TYPE_POWER = 0x5;
 static const int WIDGET_TYPE_VOLUME_KNOB = 0x6;
 static const int WIDGET_TYPE_BEEP = 0x7;
 
+
+static const unsigned int DMA_MEM_ALIGN = 0x100;
+
+
+/*
+ * TODO:  The MASTER LIST
+ *
+ * I've been super inconsistent with numeric types, but a major issue has
+ * been with HDA node numbers.   The spec mentions 7-bit "short from" or 15-bit
+ * "long form" but the 15-bit version depend on some yet-to-be specified indirect
+ * addressing scheme.  Probably I should just forget about 15-bit support and go
+ * with 7-bit for now.   I've been using unsigned types for node nums, but it's tempting
+ * to use signed types because they fit and because negative numbers are convenient
+ * invalid sentinel values.
+ *
+ * I also need to fix connection list parsing - it currently reads the values as
+ * 8 bit or 16 bit (depending om short/long form).  But the high bit is actually
+ * a flag indicating whether the value is standalone or the top end of a range.
+*/
+
 static void joshdebug(const char *msg, ...) {
 
 }
@@ -71,6 +91,23 @@ static unsigned char pci_hardware_mechanism;
 static unsigned char pci_ver_major;
 static unsigned char pci_ver_minor;
 static unsigned char pci_last_bus_no;
+
+template<class T, int (*cf)(const T &t1, const T &t2)> class tqsort {
+private:
+    static int vcf(const void *e1, const void *e2) {
+        const T *pt1 = *(static_cast<const T * const *>(e1));
+        const T *pt2 = *(static_cast<const T * const *>(e2));
+        if (!(pt1 && pt2)) {
+            return pt1 ? -1 : (pt2 ? 1 : 0);
+        }
+        return cf(*pt1, *pt2);
+    }
+public:
+    tqsort() = delete;
+    static void run(const T **base, size_t numelem) {
+        qsort(base, numelem, sizeof(T*), vcf);
+    }
+};
 
 /**
  * Kind of like option in java/scala but we need a placeholder value
@@ -91,6 +128,35 @@ public:
 
     T & get() { return value; }
     const T & get() const { return value; }
+};
+
+
+class nodeset {
+private:
+    unsigned int bits[8]{};
+public:
+    void add(unsigned char x) {
+        bits[(x>>5) & 7] |= 1u << (x & 31);
+    }
+    void addAll(const nodeset &rhs) {
+        for(int i=0;i<8;i++) {
+            bits[i] |= rhs.bits[i];
+        }
+    }
+    bool contains(unsigned char x) const {
+        return (bits[(x>>5) & 7] & (1u << (x & 31))) != 0;
+    }
+    int findNext(int startAt) const {
+        if (startAt < 0)
+            startAt = 0;
+        //Can optimize this...
+        for(int i=startAt; i < 256; i++) {
+            if (contains(i)) {
+                return i;
+            }
+        }
+        return -1;
+    }
 };
 
 
@@ -147,21 +213,21 @@ public:
         const unsigned long offset;
         ref(unsigned short selector, unsigned long offset) : selector(selector), offset(offset) {}
     };
-    class ref8 : ref {
+    class ref8 : public ref {
     public:
         ref8(SelectorMem &mem, unsigned long offset) : ref(mem.selector, offset) {}
         unsigned char peek() const { return  _farpeekb(selector, offset);  }
         void poke(unsigned char v) const { _farpokeb(selector, offset, v);  }
     };
     SelectorMem::ref8 r8(unsigned long offset) { return {*this, offset}; }
-    class ref16 : ref {
+    class ref16 : public ref {
     public:
         ref16(SelectorMem &mem, unsigned long offset) : ref(mem.selector, offset) {}
         unsigned short peek() const { return  _farpeekw(selector, offset);  }
         void poke(unsigned short v) const { _farpokew(selector, offset, v);  }
     };
     SelectorMem::ref16 r16(unsigned long offset) { return {*this, offset}; }
-    class ref32 : ref {
+    class ref32 : public ref {
     public:
         ref32(SelectorMem &mem, unsigned long offset) : ref(mem.selector, offset) {}
         unsigned long peek() const { return  _farpeekl(selector, offset);  }
@@ -375,7 +441,10 @@ public:
 
 };
 
+class HdaStreamBuffer;
+
 class HdaDevice {
+    friend class HdaStreamBuffer;
 private:
     PciFunction pciFunction;
     SelectorMem regs;
@@ -394,6 +463,9 @@ private:
     bool rirbMemoryInitialzed = false;
 
     bool corbRirbSystemsActive = false;
+
+    unsigned long dmaPosOffset = 0;
+
 
 
     SelectorMem::ref16 GCAP = regs.r16(0x00);
@@ -436,6 +508,9 @@ private:
     SelectorMem::ref32 ICS = regs.r32(0x68);
 
 
+    SelectorMem::ref32 DPLBASE = regs.r32(0x70);
+    SelectorMem::ref32 DPUBASE = regs.r32(0x74);
+
 public:
     HdaDevice(PciFunction &p, SelectorMem &r) :
             pciFunction(p), regs(r) {
@@ -451,8 +526,8 @@ public:
         dmaPhysicalAddress = ((unsigned int)i) << 4;
         dmaSelector = SelectorMem(sel);
         joshdebug("Allocated dos memory at %x\n", dmaPhysicalAddress);
-        if (dmaPhysicalAddress & 0xFF) {
-            dmaMemUsed += 0x100 - (dmaPhysicalAddress & 0xFF); //256-byte aligned
+        if (dmaPhysicalAddress & (DMA_MEM_ALIGN - 1)) {
+            dmaMemUsed += DMA_MEM_ALIGN - (dmaPhysicalAddress & (DMA_MEM_ALIGN - 1)); //256-byte aligned
         }
         joshlog("Usable HDA dma memory is at %x (%u bytes)\n",
                 dmaPhysicalAddress + dmaMemUsed, dmaMemSize - dmaMemUsed);
@@ -483,7 +558,6 @@ public:
 
     /** If success, sets offset to the offset from the start of DMA */
     bool reserveDMA(unsigned long size, unsigned long &offset) {
-        size = (size + 0xFF) & 0xFFFFFF00u;
         if (!size)
             return false;
         if (!dmaPhysicalAddress)
@@ -492,7 +566,11 @@ public:
             return false;
         }
         offset = dmaMemUsed;
+        joshlog("Reserved %u bytes at %x\n", size, offset);
         dmaMemUsed += size;
+        if (size & (DMA_MEM_ALIGN - 1)) {
+            dmaMemUsed += DMA_MEM_ALIGN - (size & (DMA_MEM_ALIGN - 1));
+        }
         return true;
     }
 
@@ -609,16 +687,46 @@ public:
         joshlog("RIRB appears to be running!\n");
 
         corbRirbSystemsActive = true;
+
+        if (!reserveDMA(128, dmaPosOffset)) {
+            joshlog("Failed to reserve dma space for the DmaPos table");
+        }
+        for(int zb=0;zb<128;zb+=4) {
+            dmaSelector.poke32(dmaPosOffset + zb, 0xBADF00D);
+        }
+        DPUBASE.poke(0);
+        DPLBASE.poke((dmaPhysicalAddress + dmaPosOffset) | 1);
+
         return true;
+    }
+    void dumpDmaBuf() {
+        for(int i =0 ; i < 4; i++) {
+            unsigned int p[8];
+            for(int j=0; j<8;j++) {
+                p[j] = dmaSelector.peek32(dmaPosOffset + i*32 + j * 4);
+            }
+            joshlog("DMA %02X %08X %08X %08X %08X %08X %08X %08X %08X\n",
+                    i * 32, p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]
+                    );
+        }
     }
 
 
     void force_reset() {
         joshlog("Resetting the HDA...\n");
         INTCTL.poke(0);
-        //TODO: Maybe disable PCI bus mastering
-        //TODO: Keep track of any streams the we started and shut them down
-        // or maybe just shut down all streams
+
+        joshdebug("Stopping all streams...\n");
+        unsigned short gcap = GCAP.peek();
+        unsigned int scnt = ((gcap >> 12) & 0xF) + ((gcap >> 8) & 0xF) + ((gcap >> 3) & 0x1F);
+        for(unsigned int i=0; i<scnt && i <30; i++) {
+            joshdebug("Stopping streams %u...\n",i);
+            unsigned int x = regs.peek32(0x80 + i * 0x20);
+            x &= 0xFFFFFF; // oddly, only 3 byte register
+            x &= (~2); //Don't run
+            regs.poke32(0x80 + i * 0x20, x);
+        }
+
         joshdebug("Stopping response dma...\n");
         RIRBCTL.poke(0);
         while((RIRBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
@@ -649,21 +757,21 @@ public:
     bool singleCommand(unsigned long command,  unsigned long &response) {
         joshdebug("Sending=%08x\n",command);
         if (!corbRirbSystemsActive) {
-            joshlog("Error: CORB/RIRB not active");
+            joshlog("Error: CORB/RIRB not active\n");
             return false;
         }
         if (getAcceptsUnsolicitedResponse()) {
-            joshlog("Error: Unsolicited responses not supported");
+            joshlog("Error: Unsolicited responses not supported\n");
             return false;
         }
-        //GCTL.poke(0x100);
         if (CORBRP.peek() != CORBWP.peek()) {
-            joshlog("Error: command already in progress");
+            joshlog("Error: command already in progress\n");
             return false;
         }
-        if (RIRBWP.peek() != rirbReadPointer) {
-            joshlog("Error: Unread responses exist");
-            return false;
+        while (RIRBWP.peek() != rirbReadPointer) {
+            joshlog("Error: Unread responses exist\n");
+            rirbReadPointer = RIRBWP.peek();
+            //return false;
         }
 
         //TODO - Need to setup timeouts and maybe kill pending reads if they fail
@@ -684,7 +792,7 @@ public:
         joshdebug("Waiting for response...\n");
         dbgCommandState();
         //TODO - spin then timeout
-        if(RIRBWP.peek() == rirbReadPointer) {
+        while(RIRBWP.peek() == rirbReadPointer) {
             INLINE_PAUSE;
             dbgCommandState();
         };
@@ -701,8 +809,8 @@ public:
     class Codec {
     public:
         HdaDevice & device;
-        const int codec;
-        Codec(HdaDevice &d, int c) : device(d), codec(c) {}
+        const unsigned int codec;
+        Codec(HdaDevice &d, unsigned int c) : device(d), codec(c) {}
 
         unsigned long getNodeParam( unsigned int node, unsigned int param, bool *recvOk) {
             unsigned long r;
@@ -718,19 +826,32 @@ public:
 
         unsigned long nodeVerb(unsigned int node, unsigned int verb, unsigned int payload) {
             unsigned long r;
+            unsigned long cmd = makeCommand(codec, node, verb, payload);
             bool e = device.singleCommand(
-                    makeCommand(codec, node, verb, payload), r);
-            return e ? r : 0;
+                    cmd, r);
+            r = e ? r : 0;
+
+            if (verb < 0x800 && (verb < 0x8 || verb >= 0x10))
+                joshlog("COMMAND: 0x%08x => 0x%08x\n",cmd, r);
+
+            return r;
         }
     };
 
 
 
     static unsigned int makeCommand(unsigned int codec, unsigned int node, unsigned int command, unsigned int data) {
-        return ((codec & 0xFu) << 28) |
-                ((node & 0xFFu) << 20) |
-                ((command & 0xFFFu) << 8) |
-                (data & 0xFFu);
+        if (command >= 0x10) {
+            return ((codec & 0xFu) << 28) |
+                   ((node & 0xFFu) << 20) |
+                   ((command & 0xFFFu) << 8) |
+                   (data & 0xFFu);
+        } else {
+            return ((codec & 0xFu) << 28) |
+                   ((node & 0xFFu) << 20) |
+                   ((command & 0xFu) << 16) |
+                   (data & 0xFFFFu);
+        }
     }
 
     void dbgCommandState() {
@@ -760,7 +881,134 @@ public:
         );
     }
 
+
 };
+
+class HdaStreamBuffer {
+private:
+    HdaDevice *dev;
+    unsigned char descriptorNumber;
+    unsigned char streamNumber;
+    unsigned char bufferCount;
+    unsigned int singleBufferSize;
+    unsigned int totalBufferSize;
+    unsigned long offsetBufferDescriptorList = 0;
+    unsigned long offsetBuffers = 0;
+
+    SelectorMem::ref32 SDCTL;
+    SelectorMem::ref8 SDSTS;
+    SelectorMem::ref32 SDLPIB;
+    SelectorMem::ref32 SDCBL;
+    SelectorMem::ref16 SDLVI;
+    SelectorMem::ref16 SDFIFOS;
+    SelectorMem::ref16 SDFMT;
+    SelectorMem::ref32 SDBDPL;
+    SelectorMem::ref32 SDBDPU;
+
+public:
+    HdaStreamBuffer(HdaDevice *d, unsigned int bsize, unsigned char bcount, unsigned char descNo, unsigned char streamNo)
+        : dev(d)
+        , descriptorNumber(descNo)
+        , streamNumber(streamNo)
+        , bufferCount(bcount)
+        , singleBufferSize(bsize)
+        , totalBufferSize(bsize * bcount)
+        , SDCTL(d->regs, 0x80 + descNo * 0x20)
+        , SDSTS(d->regs, 0x83 + descNo * 0x20)
+        , SDLPIB(d->regs, 0x84 + descNo * 0x20)
+        , SDCBL(d->regs, 0x88 + descNo * 0x20)
+        , SDLVI(d->regs, 0x8C + descNo * 0x20)
+        , SDFIFOS(d->regs, 0x90 + descNo * 0x20)
+        , SDFMT(d->regs, 0x92 + descNo * 0x20)
+        , SDBDPL(d->regs, 0x98 + descNo * 0x20)
+        , SDBDPU(d->regs, 0x9C + descNo * 0x20)
+        {
+        joshlog("Setting up stream desc %u\n", descNo);
+        const unsigned int ctlUpperBits = ((streamNumber & 0xF) << 20)
+                                          //| ( 1 << 19)
+                                          //| (1 << 18);
+                                          ;
+        //Putting stream in reset
+        joshlog("Resetting the stream...\n");
+        SDCTL.poke(ctlUpperBits | 1);
+        while(!(SDCTL.peek() & 1)) INLINE_PAUSE;
+        SDCTL.poke(ctlUpperBits);
+        while((SDCTL.peek() & 1)) INLINE_PAUSE;
+        joshlog("Stream is reset\n");
+
+        if (!dev->reserveDMA(128, offsetBufferDescriptorList)) {
+            joshlog("Failed to reserve BDL");
+            return;
+        }
+        if (!dev->reserveDMA(totalBufferSize, offsetBuffers)) {
+            joshlog("Failed to reserve buffers");
+            return;
+        }
+        for(unsigned int i=0; i < totalBufferSize; i+=2) {
+            dev->dmaSelector.poke16(offsetBuffers + i, (i & 0x40) ? 0x1000 : 0xF000 );
+        }
+        for(unsigned int i=0; i < bufferCount; i++) {
+            dev->dmaSelector.poke32(offsetBufferDescriptorList + i * 0x10,
+                                    dev->dmaPhysicalAddress + offsetBuffers
+                                        + i * singleBufferSize
+                                    );
+            dev->dmaSelector.poke32(offsetBufferDescriptorList + i * 0x10 + 0x4, 0);
+            dev->dmaSelector.poke32(offsetBufferDescriptorList + i * 0x10 + 0x8, singleBufferSize);
+            dev->dmaSelector.poke32(offsetBufferDescriptorList + i * 0x10 + 0xC, 0);
+
+            joshlog("BDL @ %08x (%08x): %08x %08x %08x\n",
+                    dev->dmaPhysicalAddress + offsetBufferDescriptorList + i * 0x10,
+                    offsetBufferDescriptorList + i * 0x10,
+                    dev->dmaSelector.peek32(offsetBufferDescriptorList + i * 0x10 + 0),
+                    dev->dmaSelector.peek32(offsetBufferDescriptorList + i * 0x10 + 0x4),
+                    dev->dmaSelector.peek32(offsetBufferDescriptorList + i * 0x10 + 0x8),
+                    dev->dmaSelector.peek32(offsetBufferDescriptorList + i * 0x10 + 0xC)
+                    );
+        }
+        SDCTL.poke(ctlUpperBits);
+        if (dev->get64BitAddressSupported())
+            SDBDPU.poke(0);
+        SDBDPL.poke(dev->dmaPhysicalAddress + offsetBufferDescriptorList);
+        joshlog("SDBDPL(0x%x) is 0x%x\n", SDBDPL.offset,  SDBDPL.peek());
+
+        SDCBL.poke(totalBufferSize); //TODO: This might be in samples!
+        SDLVI.poke(bufferCount - 1);
+        SDFMT.poke(
+                (1 << 14)
+                | ( 1 << 4)
+                | 1
+                );
+
+    }
+
+    void run() {
+        SDCTL.poke(SDCTL.peek() | 2);
+        joshlog("SDCTL=0x%x\n", SDCTL.peek());
+        joshlog("SDBDPL=0x%x\n", SDBDPL.peek());
+    }
+    unsigned long getDmaPos() {
+        //TODO - The SCH HDA device on my Asus netbook puts this at a wierd place
+        //return dev->dmaSelector.peek32(dev->dmaPosOffset + 8 * descriptorNumber);
+
+        return dev->dmaSelector.peek32(dev->dmaPosOffset + 8 * 4);
+    }
+    unsigned long getLinkPos() {
+        return SDLPIB.peek();
+    }
+    unsigned short getFifoSize() {
+        return SDFIFOS.peek();
+    }
+    unsigned char getStatus() {
+        return SDSTS.peek();
+    }
+    unsigned short getFormat() {
+        return SDFMT.peek();
+    }
+    unsigned char getStreamNumber() {
+        return streamNumber;
+    }
+};
+
 
 static void lookupLogCode(unsigned int singleCodeLength, const char *allCodes, unsigned int value, char *result ) {
     result[0] = 0;
@@ -980,7 +1228,7 @@ struct config_default {
 };
 
 struct widget_info {
-    unsigned short node;
+    unsigned short nodeNumber;
     widget_capabilities widgetCaps;
     pin_capabilities pinCaps;
     amp_capabilities inputAmpCaps;
@@ -995,7 +1243,7 @@ struct widget_info {
 
     void load(HdaDevice &dev, unsigned int codecNo, unsigned int nodeNo) {
         HdaDevice::Codec codec(dev, codecNo);
-        node = nodeNo;
+        nodeNumber = nodeNo;
         widgetCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_AUDIO_WIDGET_CAPABILITIES);
         pinCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_PIN_CAPABILITIES);
         inputAmpCaps.caps = codec.getNodeParam(nodeNo, NODE_PARAM_INPUT_AMPLIFIER_CAPABILITIES);
@@ -1035,6 +1283,8 @@ struct widget_info {
         numConns = numConns > CON_LIST_BUF_LEN ? CON_LIST_BUF_LEN : numConns;
         memset(&connList, 0, sizeof(connList));
         for(int ci=0;ci < numConns;) {
+            //TODO - This is wrong - need to check for range values and handle
+            // them correctly
             unsigned long r= codec.nodeVerb(nodeNo, 0xf02, ci);
             unsigned short mask = connectionListCaps & 0x80 ? 0xFFFF : 0xFF;
             unsigned short shift = connectionListCaps & 0x80 ? 16 : 8;
@@ -1051,13 +1301,28 @@ struct widget_info {
 
     }
 
-    unsigned int getWidgetType() {
+    bool hasInputFrom(unsigned short fromNode) const {
+        for(unsigned int i=0; i<numConns;i++) {
+            if (connList[i] == fromNode)
+                return true;
+        }
+    }
+
+    int getOffsetOfInputConnection(unsigned short fromNode) const {
+        for(int i=0; i<numConns;i++) {
+            if (connList[i] == fromNode)
+                return i;
+        }
+        return -1;
+    }
+
+    unsigned int getWidgetType() const {
         return widgetCaps.getWidgetType();
     }
     void logReport() const {
         {
             char p[20];
-            sprintf(p," WIDGET %-4u: ", node);
+            sprintf(p," WIDGET %-4u: ", nodeNumber);
             widgetCaps.log(p);
         }
         if (pinCaps.isPresent()) {
@@ -1114,7 +1379,7 @@ struct audio_function_group_capabilities {
 static const unsigned int max_audio_widgets = 256;
 
 struct audio_function_group_info {
-    unsigned int node;
+    unsigned int nodeNumber;
     unsigned char functionGroupType;
     bool canProduceUnsolicitedMessages;
 
@@ -1123,13 +1388,24 @@ struct audio_function_group_info {
     amp_capabilities outputAmpCaps;
     supported_pcm_caps pcmCaps;
     supported_stream_format_caps streamFormatCaps;
+
     unsigned short widgetCount;
     widget_info widgets[max_audio_widgets];
+    unsigned short widgetNodeOffset;
+
+    const widget_info * lookupNode (unsigned char nodeNum) const {
+        if (nodeNum < widgetNodeOffset)
+            return nullptr;
+        unsigned short i = nodeNum - widgetNodeOffset;
+        if (i >= widgetCount)
+            return nullptr;
+        return widgets + i;
+    }
 
     void load(HdaDevice &dev, unsigned int codecNo, unsigned int node) {
         HdaDevice::Codec codec(dev, codecNo);
         memset(this, 0, sizeof(*this));
-        this->node = node;
+        this->nodeNumber = node;
         unsigned long fgTypeRes = codec.getNodeParam(node, NODE_PARAM_FUNCTION_GROUP_TYPE);
         this->canProduceUnsolicitedMessages = (fgTypeRes & 0x100) != 0;
         this->functionGroupType = fgTypeRes & 0xFF;
@@ -1143,17 +1419,17 @@ struct audio_function_group_info {
             pcmCaps.caps = codec.getNodeParam(node, NODE_PARAM_SUPPORTED_PMC_RATES);
 
             unsigned long subordinates = codec.getNodeParam(node, NODE_PARAM_SUBORDINATE_NODES);
-            unsigned long subStart = (subordinates >> 16) & 0xFF;
+            widgetNodeOffset = (subordinates >> 16) & 0xFF;
             widgetCount = subordinates & 0xFF;
-            for (unsigned char i = 0; i < widgetCount; i++) {
-                widgets[i].load(dev, codecNo, subStart + i);
+            for (unsigned short i = 0; i < widgetCount; i++) {
+                widgets[i].load(dev, codecNo, widgetNodeOffset + i);
             }
         }
     }
 
     void logReport() const {
         char prefix[20];
-        sprintf(prefix, "FG NODE %-4u: ", node);
+        sprintf(prefix, "FG NODE %-4u: ", nodeNumber);
         fgCaps.log(prefix);
         if (inputAmpCaps.isPresent()) {
             inputAmpCaps.log("      IN AMP: ");
@@ -1171,12 +1447,181 @@ struct audio_function_group_info {
             widgets[i].logReport();
         }
 
+        const widget_info *psp = findSpeaker();
+        joshlog("PREFERRED_SPEAKER = %d\n", psp ? psp->nodeNumber : -1);
+        if (psp) {
+            unsigned char path[32];
+            unsigned int len = findPathToDac(psp->nodeNumber, path, 32);
+            char lsto[32*8];
+            unsigned int lstolen = 0;
+            for(unsigned int i=0;i<len;i++) {
+                sprintf(lsto+lstolen, "%u ", path[i] + 0);
+                lstolen += strlen(lsto + lstolen);
+            }
+            lsto[lstolen] = 0;
+            joshlog("PATH TO DAC: %s\n", lsto);
+
+            unsigned char vks[32];
+            unsigned int vklen = findAssociatedVolumeKnobs(path, len, vks, 32);
+            lstolen = 0;
+            for(unsigned int i=0;i<vklen;i++) {
+                sprintf(lsto+lstolen, "%u ", vks[i] + 0);
+                lstolen += strlen(lsto + lstolen);
+            }
+            lsto[lstolen] = 0;
+            joshlog("ASSOCIATED KNOBS: %s\n", lsto);
+
+        }
+
+
     }
+
+    const widget_info * findSpeaker() const {
+        if (!widgetCount)
+            return nullptr;
+        const widget_info * wptrs[max_audio_widgets];
+        for(unsigned short i=0;i<widgetCount;i++) {
+            wptrs[i] = widgets + i;
+        }
+        tqsort<widget_info, best_speaker_comparator>::run(wptrs, widgetCount);
+        return wptrs[0];
+    }
+
+    unsigned int findPathToDac(unsigned char fromNode, unsigned char *res, unsigned int maxLen) const {
+        if (!res || !maxLen)
+            return 0;
+        nodeset next, seen;
+        next.add(fromNode);
+        return bfsToDac(res, 0, maxLen - 1, next, seen);
+    }
+
+    unsigned int findAssociatedVolumeKnobs(const unsigned char *toNodes, unsigned int toNodesLength,
+                                           unsigned char *output, unsigned int outputMaxLen) const {
+        if (!output || !outputMaxLen || !toNodes || !toNodesLength)
+            return 0;
+        unsigned int len = 0;
+        for(unsigned int i = 0; i < widgetCount; i++) {
+            if (widgets[i].getWidgetType() != WIDGET_TYPE_VOLUME_KNOB)
+                continue;
+            for(unsigned int j = 0; j < widgets[i].numConns; j++) {
+                unsigned short chk = widgets[i].connList[j];
+                bool fnd = false;
+                for(unsigned int k = 0; k < toNodesLength && !fnd; k++) {
+                    fnd |= (toNodes[k] == chk);
+                }
+                if (fnd) {
+                    output[len++] = widgets[i].nodeNumber;
+                    if (len >= outputMaxLen)
+                        return len;
+                }
+            }
+        }
+        return len;
+    }
+
+
+private:
+    unsigned int bfsToDac(unsigned char *res, unsigned int curDepth, const unsigned int maxDepth,
+                         const nodeset &next, nodeset &seen) const {
+        //Some of these checks are somewhat redundant since I check them again before calling myself
+        //recursively.  But they do check the initial call, so i guess Ill keep them
+        if (curDepth > maxDepth)
+            return 0;
+        bool nextEmpty = true;
+        for (int i = next.findNext(-1); i >= 0; i = next.findNext(i+1)) {
+            nextEmpty = false;
+            const widget_info *node = lookupNode(i);
+            if (node && node->getWidgetType() == WIDGET_TYPE_AUDIO_OUT) {
+                res[curDepth] = i;
+                return curDepth+1;
+            }
+        }
+        if (nextEmpty || curDepth >= maxDepth)
+            return 0;
+
+        seen.addAll(next);
+        nodeset n2;
+        bool n2Empty = true;
+        for (int i = next.findNext(-1); i >= 0; i = next.findNext(i+1)) {
+            const widget_info *node = lookupNode(i);
+            if (!node)
+                continue;
+            for(int j=0; j<node->numConns;j++) {
+                unsigned short x = node->connList[j];
+                if (x < 256 && !seen.contains(x)) {
+                    n2.add(x);
+                    n2Empty = false;
+                }
+            }
+        }
+        if (n2Empty)
+            return 0;
+        const unsigned int r = bfsToDac(res, curDepth+1, maxDepth, n2, seen);
+        if (!r)
+            return 0;
+        const unsigned char nextNode = res[curDepth+1];
+        for (int i = next.findNext(0); i >= 0; i = next.findNext(i+1)) {
+            const widget_info *node = lookupNode(i);
+            if (!node)
+                continue;
+            for(int j=0; j<node->numConns;j++) {
+                unsigned short x = node->connList[j];
+                if (x == nextNode) {
+                    res[curDepth] = i;
+                    return r;
+                }
+            }
+        }
+        joshlog("Dont think I should get here");
+        return 0;
+    }
+
+    static int best_speaker_comparator(const widget_info &w1, const widget_info &w2) {
+        int f1 = w1.getWidgetType() == WIDGET_TYPE_PIN_COMPLEX ? 0x8000 : 0;
+        int f2 = w2.getWidgetType() == WIDGET_TYPE_PIN_COMPLEX ? 0x8000 : 0;
+
+        f1 |= w1.configDefault.isPresent() ? 0x4000 : 0;
+        f2 |= w2.configDefault.isPresent() ? 0x4000 : 0;
+
+        f1 |= w1.configDefault.getDefaultDeviceBits() == 1 ? 0x2000 : 0;
+        f2 |= w2.configDefault.getDefaultDeviceBits() == 1 ? 0x2000 : 0;
+
+        f1 |= w1.numConns == 0 ? 0x1000 : 0;
+        f2 |= w2.numConns == 0 ? 0x1000 : 0;
+
+        f1 |= w1.configDefault.getPortConnectivityBits() == 2 ? 0x800 : 0;
+        f2 |= w2.configDefault.getPortConnectivityBits() == 2 ? 0x800 : 0;
+
+        f1 |= w1.configDefault.getPortConnectivityBits() == 3 ? 0x400 : 0;
+        f2 |= w2.configDefault.getPortConnectivityBits() == 3 ? 0x400 : 0;
+        //Prefer higher score from above checks
+        if (f1 != f2) {
+            return f1 > f2 ? -1 : 1;
+        }
+        //Prefer smaller association
+        if (w1.configDefault.getDefaultAssociation() != w2.configDefault.getDefaultAssociation()) {
+            return w1.configDefault.getDefaultAssociation() < w2.configDefault.getDefaultAssociation() ? -1 : 1;
+        }
+        //Prefer smaller sequence
+        if (w1.configDefault.getSequence() != w2.configDefault.getSequence()) {
+            return w1.configDefault.getSequence() < w2.configDefault.getSequence() ? -1 : 1;
+        }
+        //If all else fails, prefer smaller node number
+        if (w1.nodeNumber  != w2.nodeNumber) {
+            return w1.nodeNumber < w2.nodeNumber ? -1 : 1;
+        }
+        return 0;
+    }
+
 };
 
 
 static const unsigned int max_audio_function_groups = 4;
 
+/**
+ * Note: This is a big object (around 77kb) mostly because we used
+ * fixed size arrays to avoid the need for destructors
+ */
 struct codec_info {
     unsigned int codecNumber;
     unsigned short vendorId;
@@ -1221,6 +1666,122 @@ struct codec_info {
     }
 };
 
+
+static void try_it_out(HdaDevice &dev, const codec_info &codec) {
+
+    HdaStreamBuffer myStream(&dev, 4096, 2, dev.getNumberOfInputStreamsSupported(), 1);
+    HdaDevice::Codec codecControl(dev, codec.codecNumber);
+    const audio_function_group_info &afg = codec.audioFunctionGroups[0];
+    const widget_info * speaker = afg.findSpeaker();
+    if (!speaker) {
+        joshlog("Cannot find speaker\n");
+        return;
+    }
+    unsigned char chain[8];
+    unsigned int chainLen = afg.findPathToDac(speaker->nodeNumber, chain, 8);
+    if (!chainLen) {
+        joshlog("Cannot find DAC\n");
+        return;
+    }
+    unsigned char vkbuf[1];
+    const widget_info * volumeKnob;
+    if (afg.findAssociatedVolumeKnobs(chain, chainLen, vkbuf, 1)) {
+        volumeKnob = afg.lookupNode(vkbuf[0]);
+    } else {
+        volumeKnob = nullptr;
+    }
+    const widget_info *dac = afg.lookupNode(chain[chainLen - 1]);
+
+    joshlog("Powering up...");
+    //TODO - Hack! power up FG and other stuff
+    joshlog("Powering up %u\n", afg.nodeNumber);
+    codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0);
+    for(unsigned int i = 0; i < chainLen; i++) {
+        joshlog("Powering up %u\n", i);
+        codecControl.nodeVerb(i, 0x705, 0);
+    }
+    if (volumeKnob) {
+        joshlog("Powering up %u\n", volumeKnob->nodeNumber);
+        codecControl.nodeVerb(volumeKnob->nodeNumber, 0x705, 0);
+    }
+
+    for(unsigned int i=0;i<chainLen;i++) {
+        const widget_info *cur = afg.lookupNode(chain[chainLen - i - 1]);
+        int prevNode = i > 0 ? chain[chainLen - i] : -1;
+        int inputIndex = prevNode >= 0 ?cur->getOffsetOfInputConnection(prevNode) : -1;
+        if (cur->widgetCaps.hasInputAmp()) {
+            amp_capabilities acap = cur->widgetCaps.hasAmpOverride() ?
+                    cur->inputAmpCaps : afg.inputAmpCaps;
+            unsigned int payload = 0x7000 |
+                ((inputIndex >= 0 ? (inputIndex & 0xF) : 0) << 8) |
+                (acap.getOffset() & 0x7F);
+            joshlog("Setting input amp of node %u - PL=%04X\n", cur->nodeNumber, payload);
+            codecControl.nodeVerb(cur->nodeNumber, 0x3, payload);
+
+            if (cur->getWidgetType() == WIDGET_TYPE_AUDIO_MIXER) {
+                for(int ii=0;ii<cur->numConns;ii++) {
+                    if (ii != inputIndex) {
+                        unsigned int pl = 0x7000 |
+                                               ((ii & 0xF) << 8) |
+                                               0x80;
+                        joshlog("muting unused input amp of node %u - PL=%04X\n", cur->nodeNumber, pl);
+                        codecControl.nodeVerb(cur->nodeNumber, 0x3, pl);
+                    }
+                }
+            }
+        }
+
+        if (cur->widgetCaps.hasOutputAmp()) {
+            amp_capabilities acap = cur->widgetCaps.hasAmpOverride() ?
+                                    cur->outputAmpCaps : afg.outputAmpCaps;
+            //TODO: I cranked down the volume because...
+            unsigned int payload = 0xB000 |
+                                   ((inputIndex >= 0 ? (inputIndex & 0xF) : 0) << 8) |
+                    ((acap.getOffset() & 0x7F) >> 1);
+            joshlog("Setting output amp of node %u - PL=%04X\n", cur->nodeNumber, payload);
+            codecControl.nodeVerb(cur->nodeNumber, 0x3, payload);
+        }
+        if (cur->numConns > 1 && prevNode >= 0 && cur->getWidgetType() != WIDGET_TYPE_AUDIO_MIXER) {
+            unsigned int payload = cur->getOffsetOfInputConnection(prevNode) & 0xFF;
+            joshlog("Setting active connector of node %u to %04X\n", cur->nodeNumber, payload);
+            codecControl.nodeVerb(cur->nodeNumber, 0x701,payload);
+        }
+        if (cur->getWidgetType() == WIDGET_TYPE_PIN_COMPLEX) {
+            unsigned int payload = 0x40;
+            joshlog("Set pin control of %u to %04X\n", cur->nodeNumber, payload);
+            codecControl.nodeVerb(cur->nodeNumber, 0x707, payload);
+        }
+        joshlog("Setting EAPD of %u\n", cur->nodeNumber);
+        codecControl.nodeVerb(cur->nodeNumber, 0x70C, 0x2);
+
+    }
+    if (volumeKnob) {
+        unsigned int steps = volumeKnob->volumeKnobCaps.getNumSteps();
+        unsigned int payload = 0x80 | (steps & 0x7F);
+        joshlog("Setting volume knob %u to %04X\n", volumeKnob->nodeNumber, payload);
+        codecControl.nodeVerb(volumeKnob->nodeNumber, 0x70F, payload);
+
+    }
+
+    codecControl.nodeVerb(dac->nodeNumber, 0x2, myStream.getFormat()); //Set format
+    codecControl.nodeVerb(dac->nodeNumber, 0x706, (myStream.getStreamNumber() << 4) + 0);
+    //TODO - Set power states
+    // TODO - EAPD/BTL ?
+
+    // TODO - Stripe Control ??
+    codecControl.nodeVerb(dac->nodeNumber, 0x72D, 1);  // 2 channels
+    myStream.run();
+    for(int i=0; i<30; i++) {
+        joshlog("%x %x %x\n", myStream.getDmaPos(), myStream.getLinkPos(), myStream.getFifoSize());
+        //dev.dumpDmaBuf();
+        usleep(100000);
+    }
+    //usleep(3000000);
+
+
+    //codecControl.nodeVerb(dac->nodeNumber, )
+
+}
 
 static void setup_hda() {
     option<PciFunction> hdaFunction = PciFunction::find_hda_function();
@@ -1269,7 +1830,7 @@ static void setup_hda() {
     }
 
     HdaDevice myDev(hdaFunction.get(), devMem.get());
-    joshdebug("GCAP: os=%d,is=%d,bs=%d,sdo=%d,a64=%d\n", myDev.getNumberOfOutputStreamsSupported(),
+    joshlog("GCAP: os=%d,is=%d,bs=%d,sdo=%d,a64=%d\n", myDev.getNumberOfOutputStreamsSupported(),
            myDev.getNumberOfInputStreamsSupported(),
            myDev.getNumberOfBidirectionalStreamsSupported(),
            myDev.getNumberOfSerialDataOutSignals(),
@@ -1284,6 +1845,7 @@ static void setup_hda() {
     codec_info cinfo{};
     cinfo.load(myDev, 0);
     cinfo.logReport();
+    try_it_out(myDev, cinfo);
 
     for(int line=0;line<4;line++) {
         unsigned long *peeks = allpeeks + 8*line;
