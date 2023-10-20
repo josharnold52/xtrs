@@ -11,9 +11,9 @@ rm -f "$SCRIPT_DIR"/dist/dosxtrs.zip
 rm -rf _dist_gather
 mkdir _dist_gather || exit 1
 
-cp dosxtrs.exe _dist_gather/ || exit 1
+cp target/dos/dosxtrs.exe _dist_gather/ || exit 1
 
-cp jahdatst.exe _dist_gather/ || exit 1
+cp target/dos/jahdatst.exe _dist_gather/ || exit 1
 cp cwsdpmi/BIN/CWSDPMI.EXE _dist_gather/ || exit 1
 cp ./keytrap/target/KEYTRAP.COM _dist_gather || exit 1
 cp ./launcher/target/LAUNCHER.COM _dist_gather || exit 1
@@ -46,8 +46,21 @@ zip -r "$SCRIPT_DIR"/dist/emus.zip EMUS
 zip -r "$SCRIPT_DIR"/dist/jahdatst.zip jahdatst.exe
 
 
+
+
 cd "$SCRIPT_DIR"
 
 rm -rf _dist_gather
+
+if [[ ! -f dist/dosxtrs-flp.img ]]; then
+  echo "Need dosxtrs-flp.img -- TODO make one if not present" 1>&2
+  exit 1
+fi
+
+mdel -i dist/dosxtrs-flp.img ::/dosxtrs.zip 2>/dev/null || true
+
+mcopy -i dist/dosxtrs-flp.img dist/dosxtrs.zip ::/DOSXTRS.ZIP && echo "Updated floppy image"
+
+
 
 

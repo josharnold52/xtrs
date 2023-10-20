@@ -4,72 +4,78 @@
 #
 
 OBJECTS = \
-	z80.o \
-	main.o \
-	load_cmd.o \
-	load_hex.o \
-	trs_memory.o \
-	trs_keyboard.o \
-	error.o \
-	debug.o \
-	dis.o \
-	trs_io.o \
-	trs_cassette.o \
-	trs_chars.o \
-	trs_printer.o \
-	trs_rom1.o \
-	trs_rom3.o \
-	trs_rom4p.o \
-	trs_disk.o \
-	trs_interrupt.o \
-	trs_imp_exp.o \
-	trs_hard.o \
-	trs_uart.o \
-	trs_stringy.o
+	target/dos/z80.o \
+	target/dos/main.o \
+	target/dos/load_cmd.o \
+	target/dos/load_hex.o \
+	target/dos/trs_memory.o \
+	target/dos/trs_keyboard.o \
+	target/dos/error.o \
+	target/dos/debug.o \
+	target/dos/dis.o \
+	target/dos/trs_io.o \
+	target/dos/trs_cassette.o \
+	target/dos/trs_chars.o \
+	target/dos/trs_printer.o \
+	target/dos/trs_rom1.o \
+	target/dos/trs_rom3.o \
+	target/dos/trs_rom4p.o \
+	target/dos/trs_disk.o \
+	target/dos/trs_interrupt.o \
+	target/dos/trs_imp_exp.o \
+	target/dos/trs_hard.o \
+	target/dos/trs_uart.o \
+	target/dos/trs_stringy.o
 
-X_OBJECTS = \
-	trs_xinterface.o
 
 DOS_OBJECTS = \
-	trs_djgpp.o \
-	trs_realtime.o \
-	trs_djgpp_modal.o \
-	trs_metafile.o \
-        trs_ich.o \
-	newutils.o
+	target/dos/trs_djgpp.o \
+	target/dos/trs_realtime.o \
+	target/dos/trs_djgpp_modal.o \
+	target/dos/trs_metafile.o \
+	target/dos/trs_ich.o \
+	target/dos/newutils.o
 
 CR_OBJECTS = \
-	compile_rom.bldo \
-	error.bldo \
-	load_cmd.bldo \
-	load_hex.bldo
+	target/dos/compile_rom.o \
+	target/dos/error.o \
+	target/dos/load_cmd.o \
+	target/dos/load_hex.o
+
+LOCAL_CR_OBJECTS = $(subst /dos/,/local/,$(CR_OBJECTS))
 
 MD_OBJECTS = \
-	mkdisk.o
+	target/dos/mkdisk.o
+
+LOCAL_MD_OBJECTS = $(subst /dos/,/local/,$(MD_OBJECTS))
 
 HC_OBJECTS = \
-	cmd.bldo \
-	error.bldo \
-	load_hex.bldo \
-	hex2cmd.bldo
+	target/dos/cmd.o \
+	target/dos/error.o \
+	target/dos/load_hex.o \
+	target/dos/hex2cmd.o
+
+LOCAL_HC_OBJECTS = $(subst /dos/,/local/,$(HC_OBJECTS))
 
 CD_OBJECTS = \
-	cmddump.o \
-	load_cmd.o
+	target/dos/cmddump.o \
+	target/dos/load_cmd.o
+
+LOCAL_CD_OBJECTS = $(subst /dos/,/local/,$(CD_OBJECTS))
 
 JT1_OBJECTS = \
-	jahdatst.o \
-	trs_ich.o \
-	error.o
+	target/dos/jahdatst.o \
+	target/dos/trs_ich.o \
+	target/dos/error.o
 
 DOS16 = \
 	launcher/target/LAUNCHER.COM \
 	keytrap/target/KEYTRAP.COM
 	
 
-Z80CODE = export.cmd import.cmd settime.cmd xtrsmous.cmd \
-	xtrs8.dct xtrshard.dct \
-	fakerom.hex xtrsrom4p.hex esfrom.hex
+Z80CODE = target/z80/export.cmd target/z80/import.cmd target/z80/settime.cmd target/z80/xtrsmous.cmd \
+	target/z80/xtrs8.dct target/z80/xtrshard.dct \
+	target/z80/fakerom.hex target/z80/xtrsrom4p.hex target/z80/esfrom.hex
 
 MANPAGES = xtrs.txt mkdisk.txt cassette.txt cmddump.txt hex2cmd.txt
 
@@ -82,7 +88,7 @@ PDFMANPAGES = cassette.man.pdf \
 HTMLDOCS = cpmutil.txt \
 	dskspec.txt
 
-PROGS = dosxtrs mkdisk hex2cmd cmddump jahdatst
+PROGS = target/dos/dosxtrs.exe target/dos/mkdisk.exe target/dos/hex2cmd.exe target/dos/cmddump.exe target/dos/jahdatst.exe
 
 ZMACINT = ./zmac-internal/zmac
 
@@ -107,7 +113,8 @@ scantran/generated_table.inc: scantran/scantran.scala
 
 CFLAGS += $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
 	$(APPDEFAULTS) -DKBWAIT
-CXXFLAGS += $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
+# -fno-exceptions 
+CXXFLAGS += -fno-exceptions $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
 	$(APPDEFAULTS) -DKBWAIT
 LIBS = $(XLIB) $(READLINELIBS) $(EXTRALIBS)
 
@@ -115,19 +122,26 @@ ZMACFLAGS = -h
 
 .SUFFIXES: .dct .man .txt .html
 
-%.bldo : %.c %.o
-	$(BUILD_CC) -c $< -o $@
+target/deps/%.o:
+	mkdir -p target/deps && touch $@
 
+target/dos/%.o: %.c target/deps/%.o
+	mkdir -p target/dos && $(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
+target/dos/%.o: %.cpp target/deps/%.o
+	mkdir -p target/dos && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 
-%.cmd : %.hex  $(ZMACINT) hex2cmd
-	./hex2cmd $*.hex > $*.cmd
+target/local/%.o: %.c target/deps/%.o
+	mkdir -p target/local && $(BUILD_CC) -c -o $@ $<
 
-%.dct : %.hex  $(ZMACINT) hex2cmd
-	./hex2cmd $*.hex > $*.dct
+target/z80/%.cmd : target/z80/%.hex  target/local/hex2cmd
+	./target/local/hex2cmd target/z80/$*.hex > target/z80/$*.cmd
 
-%.hex : %.z80  $(ZMACINT)
-	$(ZMACINT) $(ZMACFLAGS) -o $*.hex -x $*.lst $<
+target/z80/%.dct : target/z80/%.hex  target/local/hex2cmd
+	./target/local/hex2cmd target/z80/$*.hex > target/z80/$*.dct
+
+target/z80/%.hex : %.z80  $(ZMACINT)
+	mkdir -p target/z80 && $(ZMACINT) $(ZMACFLAGS) -o target/z80/$*.hex -x target/z80/$*.lst $<
 
 .man.txt:
 	nroff -man -c -Tascii $< | colcrt - | cat -s > $*.txt
@@ -138,50 +152,47 @@ ZMACFLAGS = -h
 %.man.pdf: %.man
 	groff -Tpdf -man $< > $@
 
-dosxtrs: $(OBJECTS) $(DOS_OBJECTS)
-	$(CC) $(LDFLAGS) -o dosxtrs $(OBJECTS) $(DOS_OBJECTS) $(LIBS)
+target/dos/dosxtrs.exe: $(OBJECTS) $(DOS_OBJECTS)
+	$(CC) $(LDFLAGS) -o target/dos/dosxtrs.exe $(OBJECTS) $(DOS_OBJECTS) $(LIBS)
 
-xtrs: $(OBJECTS) $(X_OBJECTS)
-	$(CC) $(LDFLAGS) -o xtrs $(OBJECTS) $(X_OBJECTS) $(LIBS)
+target/dos/compile_rom.exe: $(CR_OBJECTS)
+	$(CC) $(LDFLAGS) -o target/dos/compile_rom.exe $(CR_OBJECTS)
 
-compile_rom: $(CR_OBJECTS)
-	$(BUILD_CC) -o compile_rom $(CR_OBJECTS)
+target/local/compile_rom: $(LOCAL_CR_OBJECTS)
+	$(BUILD_CC) $(LDFLAGS) -o target/local/compile_rom $(LOCAL_CR_OBJECTS)
 
-trs_rom1.c: compile_rom $(BUILT_IN_ROM)
-	./compile_rom 1 $(BUILT_IN_ROM) > trs_rom1.c
+trs_rom1.c: target/local/compile_rom $(BUILT_IN_ROM)
+	./target/local/compile_rom 1 $(BUILT_IN_ROM) > trs_rom1.c
 
-trs_rom3.c: compile_rom $(BUILT_IN_ROM3)
-	./compile_rom 3 $(BUILT_IN_ROM3) > trs_rom3.c
+trs_rom3.c: target/local/compile_rom $(BUILT_IN_ROM3)
+	./target/local/compile_rom 3 $(BUILT_IN_ROM3) > trs_rom3.c
 
-trs_rom4p.c: compile_rom $(BUILT_IN_ROM4P)
-	./compile_rom 4p $(BUILT_IN_ROM4P) > trs_rom4p.c
+trs_rom4p.c: target/local/compile_rom $(BUILT_IN_ROM4P)
+	./target/local/compile_rom 4p $(BUILT_IN_ROM4P) > trs_rom4p.c
 
-#trs_gtkinterface.o: trs_gtkinterface.c
-#	$(CC) -c $(CFLAGS) `pkg-config --cflags gtk+-2.0` $<
+target/dos/mkdisk.exe:	$(MD_OBJECTS)
+	$(CC) $(LDFLAGS) -o target/dos/mkdisk.exe $(MD_OBJECTS)
 
-#keyrepeat.o: keyrepeat.c
-#	$(CC) -c $(CFLAGS) `pkg-config --cflags gtk+-2.0` $<
+target/local/mkdisk:	$(LOCAL_MD_OBJECTS)
+	$(BUILD_CC) $(LDFLAGS) -o target/local/mkdisk $(LOCAL_MD_OBJECTS)
 
-mkdisk:	$(MD_OBJECTS)
-	$(CC) $(LDFLAGS) -o mkdisk $(MD_OBJECTS)
+target/dos/hex2cmd.exe: $(HC_OBJECTS)
+	$(CC) $(LDFLAGS) -o target/dos/hex2cmd.exe $(HC_OBJECTS)
 
-hex2cmd: $(HC_OBJECTS)
-	$(BUILD_CC) -o hex2cmd $(HC_OBJECTS)
+target/local/hex2cmd: $(LOCAL_HC_OBJECTS)
+	$(BUILD_CC) $(LDFLAGS) -o target/local/hex2cmd $(LOCAL_HC_OBJECTS)
 
-cmddump: $(CD_OBJECTS)
-	$(CC) $(LDFLAGS) -o cmddump $(CD_OBJECTS)
+target/dos/cmddump.exe: $(CD_OBJECTS)
+	$(CC) $(LDFLAGS) -o target/dos/cmddump.exe $(CD_OBJECTS)
 
-jahdatst: $(JT1_OBJECTS)
-	$(CC) $(LDFLAGS) -o jahdatst $(JT1_OBJECTS)
+target/local/cmddump: $(LOCAL_CD_OBJECTS)
+	$(BUILD_CC) $(LDFLAGS) -o target/local/cmddump $(LOCAL_CD_OBJECTS)
+
+target/dos/jahdatst.exe: $(JT1_OBJECTS)
+	$(CC) $(LDFLAGS) -o target/dos/jahdatst.exe $(JT1_OBJECTS)
 
 clean:
-	rm -f $(OBJECTS) $(MD_OBJECTS) \
-		$(X_OBJECTS) $(GTK_OBJECTS) \
-		$(CR_OBJECTS) $(HC_OBJECTS) \
-		$(JT1_OBJECTS) \
-		$(CD_OBJECTS) $(DOS_OBJECTS) trs_rom*.c *~ \
-		compile_rom.o  hex2cmd.o \
-		$(PROGS) compile_rom gxtrs dosxtrs dosxtrs.exe jahdatst jahdatst.exe \
+	rm -rf target && rm -f \
 		$(HTMLDOCS) \
 		$(DOS16)
 
@@ -215,7 +226,7 @@ install-docs: docs
 	$(INSTALL) -c -m 644 dskspec.txt $(DOCDIR)
 
 depend:
-	makedepend -Y. --  -- *.c *.cpp 2>&1 | \
+	makedepend -ptarget/deps/ -Y. --  -- *.c *.cpp 2>&1 | \
 		(egrep -v 'cannot find|not in' || true)
 
 
@@ -226,42 +237,44 @@ launcher/target/LAUNCHER.COM: launcher/build.bash launcher/launcher.c
 	cd launcher && bash build.bash
 
 
-idebuild: dosxtrs jahdatst
+idebuild: target/dos/dosxtrs.exe target/dos/jahdatst.exe
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-cmddump.o: load_cmd.h
-compile_rom.o: z80.h config.h load_cmd.h
-debug.o: z80.h config.h trs.h
-dis.o: z80.h config.h
-error.o: z80.h config.h
-hex2cmd.o: cmd.h z80.h config.h
-jahdatst.o: z80.h config.h trs.h
-load_cmd.o: load_cmd.h
-load_hex.o: z80.h config.h
-main.o: z80.h config.h trs.h trs_disk.h trs_hard.h load_cmd.h
-mkdisk.o: reed.h
-newutils.o: newutils.h trs.h z80.h config.h
-trs_cassette.o: trs.h z80.h config.h newutils.h
-trs_chars.o: trs_iodefs.h
-trs_disk.o: z80.h config.h trs.h trs_disk.h trs_hard.h crc.c
-trs_djgpp.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
-trs_djgpp.o: trs_hard.h trs_imp_exp.h keytrap/scanbuf.h trs_djgpp.h
-trs_djgpp_modal.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
-trs_djgpp_modal.o: trs_hard.h trs_imp_exp.h trs_metafile.h newutils.h
-trs_djgpp_modal.o: trs_djgpp.h
-trs_hard.o: trs.h z80.h config.h trs_hard.h reed.h
-trs_imp_exp.o: trs_imp_exp.h z80.h config.h trs.h trs_disk.h trs_hard.h
-trs_interrupt.o: z80.h config.h trs.h
-trs_io.o: z80.h config.h trs.h trs_disk.h trs_hard.h trs_uart.h
-trs_keyboard.o: z80.h config.h trs.h scantran/generated_table.inc
-trs_memory.o: z80.h config.h trs.h trs_disk.h trs_hard.h
-trs_metafile.o: trs.h z80.h config.h newutils.h trs_metafile.h
-trs_printer.o: z80.h config.h trs.h newutils.h
-trs_realtime.o: z80.h config.h trs.h
-trs_stringy.o: z80.h config.h trs.h trs_disk.h
-trs_uart.o: trs.h z80.h config.h trs_uart.h trs_hard.h
-trs_xinterface.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h trs_uart.h
-trs_xinterface.o: trs_hard.h trs_imp_exp.h
-z80.o: z80.h config.h trs.h trs_imp_exp.h
-trs_ich.o: z80.h config.h
+target/fake/cmddump.o: load_cmd.h
+target/fake/compile_rom.o: z80.h config.h load_cmd.h
+target/fake/debug.o: z80.h config.h trs.h
+target/fake/dis.o: z80.h config.h
+target/fake/error.o: z80.h config.h
+target/fake/hex2cmd.o: cmd.h z80.h config.h
+target/fake/jahdatst.o: z80.h config.h trs.h
+target/fake/load_cmd.o: load_cmd.h
+target/fake/load_hex.o: z80.h config.h
+target/fake/main.o: z80.h config.h trs.h trs_disk.h trs_hard.h load_cmd.h
+target/fake/mkdisk.o: reed.h
+target/fake/newutils.o: newutils.h trs.h z80.h config.h
+target/fake/trs_cassette.o: trs.h z80.h config.h newutils.h
+target/fake/trs_chars.o: trs_iodefs.h
+target/fake/trs_disk.o: z80.h config.h trs.h trs_disk.h trs_hard.h crc.c
+target/fake/trs_djgpp.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
+target/fake/trs_djgpp.o: trs_uart.h trs_hard.h trs_imp_exp.h
+target/fake/trs_djgpp.o: keytrap/scanbuf.h trs_djgpp.h
+target/fake/trs_djgpp_modal.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
+target/fake/trs_djgpp_modal.o: trs_uart.h trs_hard.h trs_imp_exp.h
+target/fake/trs_djgpp_modal.o: trs_metafile.h newutils.h trs_djgpp.h
+target/fake/trs_hard.o: trs.h z80.h config.h trs_hard.h reed.h
+target/fake/trs_imp_exp.o: trs_imp_exp.h z80.h config.h trs.h trs_disk.h
+target/fake/trs_imp_exp.o: trs_hard.h
+target/fake/trs_interrupt.o: z80.h config.h trs.h
+target/fake/trs_io.o: z80.h config.h trs.h trs_disk.h trs_hard.h trs_uart.h
+target/fake/trs_keyboard.o: z80.h config.h trs.h scantran/generated_table.inc
+target/fake/trs_memory.o: z80.h config.h trs.h trs_disk.h trs_hard.h
+target/fake/trs_metafile.o: trs.h z80.h config.h newutils.h trs_metafile.h
+target/fake/trs_printer.o: z80.h config.h trs.h newutils.h
+target/fake/trs_realtime.o: z80.h config.h trs.h
+target/fake/trs_stringy.o: z80.h config.h trs.h trs_disk.h
+target/fake/trs_uart.o: trs.h z80.h config.h trs_uart.h trs_hard.h
+target/fake/trs_xinterface.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
+target/fake/trs_xinterface.o: trs_uart.h trs_hard.h trs_imp_exp.h
+target/fake/z80.o: z80.h config.h trs.h trs_imp_exp.h
+target/fake/trs_ich.o: z80.h config.h

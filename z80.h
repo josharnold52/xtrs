@@ -244,6 +244,7 @@ extern void debug(const char *fmt, ...);
 extern void error(const char *fmt, ...);
 extern void fatal(const char *fmt, ...);
 extern void joshlog(const char *fmt, ...);
+extern void joshlogv(const char *fmt, va_list args);
 extern int joshlog_echo_to_stdout;
 
 extern void z80_out(int port, int value);

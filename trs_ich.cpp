@@ -6,6 +6,7 @@
 #include <sys/nearptr.h>
 #include <sys/farptr.h>
 #include <unistd.h>
+#include <cstdarg>
 
 extern "C" {
 #include "z80.h"
@@ -82,7 +83,10 @@ static const unsigned int DMA_MEM_ALIGN = 0x100;
 */
 
 static void joshdebug(const char *msg, ...) {
-
+    va_list args;
+    va_start(args, msg);
+//    joshlogv(msg, args);
+    va_end(args);
 }
 
 static int pci_init_flag = 0;
@@ -727,6 +731,10 @@ public:
             regs.poke32(0x80 + i * 0x20, x);
         }
 
+        joshdebug("Stopping DPL...\n");
+        DPLBASE.poke(DPLBASE.peek() & ~1);
+
+
         joshdebug("Stopping response dma...\n");
         RIRBCTL.poke(0);
         while((RIRBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
@@ -736,6 +744,8 @@ public:
         joshdebug("Resetting device...\n");
         GCTL.poke(0);
         while((GCTL.peek() & 0x1) != 0) INLINE_PAUSE;
+
+        GCTL.poke(1);
 
         joshlog("HDA has been reset\n");
 
@@ -945,7 +955,7 @@ public:
             return;
         }
         for(unsigned int i=0; i < totalBufferSize; i+=2) {
-            dev->dmaSelector.poke16(offsetBuffers + i, (i & 0x40) ? 0x1000 : 0xF000 );
+            dev->dmaSelector.poke16(offsetBuffers + i, (i & 0x200) ? 0x1000 : 0xF000 );
         }
         for(unsigned int i=0; i < bufferCount; i++) {
             dev->dmaSelector.poke32(offsetBufferDescriptorList + i * 0x10,
@@ -981,11 +991,37 @@ public:
 
     }
 
+    ~HdaStreamBuffer() {
+        stop();
+
+        joshlog("Resetting stream %d\n", streamNumber);
+        SDCTL.poke(SDCTL.peek() | 1);
+        while(!(SDCTL.peek() & 1)) {
+            INLINE_PAUSE ;
+        }
+        joshlog("Unresetting stream %d\n", streamNumber);
+        SDCTL.poke(SDCTL.peek() & ~1);
+        while(SDCTL.peek() & 1) {
+            INLINE_PAUSE ;
+        }
+        joshlog("SDCTL=0x%x\n", SDCTL.peek());
+        joshlog("SDBDPL=0x%x\n", SDBDPL.peek());
+    }
+
     void run() {
         SDCTL.poke(SDCTL.peek() | 2);
         joshlog("SDCTL=0x%x\n", SDCTL.peek());
         joshlog("SDBDPL=0x%x\n", SDBDPL.peek());
     }
+    void stop() {
+        joshlog("Stopping stream %d\n", streamNumber);
+        SDCTL.poke(SDCTL.peek() & ~2);
+        while(SDCTL.peek() & 2) {
+            INLINE_PAUSE ;
+        }
+        joshlog("SDCTL=0x%x\n", SDCTL.peek());
+    }
+
     unsigned long getDmaPos() {
         //TODO - The SCH HDA device on my Asus netbook puts this at a wierd place
         //return dev->dmaSelector.peek32(dev->dmaPosOffset + 8 * descriptorNumber);
@@ -1672,6 +1708,10 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     HdaStreamBuffer myStream(&dev, 4096, 2, dev.getNumberOfInputStreamsSupported(), 1);
     HdaDevice::Codec codecControl(dev, codec.codecNumber);
     const audio_function_group_info &afg = codec.audioFunctionGroups[0];
+
+    joshdebug("AFG Function RESET\n");
+    codecControl.nodeVerb(afg.nodeNumber, 0x7ff, 0);
+
     const widget_info * speaker = afg.findSpeaker();
     if (!speaker) {
         joshlog("Cannot find speaker\n");
@@ -1695,14 +1735,17 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     joshlog("Powering up...");
     //TODO - Hack! power up FG and other stuff
     joshlog("Powering up %u\n", afg.nodeNumber);
-    codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0);
+    codecControl.nodeVerb(afg.nodeNumber, 0x705, 0);
+    joshlog("Power state of AFG is %ul\n", codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0));
     for(unsigned int i = 0; i < chainLen; i++) {
         joshlog("Powering up %u\n", i);
-        codecControl.nodeVerb(i, 0x705, 0);
+        codecControl.nodeVerb(chain[i], 0x705, 0);
+        joshlog("Power state of %d is %ul\n", (int)chain[i], codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0));
     }
     if (volumeKnob) {
         joshlog("Powering up %u\n", volumeKnob->nodeNumber);
         codecControl.nodeVerb(volumeKnob->nodeNumber, 0x705, 0);
+        joshlog("Power state of knob is %ul\n", codecControl.nodeVerb(volumeKnob->nodeNumber, 0xf05, 0));
     }
 
     for(unsigned int i=0;i<chainLen;i++) {
@@ -1776,12 +1819,63 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
         //dev.dumpDmaBuf();
         usleep(100000);
     }
+    myStream.stop();
     //usleep(3000000);
 
 
     //codecControl.nodeVerb(dac->nodeNumber, )
 
 }
+
+class CodecResponse {
+public:
+    const unsigned long value;
+
+    CodecResponse(unsigned long v) : value(v) {}
+
+};
+
+class NodeContoller {
+private:
+    HdaDevice::Codec &codec;
+    unsigned int nodeNum;
+public:
+    NodeContoller(HdaDevice::Codec &codec, unsigned int nodeNum)
+    : codec(codec)
+    , nodeNum(nodeNum) {}
+
+
+    unsigned long rawVerb(unsigned int verb, unsigned int params) {
+        return codec.nodeVerb(nodeNum, verb, params);
+    }
+
+    unsigned long getParameter(unsigned char paramId) {
+        return rawVerb(0xF00, paramId);
+    }
+
+    class ResponseVendorId : CodecResponse {
+    public:
+        unsigned short vendorId()  { return 0xFFFF & (value >> 16); }
+        unsigned short deviceId()  { return 0xFFFF & value; }
+        ResponseVendorId(unsigned long v) : CodecResponse(v) {}
+    };
+
+    ResponseVendorId getVendorId() {
+        unsigned long r = getParameter(0);
+        return {r};
+    }
+
+
+    unsigned char getConnectionSelect() {
+        return rawVerb(0xF01, 0) & 0xFF;
+    }
+
+    void setConnectionSelect(unsigned char value) {
+        rawVerb(0x701, value);
+    }
+
+};
+
 
 static void setup_hda() {
     option<PciFunction> hdaFunction = PciFunction::find_hda_function();
@@ -1859,6 +1953,14 @@ static void setup_hda() {
     myDev.force_reset();
     //devMem->peek8(4096); //Force a GPF
 
+    unsigned short pciCommand2 = hdaFunction->getConfig16(0x4);
+    joshdebug("HDA PCI COMMAND=%02hx\n", pciCommand2);
+    if (pciCommand2 & 0x4) {
+        joshlog("HDA Bus Mastering enabled...enabling!\n");
+        hdaFunction->setConfig16(0x4, pciCommand2 & ~0x4);
+        pciCommand2 = hdaFunction->getConfig16(0x4);
+        joshlog("NEW HDA PCI COMMAND=%02hx\n", pciCommand2);
+    }
 }
 
 

@@ -85,19 +85,19 @@ void joshlog(const char *fmt, ...)
 {
 
   va_list args;
-  FILE *f;
 
-  f = fopen("josh.log", "a");
   va_start(args, fmt);
-  if (joshlog_echo_to_stdout) {
-      vprintf(fmt, args);
-  }
-  vfprintf(f, fmt, args);
-  fflush(f);
-  fclose(f);
+  joshlogv(fmt, args);
   va_end(args);
-
-
-
 }
 
+extern void joshlogv(const char *fmt, va_list args) {
+    FILE *f;
+    f = fopen("josh.log", "a");
+    if (joshlog_echo_to_stdout) {
+        vprintf(fmt, args);
+    }
+    vfprintf(f, fmt, args);
+    fflush(f);
+    fclose(f);
+}

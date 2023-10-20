@@ -44,11 +44,11 @@ CASSETTE = cassette.sh
 # operating system.
 
 # for -model I
-BUILT_IN_ROM = fakerom.hex
+BUILT_IN_ROM = target/z80/fakerom.hex
 # for -model III and -model 4
-BUILT_IN_ROM3 = fakerom.hex
+BUILT_IN_ROM3 = target/z80/fakerom.hex
 # for -model 4P
-BUILT_IN_ROM4P = xtrsrom4p.hex
+BUILT_IN_ROM4P = target/z80/xtrsrom4p.hex
 
 # If you would like the application to load a default ROM file at startup
 # time, use these lines (with the appropriate file names).  The default file
