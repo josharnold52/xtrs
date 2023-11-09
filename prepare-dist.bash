@@ -14,6 +14,7 @@ mkdir _dist_gather || exit 1
 cp target/dos/dosxtrs.exe _dist_gather/ || exit 1
 
 cp target/dos/jahdatst.exe _dist_gather/ || exit 1
+cp target/dos/videxp.exe _dist_gather/ || exit 1
 cp cwsdpmi/BIN/CWSDPMI.EXE _dist_gather/ || exit 1
 cp ./keytrap/target/KEYTRAP.COM _dist_gather || exit 1
 cp ./launcher/target/LAUNCHER.COM _dist_gather || exit 1
@@ -39,10 +40,17 @@ cat dosbat/GETUPD.BAT | perl -pe 's/\n/\r\n/g' > _dist_gather/GETUPD.BAT
 
 cd _dist_gather || exit 1
 
+rm -rf "$SCRIPT_DIR"/dist/dosxtrs.zip
 zip -r "$SCRIPT_DIR"/dist/dosxtrs.zip *
 
+rm -rf "$SCRIPT_DIR"/dist/dxexe.zip
 zip -r "$SCRIPT_DIR"/dist/dxexe.zip dosxtrs.exe
+
+
+rm -rf "$SCRIPT_DIR"/dist/emus.zip
 zip -r "$SCRIPT_DIR"/dist/emus.zip EMUS
+
+rm -rf "$SCRIPT_DIR"/dist/jahdatst.zip
 zip -r "$SCRIPT_DIR"/dist/jahdatst.zip jahdatst.exe
 
 
@@ -53,13 +61,28 @@ cd "$SCRIPT_DIR"
 rm -rf _dist_gather
 
 if [[ ! -f dist/dosxtrs-flp.img ]]; then
-  echo "Need dosxtrs-flp.img -- TODO make one if not present" 1>&2
-  exit 1
+  head -c 2949120 /dev/zero > dist/dosxtrs-flp.img
+  mkfs.vfat -D 0 -F 12 -g 2/36 -M 0xF0 -n DOSXTRS -S 512 dist/dosxtrs-flp.img
+  echo "Made floppy image" 1>&2
 fi
+
+ar="$(mktemp)"
+
+echo '
+D:
+CD \
+MD NDX
+CD NDX
+UNZIP -o A:\dosxtrs.zip
+LAUNCHER
+' | perl -pe 's/\n/\r\n/g' > "$ar"
+
 
 mdel -i dist/dosxtrs-flp.img ::/dosxtrs.zip 2>/dev/null || true
 
-mcopy -i dist/dosxtrs-flp.img dist/dosxtrs.zip ::/DOSXTRS.ZIP && echo "Updated floppy image"
+mcopy -i dist/dosxtrs-flp.img dist/dosxtrs.zip ::/DOSXTRS.ZIP && \
+  mcopy -o -i dist/dosxtrs-flp.img "$ar" ::/AUTORUN.BAT && \
+  echo "Updated floppy image"
 
 
 

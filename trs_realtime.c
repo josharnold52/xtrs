@@ -30,6 +30,9 @@
 
 static int realtime_suppress = 0;
 
+static double tstate_usec_factor = TSTATE_USEC_FACTOR_M1;
+
+
 static tstate_t z80_basetime;
 static uclock_t real_basetime;
 
@@ -37,14 +40,18 @@ static uclock_t real_basetime;
 static tstate_t last_synced_at_tstate;
 static uclock_t last_reset_at_uclock;
 
+void trs_realtime_sync_uclock(tstate_t threhsold);
 
 void trs_realtime_reset() {
-    joshlog("Reset realtime counters\n");
+    joshlog("Reset realtime counters model=%d\n", trs_model);
 
+    tstate_usec_factor = TSTATES_PER_SEC_M1;
+    trs_realtime_sync = trs_realtime_sync_uclock;
     z80_basetime = z80_state.t_count;
     real_basetime = uclock();
     last_synced_at_tstate = z80_basetime;
     last_reset_at_uclock = real_basetime;
+
 }
 
 
@@ -87,7 +94,7 @@ void trs_realtime_log_status(char ctl) {
         elapsed_rt, elapsed_t, elapsed_delta);
 }
 
-void trs_realtime_sync(tstate_t threhsold) {
+void trs_realtime_sync_uclock(tstate_t threhsold) {
     uclock_t now_uclock;
     double elapsed_rt;
     double elapsed_t;
@@ -172,3 +179,5 @@ void trs_realtime_force_enable() {
 int trs_is_realtime_enabled() {
     return realtime_suppress == 0;
 }
+
+void (*trs_realtime_sync)(tstate_t threhsold) = trs_realtime_sync_uclock;

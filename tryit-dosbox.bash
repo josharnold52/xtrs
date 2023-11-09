@@ -11,7 +11,12 @@ unzip -o ../dist/dosxtrs.zip
 cd ..
 cp dbox-extras/4DOS.COM ./dboxrun/
 if [[ -n "$1" ]]; then
+  if [[ "$1" == --custom ]]; then
+    shift;
+    dosbox -c "mount c ./dboxrun" -c "c:" -c "$*"
+  else
     dosbox -c "mount c ./dboxrun" -c "c:" -c "4DOS /C LAUNCH.BAT $1"
+  fi
 else
     dosbox -c "mount c ./dboxrun" -c "c:" -c "4DOS /C LAUNCHER"
 fi

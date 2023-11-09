@@ -57,6 +57,7 @@
 #include <dpmi.h>
 
 #include "trs_djgpp.h"
+#include "trs_vga.h"
 
 GrColor COLOR_BORDER;
 GrColor COLOR_PRIMARY;
@@ -105,6 +106,7 @@ static int currentmode = 0;
 
 static void trs_load_romfile();
 
+#define VIDEO_DRIVER_VGA 1
 
 static char reverse_bits(char c) {
     char r = 0;
@@ -259,7 +261,11 @@ void trs_get_event(int wait) {
 }
 
 static void repaint_screen() {
+#if VIDEO_DRIVER_VGA
+    vga_needs_reset();
+#else
     GrFilledBox(0, 0, GrMaxX(), GrMaxY(), GrBlack());
+#endif
 
     for (int i = 0; i < screen_chars; i++) {
         trs_screen_write_char(i, trs_screen[i]);
@@ -305,8 +311,8 @@ void trs_screen_init() {
 
 
     //FILE * modout;
-    //GrSetDriver("VESA");
-    GrSetDriver("s3");
+    GrSetDriver("VESA");
+    //GrSetDriver("s3");
 
 
     /*
@@ -426,6 +432,12 @@ void trs_screen_scroll() {
 
 }
 
+#if VIDEO_DRIVER_VGA
+#define WRITE_GLYPH_FN vga_screen_write_glyph_64_16
+#else
+#define WRITE_GLYPH_FN trs_screen_write_glyph
+#endif
+
 static void trs_screen_write_glyph(char *glyphRows, int position) {
 
     char patData[TRS_CHAR_HEIGHT];
@@ -481,13 +493,13 @@ void trs_screen_write_char(int position, int char_index) {
     trs_screen[position] = (char) char_index;
 
     if (!(currentmode & EXPANDED)) {
-        trs_screen_write_glyph(pattern_table_1[char_index], position);
+        WRITE_GLYPH_FN(pattern_table_1[char_index], position);
     } else {
         if (position & 1) {
             return;
         }
-        trs_screen_write_glyph(pattern_table_1_wideleft[char_index], position);
-        trs_screen_write_glyph(pattern_table_1_wideright[char_index], position | 1);
+        WRITE_GLYPH_FN(pattern_table_1_wideleft[char_index], position);
+        WRITE_GLYPH_FN(pattern_table_1_wideright[char_index], position | 1);
     }
     return;
 }
@@ -1076,6 +1088,9 @@ trs_load_romfile() {
 
 
 int joshem_do_modal(joshem_modal_handler handler, void *input) {
+#if VIDEO_DRIVER_VGA
+    GrSetMode(GR_width_height_graphics, 640, 200);
+#endif
     joshem_modal_context context;
 
     memset(&context, 0, sizeof(context));

@@ -22,6 +22,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 int joshlog_echo_to_stdout = 0;
 
@@ -91,13 +94,22 @@ void joshlog(const char *fmt, ...)
   va_end(args);
 }
 
+#ifdef __MSDOS__
+#define JLOG_FLAGS ( O_CREAT | O_WRONLY | O_APPEND | O_TEXT )
+#else
+#define JLOG_FLAGS ( O_CREAT | O_WRONLY | O_APPEND )
+#endif
+
+
 extern void joshlogv(const char *fmt, va_list args) {
     FILE *f;
-    f = fopen("josh.log", "a");
+    f = fopen("josh.log", "at");
     if (joshlog_echo_to_stdout) {
         vprintf(fmt, args);
     }
-    vfprintf(f, fmt, args);
-    fflush(f);
-    fclose(f);
+    if (f) {
+        vfprintf(f, fmt, args);
+        fflush(f);
+        fclose(f);
+    }
 }

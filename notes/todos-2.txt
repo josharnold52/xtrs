@@ -19,5 +19,24 @@ to clean them up.   In the meantime, here are some more todos.
 
 6.  Try TPAUSE on more modern cpus (Use with TSC) for timing/sleepig
 
+7.  Fix the makedepend code (currently using "fake" targets)
 
+8.  Speed up display - the emulator can't seem to keep up with LDIR filling
+    the screen - see explosion in invation force....you can tell it falls behind
+    (from memory, original version was faster.  Also, on slower hardward the next
+     screen flies by, because the emulator had fallen behind)
+    * Progress:  I did a quick test writing to VGA - results were promising.  My
+      first attempt intentionally didn't work quite right (no masking of pixels),
+      but it seemed fast on dosbox.   My second attempt added masking but dosbox
+      was slower than I hoped.   It could be the reads of video memory are slow.
+      (Even on virtualbox?)   Maybe I'll try double-buffering.   I could also
+      do some other low-level optimizations of that code.    Note that I still need
+      to implement scroll so current code doesn't completely work.  Also the pallete
+      for dialog boxes is off so probably need to allocate/free the colors when switching
+      too/from grx mode.
+    * A completely different tactic I could try is passively updating the screen when
+      the emulator finds itself ahead and sees that it has writes to perform.   Mote on
+      this later.
+    * Now that I have two examples of video display, I think I should abstract out a
+      driver interface.   
 
