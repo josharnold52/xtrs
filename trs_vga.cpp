@@ -79,6 +79,8 @@ static void rotate_left_block(void *p, int steps, int len) {
 
 static int init = 0;
 
+static unsigned char shadowbuf[0x4000];
+
 void vga_needs_reset() {
     init = 0;
 }
@@ -91,13 +93,12 @@ void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
 
     if (!init) {
         setCGAHighRes();
+        memset(shadowbuf, 0, sizeof(shadowbuf));
         init = 1;
     }
 
     char patData[TRS_CHAR_HEIGHT];
     memcpy(patData, glyphRows, TRS_CHAR_HEIGHT);
-    unsigned char ml = maskl[position & 3];
-    unsigned char mr = maskr[position & 3];
     rotate_left_block(patData, (position & 3) << 1, TRS_CHAR_HEIGHT);
 
     /*
@@ -110,27 +111,60 @@ void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
    pat.gp_bitmap.bmp_memflags = 0;
    */
     //trs_screen_pattern.gp_bitmap.bmp_data = patData;
+    unsigned char ml = maskl[position & 3];
+    unsigned char mr = maskr[position & 3];
 
     int x, y;
 
     x = (position & 63);
-    y = position >> 6;
+    y = (position >> 6) & 0xF;
     int px, py;
     px = x * 6 + 120;   //offset (640-384)/2 then round down to a multiple of 24 so rotates work correctly
     py = y * TRS_CHAR_HEIGHT + 0;  //offset (200-192)/2 then round down to a multiple of 12 so patterns line up
 
-    int offset = 0xB8000 + ((py>>1) * 80);
+    int offset = ((py>>1) * 80);
 
+    _farsetsel(_dos_ds);
     offset += (px >> 3);
     for(int r = 0; r < TRS_CHAR_HEIGHT; r++) {
-        unsigned char curb = _farpeekb(_dos_ds, offset);
-        _farpokeb(_dos_ds, offset, (patData[r] & ml) | (curb & ~ml));
+        unsigned char curb = shadowbuf[offset];
+        unsigned char newb = (patData[r] & ml) | (curb & ~ml);
+        if (curb != newb) {
+            _farnspokeb( 0xB8000 + offset, newb);
+            shadowbuf[offset] = newb;
+        }
         if (mr) {
-            curb = _farpeekb(_dos_ds, offset + 1);
-            _farpokeb(_dos_ds, offset + 1, (patData[r] & mr) | (curb & ~mr));
+            curb = shadowbuf[offset + 1];
+            newb = (patData[r] & mr) | (curb & ~mr);
+            if (curb != newb) {
+                _farnspokeb(0xB8000 + offset + 1, newb);
+                shadowbuf[offset+1] = newb;
+            }
         }
         if (r & 1) offset = offset - 0x2000 + 80;
         else offset += 0x2000;
     }
+
+}
+
+void vga_screen_scroll_64_16() {
+    if (!init) {
+        setCGAHighRes();
+        memset(shadowbuf, 0, sizeof(shadowbuf));
+        init = 1;
+    }
+    const int shift = 80 * TRS_CHAR_HEIGHT / 2;
+    const int copySize = 80 * 100  - shift;
+
+    memmove(shadowbuf, shadowbuf + shift, copySize);
+    memmove(shadowbuf + 0x2000, shadowbuf + 0x2000 + shift, copySize);
+
+    _farsetsel(_dos_ds);
+    for(int i=0;i<copySize;i+=4) {
+        _farnspokel(0xB8000 + i, *(reinterpret_cast<unsigned long *>(shadowbuf + i)));
+        _farnspokel(0xB8000 + i + 0x2000, *(reinterpret_cast<unsigned long *>(shadowbuf + i + 0x2000)));
+    }
+
+
 
 }

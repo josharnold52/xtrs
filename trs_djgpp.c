@@ -428,8 +428,11 @@ void trs_screen_scroll() {
 
     trs_realtime_sync(5000);
     memmove(trs_screen, trs_screen + row_chars, screen_chars - row_chars);
+#if VIDEO_DRIVER_VGA
+    vga_screen_scroll_64_16();
+#else
     GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
-
+#endif
 }
 
 #if VIDEO_DRIVER_VGA

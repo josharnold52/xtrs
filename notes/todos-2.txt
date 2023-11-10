@@ -25,7 +25,23 @@ to clean them up.   In the meantime, here are some more todos.
     the screen - see explosion in invation force....you can tell it falls behind
     (from memory, original version was faster.  Also, on slower hardward the next
      screen flies by, because the emulator had fallen behind)
-    * Progress:  I did a quick test writing to VGA - results were promising.  My
+    * Progress (more current):  Double-buffering gave good results. (Basically I used
+      a copy of the VGA memory in main memory, did all my calculations there so that
+      I only write to VGA memory and do not have to read.   On virtualbox the IFORCE
+      explosion looks about right.   I also implemented scrolling.
+    * Next Steps:
+    *  * Try it on netbooks to see if it seems fast enough there
+       * If so, can remove the VGA option and the old GRX code.   But maybe it is
+         better to come up with a "video driver" API that I can swap out.  That might
+         open up future possibilities (UEFI boot?  Headless?  Who knows?)
+       * I think the video driver API should be a bunch of function pointers - no
+         need to make it a C++ object.
+       * Since I'm still using GRX for menu options, I need to make sure switching between
+         GRX and VGA works fine.  It seems to, but all my allocated colors get messed up
+         which makes me think the color pallette changed.   Oddly, I like the new colors
+         better.  So.....Figure out what the new colors are, switch to them, and then 
+         allocate/deallocate them properly.
+    * Progress (older):  I did a quick test writing to VGA - results were promising.  My
       first attempt intentionally didn't work quite right (no masking of pixels),
       but it seemed fast on dosbox.   My second attempt added masking but dosbox
       was slower than I hoped.   It could be the reads of video memory are slow.
@@ -39,4 +55,8 @@ to clean them up.   In the meantime, here are some more todos.
       this later.
     * Now that I have two examples of video display, I think I should abstract out a
       driver interface.   
+
+9.  Add a "local" save area that gets preserved when I reload new code.  Should include
+    locally created cassettes, printer output, maybe logs, maybe local created diskettes?
+
 
