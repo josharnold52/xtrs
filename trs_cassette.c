@@ -782,7 +782,7 @@ static int assert_state(int state)
         ensure_cassette_file_closed();
 	cassette_state = FAILED;
 	return -1;
-      }	
+      }
     } else if (cassette_format == WAV_FORMAT) {
       safe_open_cassette_file("r+b");
       if (cassette_file == NULL) {
@@ -812,7 +812,7 @@ static int assert_state(int state)
     }
     break;
   }
-    
+
   cassette_state = state;
   return 0;
 }
@@ -824,7 +824,7 @@ static int assert_state(int state)
 static void
 transition_out(int value)
 {
-    joshlog("Transition out %d\n", value);
+    //joshlog("Transition out %d\n", value);
   Uchar sample;
   long nsamples, delta_us;
   Ushort code;
@@ -1024,7 +1024,7 @@ transition_out(int value)
     if (cassette_bitnumber < 0) cassette_bitnumber = 7;
     cassette_byte |= (sample << cassette_bitnumber);
     if (cassette_bitnumber == 0) {
-        joshlog("Gonna CAS out a %02X\n", 0xFF & cassette_byte);
+        //joshlog("Gonna CAS out a %02X\n", 0xFF & cassette_byte);
       if (!cassette_file && !select_and_open_non_wav_cassette()) {
         assert_state(FAILED);
         break;
@@ -1436,7 +1436,7 @@ trs_cassette_update(int dummy)
 	cassette_value = cassette_next;
 	cassette_transition += cassette_delta;
 
-	/* Remember last nonzero value to get hysteresis in 1500 bps 
+	/* Remember last nonzero value to get hysteresis in 1500 bps
 	   zero-crossing detector */
 	if (cassette_value != 0) cassette_lastnonzero = cassette_value;
 
