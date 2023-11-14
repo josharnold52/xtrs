@@ -86,7 +86,7 @@
 #define DIRECT_FORMAT      4  /* direct to sound card */
 #define DEBUG_FORMAT       5  /* like cpt but in ASCII */
 static char *format_name[] = {
-  NULL, "cas", "cpt", "wav", "direct", "debug" };
+        NULL, "cas", "cpt", "wav", "direct", "debug" };
 #define DEFAULT_SAMPLE_RATE 11025 /* samples/sec for .wav and /dev/dsp output */
 #define NOISE_FLOOR 64
 
@@ -142,56 +142,56 @@ int cassette_speed = SPEED_500;
 /* Pulse shapes for conversion from .cas on input */
 #define CAS_MAXSTATES 8
 struct {
-  int delta_us;
-  int next;
+    int delta_us;
+    int next;
 } pulse_shape[3][2][CAS_MAXSTATES] = {
-  {{
-    /* Low-speed zero: clock 1 data 0 */
-    { 0,    1 },
-    { 128,  2 },
-    { 128,  0 },
-    { 1871, 0 },  /* normally 1757; 1871 after 8th bit */
-    { -1,  -1 }
-  }, {
-    /* Low-speed one: clock 1 data 1 */
-    { 0,    1 },
-    { 128,  2 },
-    { 128,  0 },
-    { 748,  1 },
-    { 128,  2 },
-    { 128,  0 },
-    { 860, 0 },  /* normally 748; 860 after 8th bit; 1894 after a5 sync */
-    { -1,  -1 }
-  }}, {{
-    /* High-speed zero: wide pulse */
-    { 0,    1 },
-    { 376,  2 },
-    { 376,  1 },
-    { -1,  -1 }
-  }, {
-    /* High-speed one: narrow pulse */
-    { 0,    1 },
-    { 188,  2 },
-    { 188,  1 },
-    { -1,  -1 }
-  }}, {{
-    /* Level I zero: clock 1 data 0 */
-    { 0,    1 },
-    { 125,  2 },
-    { 125,  0 },
-    { 3568, 0 },
-    { -1,  -1 }
-  }, {
-    /* Level I one: clock 1 data 1 */
-    { 0,    1 },
-    { 128,  2 },
-    { 128,  0 },
-    { 1673, 1 },
-    { 128,  2 },
-    { 128,  0 },
-    { 1673, 0 },
-    { -1,  -1 }
-  }}    
+        {{
+                 /* Low-speed zero: clock 1 data 0 */
+                 { 0,    1 },
+                 { 128,  2 },
+                 { 128,  0 },
+                 { 1871, 0 },  /* normally 1757; 1871 after 8th bit */
+                 { -1,  -1 }
+         }, {
+                    /* Low-speed one: clock 1 data 1 */
+                    { 0,    1 },
+                    { 128,  2 },
+                    { 128,  0 },
+                    { 748,  1 },
+                    { 128,  2 },
+                    { 128,  0 },
+                    { 860, 0 },  /* normally 748; 860 after 8th bit; 1894 after a5 sync */
+                    { -1,  -1 }
+            }}, {{
+                 /* High-speed zero: wide pulse */
+                 { 0,    1 },
+                 { 376,  2 },
+                 { 376,  1 },
+                 { -1,  -1 }
+         }, {
+                    /* High-speed one: narrow pulse */
+                    { 0,    1 },
+                    { 188,  2 },
+                    { 188,  1 },
+                    { -1,  -1 }
+            }}, {{
+                 /* Level I zero: clock 1 data 0 */
+                 { 0,    1 },
+                 { 125,  2 },
+                 { 125,  0 },
+                 { 3568, 0 },
+                 { -1,  -1 }
+         }, {
+                    /* Level I one: clock 1 data 1 */
+                    { 0,    1 },
+                    { 128,  2 },
+                    { 128,  0 },
+                    { 1673, 1 },
+                    { 128,  2 },
+                    { 128,  0 },
+                    { 1673, 0 },
+                    { -1,  -1 }
+            }}
 };
 
 /* States and thresholds for conversion to .cas on output */
@@ -215,9 +215,9 @@ struct {
    that; we convert the values as if 0 were really halfway between
    high and low.  */
 Uchar value_to_sample[] = { 127, /* 0.46 V */
-			    254, /* 0.85 V */
-			    0,   /* 0.00 V */
-			    127, /* unused, but close to 0.46 V */
+                            254, /* 0.85 V */
+                            0,   /* 0.00 V */
+                            127, /* unused, but close to 0.46 V */
 };
 
 /* .wav file definitions */
@@ -291,15 +291,15 @@ static void do_joshem_tapedialog(int writeRequested) {
 }
 
 void joshem_request_tapedialog() {
-        //joshlog("HERE %u %u", cassette_state, joshem_tapeswitch_state);
-        if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
-                return;
-        }
-        joshem_tapeswitch_state = JOSHEM_TAPESWITCH_REQUESTED;
-        if (cassette_state == CLOSE) {
-                get_control();  //Responds to JOSHEM_TAPESWITCH_REQUESTED
-                //do_joshem_tapedialog(0);
-        }
+    //joshlog("HERE %u %u", cassette_state, joshem_tapeswitch_state);
+    if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
+        return;
+    }
+    joshem_tapeswitch_state = JOSHEM_TAPESWITCH_REQUESTED;
+    if (cassette_state == CLOSE) {
+        get_control();  //Responds to JOSHEM_TAPESWITCH_REQUESTED
+        //do_joshem_tapedialog(0);
+    }
 }
 void joshem_request_tapedialog_status() {
     //joshlog("HERE STATUS %u %u", cassette_state, joshem_tapeswitch_state);
@@ -333,11 +333,11 @@ static int orch90_left = 128, orch90_right = 128;
 static void
 no_sound(void)
 {
-  static int warned = 0;
-  if (!warned) {
-    joshlog("sound support is not compiled in");
-    warned = 1;
-  }
+    static int warned = 0;
+    if (!warned) {
+        joshlog("sound support is not compiled in");
+        warned = 1;
+    }
 }
 #endif
 
@@ -346,13 +346,13 @@ no_sound(void)
 int
 put_twobyte(Ushort n, FILE* f)
 {
-  int c;
-  struct twobyte *p = (struct twobyte *) &n;
-  c = putc(p->low, f);
-  if (c == -1) return c;
-  c = putc(p->high, f);
-  if (c == -1) return c;
-  return 0;
+    int c;
+    struct twobyte *p = (struct twobyte *) &n;
+    c = putc(p->low, f);
+    if (c == -1) return c;
+    c = putc(p->high, f);
+    if (c == -1) return c;
+    return 0;
 }
 
 /* Put a 4-byte quantity to a file in little-endian order */
@@ -360,17 +360,17 @@ put_twobyte(Ushort n, FILE* f)
 int
 put_fourbyte(Uint n, FILE* f)
 {
-  int c;
-  struct fourbyte *p = (struct fourbyte *) &n;
-  c = putc(p->byte0, f);
-  if (c == -1) return c;
-  c = putc(p->byte1, f);
-  if (c == -1) return c;
-  c = putc(p->byte2, f);
-  if (c == -1) return c;
-  c = putc(p->byte3, f);
-  if (c == -1) return c;
-  return 0;
+    int c;
+    struct fourbyte *p = (struct fourbyte *) &n;
+    c = putc(p->byte0, f);
+    if (c == -1) return c;
+    c = putc(p->byte1, f);
+    if (c == -1) return c;
+    c = putc(p->byte2, f);
+    if (c == -1) return c;
+    c = putc(p->byte3, f);
+    if (c == -1) return c;
+    return 0;
 }
 
 /* Get a 2-byte quantity from a file in little-endian order */
@@ -378,15 +378,15 @@ put_fourbyte(Uint n, FILE* f)
 int
 get_twobyte(Ushort *pp, FILE* f)
 {
-  int c;
-  struct twobyte *p = (struct twobyte *) pp;
-  c = getc(f);
-  if (c == -1) return c;
-  p->low = c;
-  c = getc(f);
-  if (c == -1) return c;
-  p->high = c;
-  return 0;
+    int c;
+    struct twobyte *p = (struct twobyte *) pp;
+    c = getc(f);
+    if (c == -1) return c;
+    p->low = c;
+    c = getc(f);
+    if (c == -1) return c;
+    p->high = c;
+    return 0;
 }
 
 /* Get a 4-byte quantity from a file in little-endian order */
@@ -394,21 +394,21 @@ get_twobyte(Ushort *pp, FILE* f)
 int
 get_fourbyte(Uint *pp, FILE* f)
 {
-  int c;
-  struct fourbyte *p = (struct fourbyte *) pp;
-  c = getc(f);
-  if (c == -1) return c;
-  p->byte0 = c;
-  c = getc(f);
-  if (c == -1) return c;
-  p->byte1 = c;
-  c = getc(f);
-  if (c == -1) return c;
-  p->byte2 = c;
-  c = getc(f);
-  if (c == -1) return c;
-  p->byte3 = c;
-  return 0;
+    int c;
+    struct fourbyte *p = (struct fourbyte *) pp;
+    c = getc(f);
+    if (c == -1) return c;
+    p->byte0 = c;
+    c = getc(f);
+    if (c == -1) return c;
+    p->byte1 = c;
+    c = getc(f);
+    if (c == -1) return c;
+    p->byte2 = c;
+    c = getc(f);
+    if (c == -1) return c;
+    p->byte3 = c;
+    return 0;
 }
 
 /* Output an 8-byte unsigned sample, if necessary converting to a
@@ -416,9 +416,9 @@ get_fourbyte(Uint *pp, FILE* f)
 static void
 put_sample(Uchar sample, int convert, FILE* f)
 {
-  if (convert) {
+    if (convert) {
 #if HAVE_OSS
-    switch (cassette_afmt) {
+        switch (cassette_afmt) {
     case AFMT_U8:
       putc(sample, f);
       break;
@@ -431,9 +431,9 @@ put_sample(Uchar sample, int convert, FILE* f)
     }
     return;
 #endif
-  }
-  putc(sample, f);
-}    
+    }
+    putc(sample, f);
+}
 
 /* Get an 8-byte unsigned sample, if necessary converting from a
  * different sample format and/or reducing stereo to mono.  */
@@ -441,7 +441,7 @@ static int
 get_sample(int convert, FILE* f)
 {
 #if HAVE_OSS
-  if (convert) {
+    if (convert) {
     int ret = 0;
     short s = 0;
     switch (cassette_afmt) {
@@ -460,57 +460,57 @@ get_sample(int convert, FILE* f)
     return ret;
   }
 #endif
-  return getc(f);
+    return getc(f);
 }
 
 /* Write a new .wav file header to a file.  Return -1 on error. */
 static int
 create_wav_header(FILE *f)
 {
-  Uint field;
-  /* Chunk sizes don't count the 4-byte chunk type name nor the 4-byte
-     size field itself.  The RIFF chunk is the whole file, so its size
-     is the actual length of the file minus WAVE_RIFF_OFFSET (=8).
-     The data chunk is the actual sample data, so its size is the size
-     of the file minus wave_data_offset. */
+    Uint field;
+    /* Chunk sizes don't count the 4-byte chunk type name nor the 4-byte
+       size field itself.  The RIFF chunk is the whole file, so its size
+       is the actual length of the file minus WAVE_RIFF_OFFSET (=8).
+       The data chunk is the actual sample data, so its size is the size
+       of the file minus wave_data_offset. */
 
-  wave_dataid_offset = WAVE_DATAID_OFFSET;
-  wave_datasize_offset = WAVE_DATASIZE_OFFSET;
-  wave_data_offset = WAVE_DATA_OFFSET;
-  if (cassette_position < wave_data_offset) {
-    cassette_position = wave_data_offset;
-  }
+    wave_dataid_offset = WAVE_DATAID_OFFSET;
+    wave_datasize_offset = WAVE_DATASIZE_OFFSET;
+    wave_data_offset = WAVE_DATA_OFFSET;
+    if (cassette_position < wave_data_offset) {
+        cassette_position = wave_data_offset;
+    }
 
-  if (fputs("RIFF", f) < 0) return -1;
-  if (put_fourbyte(0, f) < 0) return -1; /* RIFF chunk size */
-  if (fputs("WAVEfmt ", f) < 0) return -1;
-  if (put_fourbyte(16, f) < 0) return -1; /* fmt chunk size */
-  if (put_twobyte(WAVE_FORMAT_PCM, f) < 0) return -1;
-  if (put_twobyte(WAVE_FORMAT_MONO, f) < 0) return -1;
-  if (put_fourbyte(cassette_sample_rate, f) < 0) return -1;
-  field = (WAVE_FORMAT_MONO * cassette_sample_rate * WAVE_FORMAT_8BIT/8);
-  if (put_fourbyte(field, f) < 0) return -1;
-  field = (WAVE_FORMAT_MONO * WAVE_FORMAT_8BIT/8);
-  if (put_twobyte(field, f) < 0) return -1;
-  if (put_twobyte(WAVE_FORMAT_8BIT, f) < 0) return -1; /* end of fmt chunk */
-  if (fputs("data", f) < 0) return -1;
-  if (put_fourbyte(0, f) < 0) return -1; /* size of data chunk payload */
-  /* payload starts here */
-  return 0;
+    if (fputs("RIFF", f) < 0) return -1;
+    if (put_fourbyte(0, f) < 0) return -1; /* RIFF chunk size */
+    if (fputs("WAVEfmt ", f) < 0) return -1;
+    if (put_fourbyte(16, f) < 0) return -1; /* fmt chunk size */
+    if (put_twobyte(WAVE_FORMAT_PCM, f) < 0) return -1;
+    if (put_twobyte(WAVE_FORMAT_MONO, f) < 0) return -1;
+    if (put_fourbyte(cassette_sample_rate, f) < 0) return -1;
+    field = (WAVE_FORMAT_MONO * cassette_sample_rate * WAVE_FORMAT_8BIT/8);
+    if (put_fourbyte(field, f) < 0) return -1;
+    field = (WAVE_FORMAT_MONO * WAVE_FORMAT_8BIT/8);
+    if (put_twobyte(field, f) < 0) return -1;
+    if (put_twobyte(WAVE_FORMAT_8BIT, f) < 0) return -1; /* end of fmt chunk */
+    if (fputs("data", f) < 0) return -1;
+    if (put_fourbyte(0, f) < 0) return -1; /* size of data chunk payload */
+    /* payload starts here */
+    return 0;
 }
 
 /* Error message generator */
 static int
 check_chunk_id(char *expected, FILE* f)
 {
-  char c4[5];
-  c4[4] = '\0';
-  if (fread(c4, 4, 1, f) != 1) return -1;
-  if (strcmp(c4, expected) != 0) {
-    error("unusable wav file: expected chunk id '%s', got '%s'", expected, c4);
-    return -1;
-  }
-  return 0;
+    char c4[5];
+    c4[4] = '\0';
+    if (fread(c4, 4, 1, f) != 1) return -1;
+    if (strcmp(c4, expected) != 0) {
+        error("unusable wav file: expected chunk id '%s', got '%s'", expected, c4);
+        return -1;
+    }
+    return 0;
 }
 
 /* Parse a .wav file's RIFF header.  We don't understand much about
@@ -520,58 +520,58 @@ check_chunk_id(char *expected, FILE* f)
 static int
 parse_wav_header(FILE *f)
 {
-  Uint n4;
-  Uint fmt_size;
-  Ushort n2, expect2;
+    Uint n4;
+    Uint fmt_size;
+    Ushort n2, expect2;
 
-  if (check_chunk_id("RIFF", f) < 0) return -1;
-  if (get_fourbyte(&n4, f) < 0) return -1; /* ignore this field */
-  if (check_chunk_id("WAVE", f) < 0) return -1;
-  if (check_chunk_id("fmt ", f) < 0) return -1;
-  if (get_fourbyte(&fmt_size, f) < 0) return -1;
-  if (get_twobyte(&n2, f) < 0) return -1;
-  if (n2 != WAVE_FORMAT_PCM) {
-    error("unusable wav file: must be pcm");
-    return -1;
-  }
-  if (get_twobyte(&n2, f) < 0) return -1;
-  if (n2 != WAVE_FORMAT_MONO) {
-    error("unusable wav file: must be mono");
-    return -1;
-  }
-  if (get_fourbyte(&n4, f) < 0) return -1;
-  cassette_sample_rate = n4;
-  if (get_fourbyte(&n4, f) < 0) return -1; /* ignore this field */
-  expect2 = WAVE_FORMAT_MONO * WAVE_FORMAT_8BIT/8;
-  if (get_twobyte(&n2, f) < 0) return -1;
-  if (n2 != expect2) {
-    error("unusable wav file: must be %d bytes/sample", expect2);
-    return -1;
-  }
-  expect2 = WAVE_FORMAT_8BIT;
-  if (get_twobyte(&n2, f) < 0) return -1;
-  if (n2 != expect2) {
-    error("unusable wav file: must be %d bits/sample", expect2);
-    return -1;
-  }
-  fmt_size -= 16;  /* size read so far */
-  while (fmt_size-- > 0) getc(f); /* ignore additional */
-  wave_dataid_offset = ftell(f);
-  if (check_chunk_id("data", f) < 0) return -1;
-  wave_datasize_offset = ftell(f);
-  if (get_fourbyte(&n4, f) < 0) return -1; /* ignore this field */
-  wave_data_offset = ftell(f);
-  if (cassette_position < wave_data_offset) {
-    cassette_position = wave_data_offset;
-  }
-  return 0;
-}  
+    if (check_chunk_id("RIFF", f) < 0) return -1;
+    if (get_fourbyte(&n4, f) < 0) return -1; /* ignore this field */
+    if (check_chunk_id("WAVE", f) < 0) return -1;
+    if (check_chunk_id("fmt ", f) < 0) return -1;
+    if (get_fourbyte(&fmt_size, f) < 0) return -1;
+    if (get_twobyte(&n2, f) < 0) return -1;
+    if (n2 != WAVE_FORMAT_PCM) {
+        error("unusable wav file: must be pcm");
+        return -1;
+    }
+    if (get_twobyte(&n2, f) < 0) return -1;
+    if (n2 != WAVE_FORMAT_MONO) {
+        error("unusable wav file: must be mono");
+        return -1;
+    }
+    if (get_fourbyte(&n4, f) < 0) return -1;
+    cassette_sample_rate = n4;
+    if (get_fourbyte(&n4, f) < 0) return -1; /* ignore this field */
+    expect2 = WAVE_FORMAT_MONO * WAVE_FORMAT_8BIT/8;
+    if (get_twobyte(&n2, f) < 0) return -1;
+    if (n2 != expect2) {
+        error("unusable wav file: must be %d bytes/sample", expect2);
+        return -1;
+    }
+    expect2 = WAVE_FORMAT_8BIT;
+    if (get_twobyte(&n2, f) < 0) return -1;
+    if (n2 != expect2) {
+        error("unusable wav file: must be %d bits/sample", expect2);
+        return -1;
+    }
+    fmt_size -= 16;  /* size read so far */
+    while (fmt_size-- > 0) getc(f); /* ignore additional */
+    wave_dataid_offset = ftell(f);
+    if (check_chunk_id("data", f) < 0) return -1;
+    wave_datasize_offset = ftell(f);
+    if (get_fourbyte(&n4, f) < 0) return -1; /* ignore this field */
+    wave_data_offset = ftell(f);
+    if (cassette_position < wave_data_offset) {
+        cassette_position = wave_data_offset;
+    }
+    return 0;
+}
 
 static int
 set_audio_format(FILE *f, int state)
 {
 #if HAVE_OSS
-  int audio_fd = fileno(f);
+    int audio_fd = fileno(f);
   int format, stereo, speed, req;
   req = format = AFMT_U8;  /* unsigned 8-bit */
   if (ioctl(audio_fd, SNDCTL_DSP_SETFMT, &format)==-1) return -1;
@@ -601,173 +601,173 @@ set_audio_format(FILE *f, int state)
     return -1;
   }
 #endif
-  return 0;
+    return 0;
 }
 
 static void get_control()
 {
-  FILE *f;
-  struct stat p;
-  //TODO: This will make it so that the first CLOAD after starting the emulator
-  // prompts for a tape.   Is this desired, or should we reuse whatever the previous
-  // session had?
-  if (!cassette_did_initial_selection
-    || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED
-    || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED_STATUS) {
-      do_joshem_tapedialog(0);
-  }
-  if (!cassette_did_initial_selection) {
-    return;
-  }
+    FILE *f;
+    struct stat p;
+    //TODO: This will make it so that the first CLOAD after starting the emulator
+    // prompts for a tape.   Is this desired, or should we reuse whatever the previous
+    // session had?
+    if (!cassette_did_initial_selection
+        || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED
+        || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED_STATUS) {
+        do_joshem_tapedialog(0);
+    }
+    if (!cassette_did_initial_selection) {
+        return;
+    }
 
-  f = fopen(CONTROL_FILENAME, "r");
-  cassette_format = DEFAULT_FORMAT;
-  if ((!f) ||
-      (fscanf(f, "%s %d %d", cassette_filename,
-	      &cassette_position, &cassette_format) < 2)) {
-    error("can't read %s (%s);\n  cassette file will be: %s, format %s",
-	  CONTROL_FILENAME, strerror(errno),
-	  DEFAULT_FILENAME, format_name[DEFAULT_FORMAT]);
-    strcpy(cassette_filename, DEFAULT_FILENAME);
-    cassette_position = 0;
-  }
-  if (f) {
-    fclose(f);
-  }
+    f = fopen(CONTROL_FILENAME, "r");
+    cassette_format = DEFAULT_FORMAT;
+    if ((!f) ||
+        (fscanf(f, "%s %d %d", cassette_filename,
+                &cassette_position, &cassette_format) < 2)) {
+        error("can't read %s (%s);\n  cassette file will be: %s, format %s",
+              CONTROL_FILENAME, strerror(errno),
+              DEFAULT_FILENAME, format_name[DEFAULT_FORMAT]);
+        strcpy(cassette_filename, DEFAULT_FILENAME);
+        cassette_position = 0;
+    }
+    if (f) {
+        fclose(f);
+    }
 }
 
 static void put_control()
 {
-  FILE *f;
+    FILE *f;
 
-  f = fopen(CONTROL_FILENAME, "w");
+    f = fopen(CONTROL_FILENAME, "w");
 
-  if (f) {
-    trs_paused = 1;  /* disable speed measurement for this round */
-    fprintf(f, "%s %d %d\n", cassette_filename, cassette_position,
-	    cassette_format);
-    fclose(f);
-  }
+    if (f) {
+        trs_paused = 1;  /* disable speed measurement for this round */
+        fprintf(f, "%s %d %d\n", cassette_filename, cassette_position,
+                cassette_format);
+        fclose(f);
+    }
 }
 
 /* Return value: 1 = already that state; 0 = state changed; -1 = failed */
 static int assert_state(int state)
 {
-  if (cassette_state == state) {
-    return 1;
-  }
-  joshlog("assert_state %d -> %d\n", cassette_state, state);
-
-  if (cassette_state == FAILED && state != CLOSE) {
-    return -1;
-  }
-
-#if CASSDEBUG
-  debug("state %d -> %d\n", cassette_state, state);
-#endif
-
-  if (cassette_state == ORCH90) {
-    trs_orch90_out(0, FLUSH);
-  }
-
-  if (cassette_state != CLOSE && cassette_state != FAILED) {
-    if (cassette_format == DIRECT_FORMAT) {
-      //sigset_t set, oldset;
-      //sigemptyset(&set);
-      //sigaddset(&set, SIGALRM);
-      //sigprocmask(SIG_BLOCK, &set, &oldset);
-      trs_paused = 1;  /* disable speed measurement for this round */
-      ensure_cassette_file_closed();
-      //sigprocmask(SIG_SETMASK, &oldset, NULL);
-      cassette_position = 0;
-    } else {
-      if (cassette_file) {
-          cassette_position = ftell(cassette_file);
-          if (cassette_format == WAV_FORMAT && cassette_state == WRITE) {
-              fseek(cassette_file, WAVE_RIFFSIZE_OFFSET, 0);
-              put_fourbyte(cassette_position - WAVE_RIFF_OFFSET, cassette_file);
-              fseek(cassette_file, wave_datasize_offset, 0);
-              put_fourbyte(cassette_position - wave_data_offset, cassette_file);
-          }
-          ensure_cassette_file_closed();
-      }
+    if (cassette_state == state) {
+        return 1;
     }
-    if (cassette_state != SOUND && cassette_state != ORCH90) {
-      put_control();
-    }
-#if HAVE_OSS
-    cassette_stereo = 0;
-    cassette_afmt = AFMT_U8;
-#endif
-  }
+    joshlog("assert_state %d -> %d\n", cassette_state, state);
 
-  switch (state) {
-  case READ:
-    get_control();
-    if (!cassette_did_initial_selection) {
-        joshlog("Cassette read failed because no tape was selected");
-        cassette_state = FAILED;
+    if (cassette_state == FAILED && state != CLOSE) {
         return -1;
     }
-    if (cassette_format == DIRECT_FORMAT) {
-      safe_open_cassette_file("rb");
-      if (cassette_file == NULL) {
-	error("couldn't read %s: %s", cassette_filename, strerror(errno));
-	cassette_state = FAILED;
-	return -1;
-      }
-      /*setbuf(cassette_file, NULL);*/ /* seems no need for this */
-      cassette_sample_rate = cassette_default_sample_rate;
-      if (set_audio_format(cassette_file, state) < 0) {
-	error("couldn't set audio format on %s: %s",
-	      cassette_filename, strerror(errno));
-        ensure_cassette_file_closed();
-	cassette_state = FAILED;
-	return -1;
-      }
-    } else {
-      safe_open_cassette_file("rb");
-      if (cassette_format == WAV_FORMAT &&
-	  cassette_file != NULL && parse_wav_header(cassette_file) < 0) {
-        ensure_cassette_file_closed();
-      }
-      if (cassette_file == NULL) {
-	error("couldn't read %s: %s", cassette_filename, strerror(errno));
-	cassette_state = FAILED;
-	return -1;
-      }
-      fseek(cassette_file, cassette_position, 0);
-    }
-    break;
 
-  case SOUND:
-  case ORCH90:
-  case WRITE:
-    if (state == SOUND || state == ORCH90) {
-      cassette_format = DIRECT_FORMAT;
-      strcpy(cassette_filename, DSP_FILENAME);
-    } else {
-      ensure_cassette_file_closed();
-      cassette_format = CAS_FORMAT;  //Only support CAS for now
-      //while (!cassette_writable) {
-      //    do_joshem_tapedialog(1);
-      //}
-    }
-    if (cassette_format == DIRECT_FORMAT) {
-#if !HAVE_OSS
-      no_sound();
-      return -1;
+#if CASSDEBUG
+    debug("state %d -> %d\n", cassette_state, state);
 #endif
-      cassette_sample_rate = cassette_default_sample_rate;
-      safe_open_cassette_file("wb");
-      if (cassette_file == NULL) {
-	error("couldn't write %s: %s", cassette_filename, strerror(errno));
-	cassette_state = FAILED;
-	return -1;
-      }
-      setbuf(cassette_file, NULL); /* ??hangs on some OSS drivers */
+
+    if (cassette_state == ORCH90) {
+        trs_orch90_out(0, FLUSH);
+    }
+
+    if (cassette_state != CLOSE && cassette_state != FAILED) {
+        if (cassette_format == DIRECT_FORMAT) {
+            //sigset_t set, oldset;
+            //sigemptyset(&set);
+            //sigaddset(&set, SIGALRM);
+            //sigprocmask(SIG_BLOCK, &set, &oldset);
+            trs_paused = 1;  /* disable speed measurement for this round */
+            ensure_cassette_file_closed();
+            //sigprocmask(SIG_SETMASK, &oldset, NULL);
+            cassette_position = 0;
+        } else {
+            if (cassette_file) {
+                cassette_position = ftell(cassette_file);
+                if (cassette_format == WAV_FORMAT && cassette_state == WRITE) {
+                    fseek(cassette_file, WAVE_RIFFSIZE_OFFSET, 0);
+                    put_fourbyte(cassette_position - WAVE_RIFF_OFFSET, cassette_file);
+                    fseek(cassette_file, wave_datasize_offset, 0);
+                    put_fourbyte(cassette_position - wave_data_offset, cassette_file);
+                }
+                ensure_cassette_file_closed();
+            }
+        }
+        if (cassette_state != SOUND && cassette_state != ORCH90) {
+            put_control();
+        }
 #if HAVE_OSS
-      if (state == SOUND || state == ORCH90) {
+        cassette_stereo = 0;
+    cassette_afmt = AFMT_U8;
+#endif
+    }
+
+    switch (state) {
+        case READ:
+            get_control();
+            if (!cassette_did_initial_selection) {
+                joshlog("Cassette read failed because no tape was selected");
+                cassette_state = FAILED;
+                return -1;
+            }
+            if (cassette_format == DIRECT_FORMAT) {
+                safe_open_cassette_file("rb");
+                if (cassette_file == NULL) {
+                    error("couldn't read %s: %s", cassette_filename, strerror(errno));
+                    cassette_state = FAILED;
+                    return -1;
+                }
+                /*setbuf(cassette_file, NULL);*/ /* seems no need for this */
+                cassette_sample_rate = cassette_default_sample_rate;
+                if (set_audio_format(cassette_file, state) < 0) {
+                    error("couldn't set audio format on %s: %s",
+                          cassette_filename, strerror(errno));
+                    ensure_cassette_file_closed();
+                    cassette_state = FAILED;
+                    return -1;
+                }
+            } else {
+                safe_open_cassette_file("rb");
+                if (cassette_format == WAV_FORMAT &&
+                    cassette_file != NULL && parse_wav_header(cassette_file) < 0) {
+                    ensure_cassette_file_closed();
+                }
+                if (cassette_file == NULL) {
+                    error("couldn't read %s: %s", cassette_filename, strerror(errno));
+                    cassette_state = FAILED;
+                    return -1;
+                }
+                fseek(cassette_file, cassette_position, 0);
+            }
+            break;
+
+        case SOUND:
+        case ORCH90:
+        case WRITE:
+            if (state == SOUND || state == ORCH90) {
+                cassette_format = DIRECT_FORMAT;
+                strcpy(cassette_filename, DSP_FILENAME);
+            } else {
+                ensure_cassette_file_closed();
+                cassette_format = CAS_FORMAT;  //Only support CAS for now
+                //while (!cassette_writable) {
+                //    do_joshem_tapedialog(1);
+                //}
+            }
+            if (cassette_format == DIRECT_FORMAT) {
+#if !HAVE_OSS
+                no_sound();
+                return -1;
+#endif
+                cassette_sample_rate = cassette_default_sample_rate;
+                safe_open_cassette_file("wb");
+                if (cassette_file == NULL) {
+                    error("couldn't write %s: %s", cassette_filename, strerror(errno));
+                    cassette_state = FAILED;
+                    return -1;
+                }
+                setbuf(cassette_file, NULL); /* ??hangs on some OSS drivers */
+#if HAVE_OSS
+                if (state == SOUND || state == ORCH90) {
 	/*int arg = 0x7fff0008;*/ /* unlimited fragments of size (1 << 8) */
 	int arg = 0x00200008; /* 32 fragments of size (1 << 8) */
 	if (ioctl(fileno(cassette_file), SNDCTL_DSP_SETFRAGMENT, &arg) < 0) {
@@ -776,45 +776,45 @@ static int assert_state(int state)
 	}
       }
 #endif
-      if (set_audio_format(cassette_file, state) < 0) {
-	error("couldn't set audio format on %s: %s",
-	      cassette_filename, strerror(errno));
-        ensure_cassette_file_closed();
-	cassette_state = FAILED;
-	return -1;
-      }
-    } else if (cassette_format == WAV_FORMAT) {
-      safe_open_cassette_file("r+b");
-      if (cassette_file == NULL) {
-	cassette_sample_rate = cassette_default_sample_rate;
-	safe_open_cassette_file("wb");
-	if (cassette_file && create_wav_header(cassette_file) < 0) {
-            ensure_cassette_file_closed();
-	}
-      } else {
-	if (parse_wav_header(cassette_file) < 0) {
-	  ensure_cassette_file_closed();
-	}
-      }
-      if (cassette_file != NULL) {
-	fseek(cassette_file, cassette_position, 0);
-      }
-    } else {
-      //open_non_wav_cassette_for_writing();
-      //Defer opening until time to write
-      cassette_state = state;
-      return 0;
+                if (set_audio_format(cassette_file, state) < 0) {
+                    error("couldn't set audio format on %s: %s",
+                          cassette_filename, strerror(errno));
+                    ensure_cassette_file_closed();
+                    cassette_state = FAILED;
+                    return -1;
+                }
+            } else if (cassette_format == WAV_FORMAT) {
+                safe_open_cassette_file("r+b");
+                if (cassette_file == NULL) {
+                    cassette_sample_rate = cassette_default_sample_rate;
+                    safe_open_cassette_file("wb");
+                    if (cassette_file && create_wav_header(cassette_file) < 0) {
+                        ensure_cassette_file_closed();
+                    }
+                } else {
+                    if (parse_wav_header(cassette_file) < 0) {
+                        ensure_cassette_file_closed();
+                    }
+                }
+                if (cassette_file != NULL) {
+                    fseek(cassette_file, cassette_position, 0);
+                }
+            } else {
+                //open_non_wav_cassette_for_writing();
+                //Defer opening until time to write
+                cassette_state = state;
+                return 0;
+            }
+            if (cassette_file == NULL) {
+                error("couldn't write %s: %s", cassette_filename, strerror(errno));
+                cassette_state = FAILED;
+                return -1;
+            }
+            break;
     }
-    if (cassette_file == NULL) {
-      error("couldn't write %s: %s", cassette_filename, strerror(errno));
-      cassette_state = FAILED;
-      return -1;
-    }
-    break;
-  }
 
-  cassette_state = state;
-  return 0;
+    cassette_state = state;
+    return 0;
 }
 
 
@@ -825,67 +825,67 @@ static void
 transition_out(int value)
 {
     //joshlog("Transition out %d\n", value);
-  Uchar sample;
-  long nsamples, delta_us;
-  Ushort code;
-  float ddelta_us;
-  //sigset_t set, oldset;
+    Uchar sample;
+    long nsamples, delta_us;
+    Ushort code;
+    float ddelta_us;
+    //sigset_t set, oldset;
 
-  cassette_transitionsout++;
-  if (value != FLUSH && value == cassette_value) return;
+    cassette_transitionsout++;
+    if (value != FLUSH && value == cassette_value) return;
 
-  //sigemptyset(&set);
-  //sigaddset(&set, SIGALRM);
-  //sigprocmask(SIG_BLOCK, &set, &oldset);
+    //sigemptyset(&set);
+    //sigaddset(&set, SIGALRM);
+    //sigprocmask(SIG_BLOCK, &set, &oldset);
 
-  ddelta_us = (z80_state.t_count - cassette_transition) / z80_state.clockMHz
-    - cassette_roundoff_error;
+    ddelta_us = (z80_state.t_count - cassette_transition) / z80_state.clockMHz
+                - cassette_roundoff_error;
 
-  switch (cassette_format) {
-  case DEBUG_FORMAT:
-    if (!select_and_open_non_wav_cassette()) {
-        assert_state(FAILED);
-        break;
-    }
-    /* Print value and delta_us in ASCII for easier examination */
-    if (value == FLUSH) value = cassette_value;
-    delta_us = (unsigned long) (ddelta_us + 0.5);
-    cassette_roundoff_error = delta_us - ddelta_us;
-    fprintf(cassette_file, "%d %lu\n", value, delta_us);
-    break;
-    
-  case CPT_FORMAT:
-    /* Encode value and delta_us in two bytes if delta_us is small enough.
-       Pack bits as ddddddddddddddvv and store this value in little-
-       endian order. */
-      if (!select_and_open_non_wav_cassette()) {
-          assert_state(FAILED);
-          break;
-      }
-    if (value == FLUSH) value = cassette_value;
-    delta_us = (unsigned long) (ddelta_us + 0.5);
-    cassette_roundoff_error = delta_us - ddelta_us;
-    if (delta_us < 0x3fff) {
-      code = value | (delta_us << 2);
-      put_twobyte(code, cassette_file);
-    } else {
-      /* Else write 0xffff escape code and encode in five bytes:
-	 1-byte value, then 4-byte delta_us in little-endian order */
-      put_twobyte(0xffff, cassette_file);
-      putc(value, cassette_file);
-      put_fourbyte(delta_us, cassette_file);
-    }
-    break;
+    switch (cassette_format) {
+        case DEBUG_FORMAT:
+            if (!select_and_open_non_wav_cassette()) {
+                assert_state(FAILED);
+                break;
+            }
+            /* Print value and delta_us in ASCII for easier examination */
+            if (value == FLUSH) value = cassette_value;
+            delta_us = (unsigned long) (ddelta_us + 0.5);
+            cassette_roundoff_error = delta_us - ddelta_us;
+            fprintf(cassette_file, "%d %lu\n", value, delta_us);
+            break;
 
-  case WAV_FORMAT:
-  case DIRECT_FORMAT:
-      //Not currently supported
-      joshlog("Format %d not supported\n", cassette_format);
-      assert_state(FAILED);
-      break;
+        case CPT_FORMAT:
+            /* Encode value and delta_us in two bytes if delta_us is small enough.
+               Pack bits as ddddddddddddddvv and store this value in little-
+               endian order. */
+            if (!select_and_open_non_wav_cassette()) {
+                assert_state(FAILED);
+                break;
+            }
+            if (value == FLUSH) value = cassette_value;
+            delta_us = (unsigned long) (ddelta_us + 0.5);
+            cassette_roundoff_error = delta_us - ddelta_us;
+            if (delta_us < 0x3fff) {
+                code = value | (delta_us << 2);
+                put_twobyte(code, cassette_file);
+            } else {
+                /* Else write 0xffff escape code and encode in five bytes:
+               1-byte value, then 4-byte delta_us in little-endian order */
+                put_twobyte(0xffff, cassette_file);
+                putc(value, cassette_file);
+                put_fourbyte(delta_us, cassette_file);
+            }
+            break;
+
+        case WAV_FORMAT:
+        case DIRECT_FORMAT:
+            //Not currently supported
+            joshlog("Format %d not supported\n", cassette_format);
+            assert_state(FAILED);
+            break;
 
 #if HAVE_OSS
-    if (cassette_state == SOUND) {
+            if (cassette_state == SOUND) {
       if (ddelta_us > 20000.0) {
 	/* Truncate silent periods */
 	ddelta_us = 20000.0;
@@ -903,149 +903,149 @@ transition_out(int value)
       }
     }
 #endif
-    sample = value_to_sample[cassette_value];
-    nsamples = (unsigned long)
-      (ddelta_us / (1000000.0/cassette_sample_rate) + 0.5);
-    if (nsamples == 0) nsamples = 1; /* always at least one sample */
-    cassette_roundoff_error =
-      nsamples * (1000000.0/cassette_sample_rate) - ddelta_us;
+            sample = value_to_sample[cassette_value];
+            nsamples = (unsigned long)
+                    (ddelta_us / (1000000.0/cassette_sample_rate) + 0.5);
+            if (nsamples == 0) nsamples = 1; /* always at least one sample */
+            cassette_roundoff_error =
+                    nsamples * (1000000.0/cassette_sample_rate) - ddelta_us;
 #if CASSDEBUG
-    debug("%d %4lu %d -> %3lu\n", cassette_value,
+            debug("%d %4lu %d -> %3lu\n", cassette_value,
 	  z80_state.t_count - cassette_transition, value, nsamples);
 #endif
-    if (cassette_format == DIRECT_FORMAT && cassette_stereo) nsamples *= 2;
-    while (nsamples-- > 0) {
-      put_sample(sample, cassette_format == DIRECT_FORMAT, cassette_file);
-    }
-    if (value == FLUSH) {
-      value = cassette_value;
+            if (cassette_format == DIRECT_FORMAT && cassette_stereo) nsamples *= 2;
+            while (nsamples-- > 0) {
+                put_sample(sample, cassette_format == DIRECT_FORMAT, cassette_file);
+            }
+            if (value == FLUSH) {
+                value = cassette_value;
 #if HAVE_OSS
-      if (cassette_format == DIRECT_FORMAT) {
+                if (cassette_format == DIRECT_FORMAT) {
 	ioctl(fileno(cassette_file), SNDCTL_DSP_POST, 0);
       }
       trs_restore_delay();
 #endif
+            }
+            break;
+
+        case CAS_FORMAT:
+            if (value == FLUSH && cassette_bitnumber != 0) {
+                joshlog("WROTE ME A FLUSH\n");
+                if (!cassette_file && !select_and_open_non_wav_cassette()) {
+                    assert_state(FAILED);
+                    break;
+                }
+                putc(cassette_byte, cassette_file);
+                cassette_byte = 0;
+                break;
+            }
+            sample = 2; /* i.e., no bit */
+            switch (cassette_pulsestate) {
+                case ST_INITIAL:
+                    if (cassette_value == 2 && value == 0) {
+                        /* Low speed, end of first pulse.  Assume clock */
+                        cassette_pulsestate = ST_500GOTCLK;
+                    } else if (cassette_value == 2 && value == 1) {
+                        /* High speed, nothing interesting yet. */
+                        cassette_pulsestate = ST_1500;
+                    }
+                    break;
+
+                case ST_500GOTCLK:
+                    if (cassette_value == 0 && value == 1) {
+                        /* Low speed, start of next pulse. */
+                        if (ddelta_us > ST_250THRESH) {
+                            /* Oops, really ultra-low speed */
+                            /* It's the next clock; bit was 0 */
+                            sample = 0;
+                            /* Watch for end of this clock */
+                            cassette_pulsestate = ST_250;
+                        } else if (ddelta_us > ST_500THRESH) {
+                            /* It's the next clock; bit was 0 */
+                            sample = 0;
+                            /* Watch for end of this clock */
+                            cassette_pulsestate = ST_INITIAL;
+                        } else {
+                            /* It's a data pulse; bit was 1 */
+                            sample = 1;
+                            /* Ignore the data pulse falling edge */
+                            cassette_pulsestate = ST_500GOTDAT;
+                        }
+                    }
+                    break;
+
+                case ST_500GOTDAT:
+                    if (cassette_value == 2 && value == 0) {
+                        /* End of data pulse; watch for end of next clock */
+                        cassette_pulsestate = ST_INITIAL;
+                    }
+                    break;
+
+                case ST_1500:
+                    if (cassette_value == 1 && value == 2) {
+                        sample = (ddelta_us < ST_1500THRESH);
+                    }
+                    break;
+
+                case ST_250:
+                    if (cassette_value == 2 && value == 0) {
+                        /* Ultra-low speed, end of first pulse.  Assume clock */
+                        cassette_pulsestate = ST_250GOTCLK;
+                    }
+                    break;
+
+                case ST_250GOTCLK:
+                    if (cassette_value == 0 && value == 1) {
+                        /* Low speed, start of next pulse. */
+                        if (ddelta_us > ST_250THRESH) {
+                            /* It's the next clock; bit was 0 */
+                            sample = 0;
+                            /* Watch for end of this clock */
+                            cassette_pulsestate = ST_250;
+                        } else {
+                            /* It's a data pulse; bit was 1 */
+                            sample = 1;
+                            /* Ignore the data pulse falling edge */
+                            cassette_pulsestate = ST_250GOTDAT;
+                        }
+                    }
+                    break;
+
+                case ST_250GOTDAT:
+                    if (cassette_value == 2 && value == 0) {
+                        /* End of data pulse; watch for end of next clock */
+                        cassette_pulsestate = ST_250;
+                    }
+                    break;
+            }
+            if (sample == 2) break;
+
+            cassette_bitnumber--;
+            if (cassette_bitnumber < 0) cassette_bitnumber = 7;
+            cassette_byte |= (sample << cassette_bitnumber);
+            if (cassette_bitnumber == 0) {
+                //joshlog("Gonna CAS out a %02X\n", 0xFF & cassette_byte);
+                if (!cassette_file && !select_and_open_non_wav_cassette()) {
+                    assert_state(FAILED);
+                    break;
+                }
+                putc(cassette_byte, cassette_file);
+                cassette_byte = 0;
+            }
+            break;
+
+
+        default:
+            error("output format %s not implemented",
+                  cassette_format < (sizeof(format_name)/sizeof(char *)) ?
+                  format_name[cassette_format] : "out of range;");
+            break;
     }
-    break;
 
-  case CAS_FORMAT:
-    if (value == FLUSH && cassette_bitnumber != 0) {
-        joshlog("WROTE ME A FLUSH\n");
-      if (!cassette_file && !select_and_open_non_wav_cassette()) {
-          assert_state(FAILED);
-          break;
-      }
-      putc(cassette_byte, cassette_file);
-      cassette_byte = 0;
-      break;
-    }
-    sample = 2; /* i.e., no bit */
-    switch (cassette_pulsestate) {
-    case ST_INITIAL:
-      if (cassette_value == 2 && value == 0) {
-	/* Low speed, end of first pulse.  Assume clock */
-	cassette_pulsestate = ST_500GOTCLK;
-      } else if (cassette_value == 2 && value == 1) {
-	/* High speed, nothing interesting yet. */
-	cassette_pulsestate = ST_1500;
-      }
-      break;
-
-    case ST_500GOTCLK:
-      if (cassette_value == 0 && value == 1) {
-	/* Low speed, start of next pulse. */
-	if (ddelta_us > ST_250THRESH) {
-	  /* Oops, really ultra-low speed */
-	  /* It's the next clock; bit was 0 */
-	  sample = 0;
-	  /* Watch for end of this clock */
-	  cassette_pulsestate = ST_250;
-	} else if (ddelta_us > ST_500THRESH) {
-	  /* It's the next clock; bit was 0 */
-	  sample = 0;
-	  /* Watch for end of this clock */
-	  cassette_pulsestate = ST_INITIAL;
-	} else {
-	  /* It's a data pulse; bit was 1 */
-	  sample = 1;
-	  /* Ignore the data pulse falling edge */
-	  cassette_pulsestate = ST_500GOTDAT;
-	}
-      }
-      break;
-      
-    case ST_500GOTDAT:
-      if (cassette_value == 2 && value == 0) {
-	/* End of data pulse; watch for end of next clock */
-	cassette_pulsestate = ST_INITIAL;
-      }
-      break;
-
-    case ST_1500:
-      if (cassette_value == 1 && value == 2) {
-	sample = (ddelta_us < ST_1500THRESH);
-      }
-      break;
-
-    case ST_250:
-      if (cassette_value == 2 && value == 0) {
-	/* Ultra-low speed, end of first pulse.  Assume clock */
-	cassette_pulsestate = ST_250GOTCLK;
-      }
-      break;
-      
-    case ST_250GOTCLK:
-      if (cassette_value == 0 && value == 1) {
-	/* Low speed, start of next pulse. */
-	if (ddelta_us > ST_250THRESH) {
-	  /* It's the next clock; bit was 0 */
-	  sample = 0;
-	  /* Watch for end of this clock */
-	  cassette_pulsestate = ST_250;
-	} else {
-	  /* It's a data pulse; bit was 1 */
-	  sample = 1;
-	  /* Ignore the data pulse falling edge */
-	  cassette_pulsestate = ST_250GOTDAT;
-	}
-      }
-      break;
-      
-    case ST_250GOTDAT:
-      if (cassette_value == 2 && value == 0) {
-	/* End of data pulse; watch for end of next clock */
-	cassette_pulsestate = ST_250;
-      }
-      break;
-    }
-    if (sample == 2) break;
-
-    cassette_bitnumber--;
-    if (cassette_bitnumber < 0) cassette_bitnumber = 7;
-    cassette_byte |= (sample << cassette_bitnumber);
-    if (cassette_bitnumber == 0) {
-        //joshlog("Gonna CAS out a %02X\n", 0xFF & cassette_byte);
-      if (!cassette_file && !select_and_open_non_wav_cassette()) {
-        assert_state(FAILED);
-        break;
-      }
-      putc(cassette_byte, cassette_file);
-      cassette_byte = 0;
-    }
-    break;
-
-
-  default:
-    error("output format %s not implemented",
-	  cassette_format < (sizeof(format_name)/sizeof(char *)) ?
-	  format_name[cassette_format] : "out of range;");
-    break;
-  }
-
-  //sigprocmask(SIG_SETMASK, &oldset, NULL);
-  if (cassette_value != value) last_sound = z80_state.t_count;
-  cassette_transition = z80_state.t_count;
-  cassette_value = value;
+    //sigprocmask(SIG_SETMASK, &oldset, NULL);
+    if (cassette_value != value) last_sound = z80_state.t_count;
+    cassette_transition = z80_state.t_count;
+    cassette_value = value;
 }
 
 /* Read a new transition, updating cassette_next and cassette_delta.
@@ -1054,165 +1054,165 @@ transition_out(int value)
 static int
 transition_in()
 {
-  unsigned long delta_us, nsamples, maxsamples;
-  Ushort code;
-  Uint d;
-  int next, ret = 0;
-  int c, cabs;
-  float delta_ts;
-  //sigset_t set, oldset;
+    unsigned long delta_us, nsamples, maxsamples;
+    Ushort code;
+    Uint d;
+    int next, ret = 0;
+    int c, cabs;
+    float delta_ts;
+    //sigset_t set, oldset;
 
-  //sigemptyset(&set);
-  //sigaddset(&set, SIGALRM);
-  //sigprocmask(SIG_BLOCK, &set, &oldset);
+    //sigemptyset(&set);
+    //sigaddset(&set, SIGALRM);
+    //sigprocmask(SIG_BLOCK, &set, &oldset);
 
-  switch (cassette_format) {
-  case DEBUG_FORMAT:
-    if (fscanf(cassette_file, "%d %lu\n", &next, &delta_us) == 2) {
-      delta_ts = delta_us * z80_state.clockMHz - cassette_roundoff_error;
-      cassette_delta = (unsigned long)(delta_ts + 0.5);
-      cassette_roundoff_error = cassette_delta - delta_ts;
-      cassette_next = next;
+    switch (cassette_format) {
+        case DEBUG_FORMAT:
+            if (fscanf(cassette_file, "%d %lu\n", &next, &delta_us) == 2) {
+                delta_ts = delta_us * z80_state.clockMHz - cassette_roundoff_error;
+                cassette_delta = (unsigned long)(delta_ts + 0.5);
+                cassette_roundoff_error = cassette_delta - delta_ts;
+                cassette_next = next;
 #if CASSDEBUG
-      debug("%d %4lu %d\n", cassette_value, cassette_delta, cassette_next);
+                debug("%d %4lu %d\n", cassette_value, cassette_delta, cassette_next);
 #endif
-      ret = 1;
-    }
-    break;
-    
-  case CPT_FORMAT:
-    c = get_twobyte(&code, cassette_file);
-    if (c == -1) break;
-    if (code == 0xffff) {
-      c = getc(cassette_file);
-      if (c == EOF) break;
-      cassette_next = c;
-      c = get_fourbyte(&d, cassette_file);
-      if (c == -1) break;
-      delta_us = d;
-    } else {
-      cassette_next = code & 3;
-      delta_us = code >> 2;
-    }
-    delta_ts = delta_us * z80_state.clockMHz - cassette_roundoff_error;
-    cassette_delta = (unsigned long)(delta_ts + 0.5);
-    cassette_roundoff_error = cassette_delta - delta_ts;
-#if CASSDEBUG
-    debug("%d %4lu %d\n", cassette_value, cassette_delta, cassette_next);
-#endif
-    ret = 1;
-    break;
+                ret = 1;
+            }
+            break;
 
-  case DIRECT_FORMAT:
-  case WAV_FORMAT:
-    nsamples = 0;
-    maxsamples = cassette_sample_rate / 100;
-    do {
-      int direct = (cassette_format == DIRECT_FORMAT);
-      c = get_sample(direct, cassette_file);
-      if (direct && cassette_stereo) {
-	/* Discard right channel */
-	(void) get_sample(direct, cassette_file);
-      }
-      if (c == EOF) goto fail;
-      if (c > 127 + cassette_noisefloor) {
-	next = 1;
-      } else if (c <= 127 - cassette_noisefloor) {
-	next = 2;
-      } else {
-	next = 0;
-      }
-      if (cassette_speed == SPEED_1500) {
-	cassette_noisefloor = 2;
-      } else {
-	/* Attempt to learn the correct noise cutoff adaptively.
-	 * This code is just a hack; it would be nice to know a
-	 * real signal-processing algorithm for this application
-	 */
-	cabs = abs(c - 127);
+        case CPT_FORMAT:
+            c = get_twobyte(&code, cassette_file);
+            if (c == -1) break;
+            if (code == 0xffff) {
+                c = getc(cassette_file);
+                if (c == EOF) break;
+                cassette_next = c;
+                c = get_fourbyte(&d, cassette_file);
+                if (c == -1) break;
+                delta_us = d;
+            } else {
+                cassette_next = code & 3;
+                delta_us = code >> 2;
+            }
+            delta_ts = delta_us * z80_state.clockMHz - cassette_roundoff_error;
+            cassette_delta = (unsigned long)(delta_ts + 0.5);
+            cassette_roundoff_error = cassette_delta - delta_ts;
+#if CASSDEBUG
+            debug("%d %4lu %d\n", cassette_value, cassette_delta, cassette_next);
+#endif
+            ret = 1;
+            break;
+
+        case DIRECT_FORMAT:
+        case WAV_FORMAT:
+            nsamples = 0;
+            maxsamples = cassette_sample_rate / 100;
+            do {
+                int direct = (cassette_format == DIRECT_FORMAT);
+                c = get_sample(direct, cassette_file);
+                if (direct && cassette_stereo) {
+                    /* Discard right channel */
+                    (void) get_sample(direct, cassette_file);
+                }
+                if (c == EOF) goto fail;
+                if (c > 127 + cassette_noisefloor) {
+                    next = 1;
+                } else if (c <= 127 - cassette_noisefloor) {
+                    next = 2;
+                } else {
+                    next = 0;
+                }
+                if (cassette_speed == SPEED_1500) {
+                    cassette_noisefloor = 2;
+                } else {
+                    /* Attempt to learn the correct noise cutoff adaptively.
+                     * This code is just a hack; it would be nice to know a
+                     * real signal-processing algorithm for this application
+                     */
+                    cabs = abs(c - 127);
 #if CASSDEBUG2
-	debug("%f %f %d %d -> %d\n", cassette_avg, cassette_env,
+                    debug("%f %f %d %d -> %d\n", cassette_avg, cassette_env,
 	       cassette_noisefloor, cabs, next);
 #endif
-	if (cabs > 1) {
-	  cassette_avg = (99*cassette_avg + cabs)/100;
-	}
-	if (cabs > cassette_env) {
-	  cassette_env = (cassette_env + 9*cabs)/10;
-	} else if (cabs > 10) {
-	  cassette_env = (99*cassette_env + cabs)/100;
-	}
-	cassette_noisefloor = (cassette_avg + cassette_env)/2;
-      }
-      nsamples++;
-      /* Allow reset button */
-      trs_get_event(FALSE);
-      if (z80_state.nmi) break;
-    } while (next == cassette_value && maxsamples-- > 0);
-    cassette_next = next;
-    delta_ts = nsamples * (1000000.0/cassette_sample_rate)
-      * z80_state.clockMHz - cassette_roundoff_error;
-    cassette_delta = (unsigned long) delta_ts + 0.5;
-    cassette_roundoff_error = cassette_delta - delta_ts;
+                    if (cabs > 1) {
+                        cassette_avg = (99*cassette_avg + cabs)/100;
+                    }
+                    if (cabs > cassette_env) {
+                        cassette_env = (cassette_env + 9*cabs)/10;
+                    } else if (cabs > 10) {
+                        cassette_env = (99*cassette_env + cabs)/100;
+                    }
+                    cassette_noisefloor = (cassette_avg + cassette_env)/2;
+                }
+                nsamples++;
+                /* Allow reset button */
+                trs_get_event(FALSE);
+                if (z80_state.nmi) break;
+            } while (next == cassette_value && maxsamples-- > 0);
+            cassette_next = next;
+            delta_ts = nsamples * (1000000.0/cassette_sample_rate)
+                       * z80_state.clockMHz - cassette_roundoff_error;
+            cassette_delta = (unsigned long) delta_ts + 0.5;
+            cassette_roundoff_error = cassette_delta - delta_ts;
 #if CASSDEBUG
-    debug("%3lu -> %d %4lu %d\n",
+            debug("%3lu -> %d %4lu %d\n",
 	  nsamples, cassette_value, cassette_delta, cassette_next);
 #endif
-    ret = 1;
-    break;
+            ret = 1;
+            break;
 
-  case CAS_FORMAT:
-    if (cassette_pulsestate == 0) {
-      cassette_bitnumber--;
-    }
-    if (cassette_bitnumber < 0) {
-      c = getc(cassette_file);
-      if (c == EOF) {
-	/* Add one extra zero byte to work around an apparent bug
-	   in the Vavasour Model I emulator's .CAS files */
-	if (cassette_byte == 0x100) goto fail;
-	c = 0x100;
-      }
-      cassette_byte = c;
-      cassette_bitnumber = 7;
-    }
-    c = (cassette_byte >> cassette_bitnumber) & 1;
-    delta_us =
-      pulse_shape[cassette_speed][c][cassette_pulsestate].delta_us;
-    cassette_next =
-      pulse_shape[cassette_speed][c][cassette_pulsestate].next;
-    cassette_pulsestate++;
-    if (pulse_shape[cassette_speed][c][cassette_pulsestate].next == -1) {
-      cassette_pulsestate = 0;
-      /* Kludge to emulate extra delay that's needed after the initial
-	 0xA5 sync byte to let Basic execute the CLEAR routine.
-      */
-      if (cassette_byte == 0xa5 && cassette_speed == SPEED_500) {
-	delta_us += 1034;
-      }
-    }
-    delta_ts = delta_us * z80_state.clockMHz - cassette_roundoff_error;
-    cassette_delta = (unsigned long)(delta_ts + 0.5);
-    cassette_roundoff_error = cassette_delta - delta_ts;
+        case CAS_FORMAT:
+            if (cassette_pulsestate == 0) {
+                cassette_bitnumber--;
+            }
+            if (cassette_bitnumber < 0) {
+                c = getc(cassette_file);
+                if (c == EOF) {
+                    /* Add one extra zero byte to work around an apparent bug
+                       in the Vavasour Model I emulator's .CAS files */
+                    if (cassette_byte == 0x100) goto fail;
+                    c = 0x100;
+                }
+                cassette_byte = c;
+                cassette_bitnumber = 7;
+            }
+            c = (cassette_byte >> cassette_bitnumber) & 1;
+            delta_us =
+                    pulse_shape[cassette_speed][c][cassette_pulsestate].delta_us;
+            cassette_next =
+                    pulse_shape[cassette_speed][c][cassette_pulsestate].next;
+            cassette_pulsestate++;
+            if (pulse_shape[cassette_speed][c][cassette_pulsestate].next == -1) {
+                cassette_pulsestate = 0;
+                /* Kludge to emulate extra delay that's needed after the initial
+               0xA5 sync byte to let Basic execute the CLEAR routine.
+                */
+                if (cassette_byte == 0xa5 && cassette_speed == SPEED_500) {
+                    delta_us += 1034;
+                }
+            }
+            delta_ts = delta_us * z80_state.clockMHz - cassette_roundoff_error;
+            cassette_delta = (unsigned long)(delta_ts + 0.5);
+            cassette_roundoff_error = cassette_delta - delta_ts;
 #if CASSDEBUG
-    debug("%d %4lu %d\n",
+            debug("%d %4lu %d\n",
 	  cassette_value, cassette_delta, cassette_next);
 #endif
-    ret = 1;
-    break;
+            ret = 1;
+            break;
 
-  default:
-    error("input format %s not implemented",
-	  cassette_format < (sizeof(format_name)/sizeof(char *)) ?
-	  format_name[cassette_format] : "out of range;");
-    break;
-  }
-  fail:
-  if (ret == 0) {
-    cassette_delta = (unsigned long) -1;
-  }
-  //sigprocmask(SIG_SETMASK, &oldset, NULL);
-  return ret;
+        default:
+            error("input format %s not implemented",
+                  cassette_format < (sizeof(format_name)/sizeof(char *)) ?
+                  format_name[cassette_format] : "out of range;");
+            break;
+    }
+    fail:
+    if (ret == 0) {
+        cassette_delta = (unsigned long) -1;
+    }
+    //sigprocmask(SIG_SETMASK, &oldset, NULL);
+    return ret;
 }
 
 /* If the motor has been on for 1 second (emulated time), the i/o port
@@ -1222,108 +1222,108 @@ transition_in()
 void
 trs_cassette_kickoff(int dummy)
 {
-  if (cassette_motor && cassette_state == CLOSE &&
-      trs_cassette_interrupts_enabled()) {
-    cassette_speed = SPEED_1500;
-    cassette_transition = z80_state.t_count;
-    trs_cassette_fall_interrupt(1);
-    trs_cassette_rise_interrupt(1);
-  }
+    if (cassette_motor && cassette_state == CLOSE &&
+        trs_cassette_interrupts_enabled()) {
+        cassette_speed = SPEED_1500;
+        cassette_transition = z80_state.t_count;
+        trs_cassette_fall_interrupt(1);
+        trs_cassette_rise_interrupt(1);
+    }
 }
 
 /* Z80 program is turning motor on or off */
 void trs_cassette_motor(int value)
 {
-  if (value) {
-    /* motor on */
-    if (!cassette_motor) {
+    if (value) {
+        /* motor on */
+        if (!cassette_motor) {
 #if CASSDEBUG3
-      debug("motor on %ld\n", z80_state.t_count);
+            debug("motor on %ld\n", z80_state.t_count);
 #endif
-      trs_realtime_disable();
-      cassette_motor = 1;
-      cassette_transition = z80_state.t_count;
-      cassette_value = 0;
-      cassette_next = 0;
-      cassette_delta = 0;
-      cassette_flipflop = 0;
-      cassette_byte = 0;
-      cassette_bitnumber = 0;
-      cassette_pulsestate = 0;
-      cassette_speed = SPEED_500;
-      cassette_roundoff_error = 0.0;
-      cassette_avg = NOISE_FLOOR;
-      cassette_env = 127;
-      cassette_noisefloor = NOISE_FLOOR;
-      cassette_firstoutread = 0;
-      cassette_transitionsout = 0;
-      if (trs_model > 1) {
-	/* Get 1500bps reading started after 1 second */
-	trs_schedule_event(trs_cassette_kickoff, 0,
-			   (tstate_t) (1000000 * z80_state.clockMHz));
-      }
-    }
-  } else {
-    /* motor off */
-    if (cassette_motor) {
+            trs_realtime_disable();
+            cassette_motor = 1;
+            cassette_transition = z80_state.t_count;
+            cassette_value = 0;
+            cassette_next = 0;
+            cassette_delta = 0;
+            cassette_flipflop = 0;
+            cassette_byte = 0;
+            cassette_bitnumber = 0;
+            cassette_pulsestate = 0;
+            cassette_speed = SPEED_500;
+            cassette_roundoff_error = 0.0;
+            cassette_avg = NOISE_FLOOR;
+            cassette_env = 127;
+            cassette_noisefloor = NOISE_FLOOR;
+            cassette_firstoutread = 0;
+            cassette_transitionsout = 0;
+            if (trs_model > 1) {
+                /* Get 1500bps reading started after 1 second */
+                trs_schedule_event(trs_cassette_kickoff, 0,
+                                   (tstate_t) (1000000 * z80_state.clockMHz));
+            }
+        }
+    } else {
+        /* motor off */
+        if (cassette_motor) {
 
-      if (cassette_state == WRITE) {
-	transition_out(FLUSH);
-      }
-      assert_state(CLOSE);
-      cassette_motor = 0;
-      trs_realtime_enable();
+            if (cassette_state == WRITE) {
+                transition_out(FLUSH);
+            }
+            assert_state(CLOSE);
+            cassette_motor = 0;
+            trs_realtime_enable();
+        }
     }
-  }
 }
 
 void trs_cassette_out(int value)
 {
 #if CASSDEBUG3
-  debug("out %ld\n", z80_state.t_count);
+    debug("out %ld\n", z80_state.t_count);
 #endif
-  if (cassette_motor) {
-    if (cassette_state == READ) {
-      trs_cassette_update(0);
-      cassette_flipflop = 0;
-      if (cassette_firstoutread == 0) {
-	cassette_firstoutread = z80_state.t_count;
-      }
+    if (cassette_motor) {
+        if (cassette_state == READ) {
+            trs_cassette_update(0);
+            cassette_flipflop = 0;
+            if (cassette_firstoutread == 0) {
+                cassette_firstoutread = z80_state.t_count;
+            }
+        }
+        if (cassette_state != READ && value != cassette_value) {
+            if (assert_state(WRITE) < 0) return;
+            transition_out(value);
+        }
     }
-    if (cassette_state != READ && value != cassette_value) {
-      if (assert_state(WRITE) < 0) return;
-      transition_out(value);
-    }
-  }
 
-  /* Do sound emulation by sending samples to /dev/dsp if available */
-  if (cassette_motor == 0) {
-    if (cassette_state != SOUND && value == 0) return;
-    if (assert_state(SOUND) < 0) return;
-    trs_suspend_delay();
-    transition_out(value);
-  }
+    /* Do sound emulation by sending samples to /dev/dsp if available */
+    if (cassette_motor == 0) {
+        if (cassette_state != SOUND && value == 0) return;
+        if (assert_state(SOUND) < 0) return;
+        trs_suspend_delay();
+        transition_out(value);
+    }
 }
 
 /* Cassette #-1 vs. #-2 selection port */
 void
 trs_cassette_select(int value)
 {
-  value &= 1;
-  if (value != 0) {
-    error("XXX cassette 2 not implemented yet");
-  }
+    value &= 1;
+    if (value != 0) {
+        error("XXX cassette 2 not implemented yet");
+    }
 }
 
 /* Model 4 sound port */
 void
 trs_sound_out(int value)
 {
-  if (cassette_motor == 0) {
-    if (assert_state(SOUND) < 0) return;
-    trs_suspend_delay();
-    transition_out(value ? 1 : 2);
-  }
+    if (cassette_motor == 0) {
+        if (assert_state(SOUND) < 0) return;
+        trs_suspend_delay();
+        transition_out(value ? 1 : 2);
+    }
 }
 
 #if HAVE_OSS
@@ -1346,7 +1346,7 @@ void
 trs_orch90_out(int channels, int value)
 {
 #if HAVE_OSS
-  long nsamples;
+    long nsamples;
   float ddelta_us;
   sigset_t set, oldset;
   int new_left, new_right;
@@ -1409,70 +1409,70 @@ trs_orch90_out(int channels, int value)
   orch90_left = new_left;
   orch90_right = new_right;
 #else
-  no_sound();
+    no_sound();
 #endif
 }
 
 void
 trs_cassette_update(int dummy)
 {
-  if (cassette_motor && cassette_state != WRITE && assert_state(READ) >= 0) {
-    int newtrans = 0;
-    while ((z80_state.t_count - cassette_transition) >= cassette_delta) {
-        if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED
+    if (cassette_motor && cassette_state != WRITE && assert_state(READ) >= 0) {
+        int newtrans = 0;
+        while ((z80_state.t_count - cassette_transition) >= cassette_delta) {
+            if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED
                 || joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED_STATUS) {
-            put_control();
-            assert_state(CLOSE);
-            get_control(); //Responds to JOSHEM_TAPESWITCH_REQUESTED
-            assert_state(READ);
-        }
+                put_control();
+                assert_state(CLOSE);
+                get_control(); //Responds to JOSHEM_TAPESWITCH_REQUESTED
+                assert_state(READ);
+            }
 
-	/* Simulate analog signal processing on the 500-bps cassette input */
-	if (cassette_next != 0 && cassette_value == 0) {
-	  cassette_flipflop = 0x80;
-	}
+            /* Simulate analog signal processing on the 500-bps cassette input */
+            if (cassette_next != 0 && cassette_value == 0) {
+                cassette_flipflop = 0x80;
+            }
 
-	/* Deliver the previously read transition from the file */
-	cassette_value = cassette_next;
-	cassette_transition += cassette_delta;
+            /* Deliver the previously read transition from the file */
+            cassette_value = cassette_next;
+            cassette_transition += cassette_delta;
 
-	/* Remember last nonzero value to get hysteresis in 1500 bps
-	   zero-crossing detector */
-	if (cassette_value != 0) cassette_lastnonzero = cassette_value;
+            /* Remember last nonzero value to get hysteresis in 1500 bps
+               zero-crossing detector */
+            if (cassette_value != 0) cassette_lastnonzero = cassette_value;
 
-	/* Read the next transition */
-	newtrans = transition_in();
-
-        //JOSH TEST
-        while (newtrans == 0) {
-            put_control();
-            assert_state(CLOSE);
-            do_joshem_tapedialog(0);
-            assert_state(READ);
+            /* Read the next transition */
             newtrans = transition_in();
-        }
 
-	/* Allow reset button */
-	trs_get_event(FALSE);
-	if (z80_state.nmi) return;
+            //JOSH TEST
+            while (newtrans == 0) {
+                put_control();
+                assert_state(CLOSE);
+                do_joshem_tapedialog(0);
+                assert_state(READ);
+                newtrans = transition_in();
+            }
+
+            /* Allow reset button */
+            trs_get_event(FALSE);
+            if (z80_state.nmi) return;
+        }
+        /* Schedule an interrupt on the 1500-bps cassette input if needed */
+        if (newtrans && cassette_speed == SPEED_1500) {
+            if (cassette_next == 2 && cassette_lastnonzero != 2) {
+                trs_schedule_event(trs_cassette_fall_interrupt, 1,
+                                   cassette_delta -
+                                   (z80_state.t_count - cassette_transition));
+            } else if (cassette_next == 1 && cassette_lastnonzero != 1) {
+                trs_schedule_event(trs_cassette_rise_interrupt, 1,
+                                   cassette_delta -
+                                   (z80_state.t_count - cassette_transition));
+            } else {
+                trs_schedule_event(trs_cassette_update, 0,
+                                   cassette_delta -
+                                   (z80_state.t_count - cassette_transition));
+            }
+        }
     }
-    /* Schedule an interrupt on the 1500-bps cassette input if needed */
-    if (newtrans && cassette_speed == SPEED_1500) {
-      if (cassette_next == 2 && cassette_lastnonzero != 2) {
-	trs_schedule_event(trs_cassette_fall_interrupt, 1,
-			   cassette_delta -
-			   (z80_state.t_count - cassette_transition));
-      } else if (cassette_next == 1 && cassette_lastnonzero != 1) {
-	trs_schedule_event(trs_cassette_rise_interrupt, 1,
-			   cassette_delta -
-			   (z80_state.t_count - cassette_transition));
-      } else {
-	trs_schedule_event(trs_cassette_update, 0,
-			   cassette_delta -
-			   (z80_state.t_count - cassette_transition));
-      }
-    }
-  }
 }
 
 
@@ -1480,44 +1480,44 @@ int
 trs_cassette_in()
 {
 #if CASSDEBUG3
-  debug("in  %ld\n", z80_state.t_count);
+    debug("in  %ld\n", z80_state.t_count);
 #endif
-  if (cassette_motor && cassette_transitionsout <= 1) {
-    assert_state(READ);
-  }
-  /* Heuristic to detect reading with Level 1 routines.  If the
-     routine paused too long after resetting the flipflop before
-     reading it again, assume it must be Level 1 code.  */
-  if (cassette_firstoutread > 1) {
-    if ((z80_state.t_count - cassette_firstoutread)
-	/ z80_state.clockMHz > DETECT_250) {
-      cassette_speed = SPEED_250;
-    } else {
-      cassette_speed = SPEED_500;
+    if (cassette_motor && cassette_transitionsout <= 1) {
+        assert_state(READ);
     }
+    /* Heuristic to detect reading with Level 1 routines.  If the
+       routine paused too long after resetting the flipflop before
+       reading it again, assume it must be Level 1 code.  */
+    if (cassette_firstoutread > 1) {
+        if ((z80_state.t_count - cassette_firstoutread)
+            / z80_state.clockMHz > DETECT_250) {
+            cassette_speed = SPEED_250;
+        } else {
+            cassette_speed = SPEED_500;
+        }
 #if CASSDEBUG4
-    debug("250 detector = %s (%f)\n",
+        debug("250 detector = %s (%f)\n",
 	  (cassette_speed == SPEED_250) ? "yes" : "no",
 	  (z80_state.t_count - cassette_firstoutread) / z80_state.clockMHz);
 #endif
-    cassette_firstoutread = 1; /* disable detector */
-  }
-  trs_cassette_clear_interrupts();
-  trs_cassette_update(0);
-  if (trs_model == 1) {
-    return cassette_flipflop;
-  } else {
-    return cassette_flipflop | (cassette_lastnonzero == 1);
-  }
+        cassette_firstoutread = 1; /* disable detector */
+    }
+    trs_cassette_clear_interrupts();
+    trs_cassette_update(0);
+    if (trs_model == 1) {
+        return cassette_flipflop;
+    } else {
+        return cassette_flipflop | (cassette_lastnonzero == 1);
+    }
 }
 
 void
 trs_cassette_reset()
 {
-  assert_state(CLOSE);
+    assert_state(CLOSE);
 }
 
 int trs_cassette_is_motor_on() {
-  return trs_model != 0;
+    return trs_model != 0;
 }
 
