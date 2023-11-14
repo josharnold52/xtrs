@@ -243,7 +243,21 @@ static long wave_data_offset = WAVE_DATA_OFFSET;
 #define JOSHEM_TAPESWITCH_ACTIVE (1)
 
 static int joshem_tapeswitch_state = JOSHEM_TAPESWITCH_NONE;
+static int joshem_cas_autoopen_enabled = 0;
+static int joshem_cas_rt_suppressed = 0;
 
+static void josh_cas_rt_off() {
+    if (!joshem_cas_rt_suppressed) {
+        trs_realtime_disable();
+        joshem_cas_rt_suppressed = 1;
+    }
+}
+static void josh_cas_rt_on() {
+    if (joshem_cas_rt_suppressed) {
+        trs_realtime_enable();
+        joshem_cas_rt_suppressed = 0;
+    }
+}
 
 static void ensure_cassette_file_closed() {
     if (cassette_file != NULL) {
@@ -269,6 +283,11 @@ static int open_non_wav_cassette_for_writing() {
 }
 
 static void do_joshem_tapedialog(int writeRequested) {
+    joshem_cas_autoopen_enabled = 0;
+    if (cassette_motor) {
+        //Ensure RT is off when we open the dialog because we may have re-enabled it at end of prev tape
+        josh_cas_rt_off();
+    }
     int requested_status = joshem_tapeswitch_state == JOSHEM_TAPESWITCH_REQUESTED_STATUS;
     joshem_tapeswitch_state = JOSHEM_TAPESWITCH_ACTIVE;
 
@@ -1240,7 +1259,8 @@ void trs_cassette_motor(int value)
 #if CASSDEBUG3
             debug("motor on %ld\n", z80_state.t_count);
 #endif
-            trs_realtime_disable();
+            joshem_cas_autoopen_enabled = 1;
+            josh_cas_rt_off();
             cassette_motor = 1;
             cassette_transition = z80_state.t_count;
             cassette_value = 0;
@@ -1266,13 +1286,13 @@ void trs_cassette_motor(int value)
     } else {
         /* motor off */
         if (cassette_motor) {
-
+            joshem_cas_autoopen_enabled = 0;
             if (cassette_state == WRITE) {
                 transition_out(FLUSH);
             }
             assert_state(CLOSE);
             cassette_motor = 0;
-            trs_realtime_enable();
+            josh_cas_rt_on();
         }
     }
 }
@@ -1444,12 +1464,28 @@ trs_cassette_update(int dummy)
             newtrans = transition_in();
 
             //JOSH TEST
-            while (newtrans == 0) {
+            if (newtrans == 0 && joshem_cas_autoopen_enabled) {
+                // Auto-pop the tape dialog just once.   joshem_cas_autoopen_enabled gets reset
+                // by the dialog and will get set the next time the motor toggles.
                 put_control();
                 assert_state(CLOSE);
                 do_joshem_tapedialog(0);
                 assert_state(READ);
                 newtrans = transition_in();
+            }
+
+            if (newtrans == 0) {
+                //I want to emulate a "no tape condition" so I'll just set cassette_next to cassette_value
+                // and set the next transition to 10000 cycles from previous transition.
+                cassette_next = cassette_value;
+                cassette_delta = 10000;
+                cassette_roundoff_error = 0;
+                // Re-enable realtime while we wait for a new cassette.  It will get disabled again
+                // if the dialog pops while the motor is on.
+                josh_cas_rt_on();
+                //Don't set newtrans because we don't want to trigger an interrupt on Model 3.
+                //We will exit out of the loop once cassette_transition (time of last transition)
+                //catches up to the current clock.
             }
 
             /* Allow reset button */
