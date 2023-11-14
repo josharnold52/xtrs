@@ -315,7 +315,9 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
         joshlog("Prefill dir (%d levels): %s\n", dirLevels, baseDir);
     }
 
-    static const choice choices[] = {"(B)ack", "(S)elect", "(A)bout", "(C)ancel", "(N)ext"};
+    const int opt_x_inx = 80;
+    static const choice choices[] = {"(B)ack", "(S)elect", "(U)p", "(A)bout", "(C)ancel", "(N)ext"};
+    char choice_enabled[ sizeof(choices) / sizeof(choices[0]) ] = {};
     static const char *chooseMsg = "Choose Cassette";
     cassette_table *pTable = 0;
     int currentEntry = 0;
@@ -422,8 +424,19 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
 
         }
 
-        for (int ii = 0; ii < 5; ii++) {
-            GrDrawString((void *) choices[ii], (int) strlen(choices[ii]), x - 200 + ii * 100, y + 35, &grt);
+        for (int ii = 0; ii < 6; ii++) {
+            if (
+                    (ii == 0 && currentEntry == 0)
+                || (ii == 5 && currentEntry >= (pTable->size - 1))
+                || (ii == 2 && dirLevels == 0)
+                    ) {
+                grt.txo_fgcolor.v = COLOR_DISABLED;
+                choice_enabled[ii] = 0;
+            } else {
+                choice_enabled[ii] = 1;
+            }
+            GrDrawString((void *) choices[ii], (int) strlen(choices[ii]), x - 200 + ii * opt_x_inx, y + 35, &grt);
+            grt = baset;
         }
 
         int choice = -1;
@@ -447,11 +460,11 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
                 case GrKey_Down:
                     //HACK - Down arrow key is like right but brings us all the way to the top
                     currentEntry = pTable->size - 1;
-                    choice = 4;
+                    choice = 5;
                     break;
                 case GrKey_Right:
                 case 'N':
-                    choice = 4;
+                    choice = 5;
                     break;
                 case GrKey_Return:
                 case 'S':
@@ -459,9 +472,12 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
                     break;
                 case GrKey_Escape:
                 case 'C':
-                    choice = 3;
+                    choice = 4;
                     break;
                 case 'A':
+                    choice = 3;
+                    break;
+                case 'U':
                     choice = 2;
                     break;
                 default:
@@ -470,13 +486,15 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
         }
         grt.txo_fgcolor.v = GrBlack();
         grt.txo_bgcolor.v = GrWhite();
-        GrDrawString((void *) choices[choice], strlen(choices[choice]), x - 200 + choice * 100, y + 35, &grt);
+        if (choice_enabled[choice]) {
+            GrDrawString((void *) choices[choice], strlen(choices[choice]), x - 200 + choice * opt_x_inx, y + 35, &grt);
+        }
         usleep(50000);
 
         if (choice == 0) {
             if (currentEntry > 0)
                 currentEntry--;
-        } else if (choice == 4) {
+        } else if (choice == 5) {
             if (currentEntry < (pTable->size - 1))
                 currentEntry++;
         } else if (choice == 1) {
@@ -494,19 +512,19 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
                 reload_table = 1;
                 dirLevels++;
             } else if (pSel->entry_type == ENTRY_TYPE_PARENTDIR && dirLevels > 0) {
-                char *p = strrchr(baseDir, '\\');
-                if (p) {
-                    *p = 0;
+                size_t dsp = find_dirsep_from_right(baseDir, 0, strlen(baseDir));
+                if (dsp) {
+                    baseDir[dsp] = 0;
                     dirLevels--;
                     reload_table = 1;
                 }
                 joshlog("%s %d\n", baseDir, dirLevels);
             }
             continue;
-        } else if (choice == 3) {
+        } else if (choice == 4) {
             //cancel
             break;
-        } else if (choice == 2) {
+        } else if (choice == 3) {
             if (pTable->pEntries[currentEntry].entry_type == ENTRY_TYPE_CASSETTE ||
                 pTable->pEntries[currentEntry].entry_type == ENTRY_TYPE_SUBDIR) {
                 struct mem_block *pmeta = load_cassette_meta(baseDir, pTable->pEntries[currentEntry].filename);
@@ -516,6 +534,15 @@ static int choose_cassette(cassette_entry_fn pDest, const char *initial_selectio
                 }
                 GrClearScreen(GrBlack());
             }
+        } else if (choice == 2 &&  dirLevels > 0) {
+            size_t dsp = find_dirsep_from_right(baseDir, 0, strlen(baseDir));
+            if (dsp) {
+                baseDir[dsp] = 0;
+                dirLevels--;
+                reload_table = 1;
+            }
+            joshlog("%s %d\n", baseDir, dirLevels);
+
         }
         //grt.txo_fgcolor.v = GrBlack();
         //grt.txo_bgcolor.v = GrWhite();
@@ -801,7 +828,7 @@ static void show_help(char *disp_name, struct mem_block *meta) {
                 size_t e = rtrim_offset(meta->data, s, nx);
                 if (e > s) {
                     grt.txo_font = &GrFont_PC8x8;
-                    grt.txo_fgcolor.v = COLOR_SECONDARY;
+                    grt.txo_fgcolor.v = COLOR_TERTIARY;
                     GrDrawString(meta->data + s, (int) (e - s),
                                  insetx + 12  , insety + 10 + 20 + screen_line * 9, &grt);
                 }
@@ -937,7 +964,7 @@ static struct draw_cassette_result draw_cassette(joshem_cassette_control_args *p
             char track_posstr[20];
             sprintf(track_posstr, "%d", pArgs->cassette_position);
             grt.txo_xalign = GR_ALIGN_RIGHT;
-            grt.txo_fgcolor.v = COLOR_SECONDARY;
+            grt.txo_fgcolor.v = COLOR_TERTIARY;
             GrDrawString(track_posstr, (int) strlen(track_posstr), midx + bx2, midy + by1 - 5, &grt);
             grt = base_grt;
         }

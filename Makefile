@@ -130,10 +130,10 @@ target/deps/%.o:
 	mkdir -p target/deps && touch $@
 
 target/dos/%.o: %.c target/deps/%.o
-	mkdir -p target/dos && $(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	mkdir -p target/dos && $(CC) $(CFLAGS) $(CPPFLAGS) -fverbose-asm -save-temps=obj -c -o $@ $<
 
 target/dos/%.o: %.cpp target/deps/%.o
-	mkdir -p target/dos && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	mkdir -p target/dos && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -fverbose-asm  -save-temps=obj -c -o $@ $<
 
 target/local/%.o: %.c target/deps/%.o
 	mkdir -p target/local && $(BUILD_CC) -c -o $@ $<

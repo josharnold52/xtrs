@@ -276,6 +276,18 @@ void trs_exit() {
     exit(0);
 }
 
+static void reload_grx_colors() {
+    GrResetColors();
+    COLOR_BORDER = GrAllocColor(0, 0, 192);
+    COLOR_PRIMARY = GrAllocColor(0, 192, 0);
+    COLOR_PRIMARY_DIM = GrAllocColor(0, 96, 0);
+    COLOR_SECONDARY = GrAllocColor(192, 0, 0);
+    COLOR_DISABLED = GrAllocColor(64,64,64);
+    COLOR_SECONDARY_BRIGHT = GrAllocColor(255,255,255);
+    COLOR_TERTIARY = GrAllocColor(127, 127, 0);
+
+}
+
 
 /* exits if something really bad happens */
 void trs_screen_init() {
@@ -311,7 +323,7 @@ void trs_screen_init() {
 
 
     //FILE * modout;
-    GrSetDriver("VESA");
+    GrSetDriver("stdvga");
     //GrSetDriver("s3");
 
 
@@ -379,16 +391,7 @@ void trs_screen_init() {
     trs_screen_pattern.gp_bitmap.bmp_fgcolor = GrWhite();
     trs_screen_pattern.gp_bitmap.bmp_bgcolor = GrBlack();
     trs_screen_pattern.gp_bitmap.bmp_memflags = 0;
-
-
-    COLOR_BORDER = GrAllocColor(255, 0, 0);
-    COLOR_PRIMARY = GrAllocColor(0, 255, 255);
-    COLOR_PRIMARY_DIM = GrAllocColor(0, 127, 127);
-    COLOR_SECONDARY = GrAllocColor(127, 127, 127);
-    COLOR_DISABLED = GrAllocColor(64,64,64);
-    COLOR_SECONDARY_BRIGHT = GrAllocColor(255,255,255);
-    COLOR_TERTIARY = GrAllocColor(0, 127, 0);
-
+    reload_grx_colors();
     repaint_screen();
     trs_load_romfile();
 
@@ -1093,6 +1096,7 @@ trs_load_romfile() {
 int joshem_do_modal(joshem_modal_handler handler, void *input) {
 #if VIDEO_DRIVER_VGA
     GrSetMode(GR_width_height_graphics, 640, 200);
+    reload_grx_colors();
 #endif
     joshem_modal_context context;
 
