@@ -1,0 +1,23 @@
+
+; NOTE: Uses the new zmac from http://48k.ca/zmac.html
+
+    ORG 5000H
+
+
+video equ 3C00H
+vlen equ 400H
+
+
+entrypoint: ld hl, video
+    ld a, 0
+loop: ld (hl), a
+    inc hl
+    inc a
+    jr nz, loop
+inf: jr inf
+    ld de, video + 1
+    ld bc, vlen - 1
+    ldir
+
+
+   end entrypoint

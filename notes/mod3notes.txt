@@ -1,0 +1,4 @@
+Clock speed is 2.02752
+
+I found a model 3 Level 1 rom, so I think we can probably do
+L1 and L2 for model 3

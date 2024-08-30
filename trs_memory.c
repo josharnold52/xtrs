@@ -257,7 +257,10 @@ int mem_read(int address)
 	if (address == PRINTER_ADDRESS)	return trs_printer_read();
 	if (address < trs_rom_size) return memory[address];
 	if (address >= VIDEO_START) {
-	  return grafyx_m3_read_byte(address - VIDEO_START);
+        //TODO - The original xtrs always did the read through this grafyx routine.
+        //  since we don't support it yet, just read memory directly
+	  //return grafyx_m3_read_byte(address - VIDEO_START);
+        return memory[address];
 	}
 	if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
 	return 0xff;
@@ -326,6 +329,8 @@ void mem_write(int address, int value)
     	     * Video write.  Hack here to make up for the missing bit 6
     	     * video ram, emulating the gate in Z30.
     	     */
+            // TODO - The check for model 1 probably isn't necessary since the above switch has
+            //   already determined we are in the model 1 memory map
     	    if (trs_model == 1) {
     		if(value & 0xa0)
     		  value &= 0xbf;
@@ -361,7 +366,9 @@ void mem_write(int address, int value)
 	    memory[address] = value;
 	} else if (address >= VIDEO_START) {
 	    int vaddr = address + video_offset;
+        //TODO for now the grafyx write is a no-op
 	    if (grafyx_m3_write_byte(vaddr, value)) return;
+        //TODO simulate wait states?
 	    if (video[vaddr] != value) {
 	      video[vaddr] = value;
 	      trs_screen_write_char(vaddr, value);

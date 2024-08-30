@@ -776,7 +776,7 @@ void joshem_cassette_control(joshem_cassette_control_args *pArgs) {
 static void show_help(char *disp_name, struct mem_block *meta) {
     int mx, my;
     int insety = 4;
-    int insetx = 20;
+    int insetx = 10;
     int retVal = 0;
 
     GrTextOption grt;

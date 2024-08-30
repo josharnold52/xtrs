@@ -52,7 +52,7 @@ static void setCGAHighRes() {
     __dpmi_regs regs;
     prepare_bios_regs(&regs);
     regs.h.ah  = 0;
-    regs.h.al = 6;
+    regs.h.al = 6;  //640x200 - 1 bit
     __dpmi_simulate_real_mode_interrupt(0x10, &regs);
 }
 

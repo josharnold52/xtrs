@@ -35,7 +35,8 @@ DOS_OBJECTS = \
 	target/dos/trs_metafile.o \
 	target/dos/trs_ich.o \
 	target/dos/newutils.o \
-	target/dos/trs_vga.o
+	target/dos/trs_vga.o \
+	target/dos/trs_patterns.o
 
 CR_OBJECTS = \
 	target/dos/compile_rom.o \
@@ -265,7 +266,7 @@ target/deps/trs_chars.o: trs_iodefs.h
 target/deps/trs_disk.o: z80.h config.h trs.h trs_disk.h trs_hard.h crc.c
 target/deps/trs_djgpp.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
 target/deps/trs_djgpp.o: trs_uart.h trs_hard.h trs_imp_exp.h
-target/deps/trs_djgpp.o: keytrap/scanbuf.h trs_djgpp.h
+target/deps/trs_djgpp.o: keytrap/scanbuf.h trs_djgpp.h trs_vga.h
 target/deps/trs_djgpp_modal.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
 target/deps/trs_djgpp_modal.o: trs_uart.h trs_hard.h trs_imp_exp.h
 target/deps/trs_djgpp_modal.o: trs_metafile.h newutils.h trs_djgpp.h
@@ -277,6 +278,7 @@ target/deps/trs_io.o: z80.h config.h trs.h trs_disk.h trs_hard.h trs_uart.h
 target/deps/trs_keyboard.o: z80.h config.h trs.h scantran/generated_table.inc
 target/deps/trs_memory.o: z80.h config.h trs.h trs_disk.h trs_hard.h
 target/deps/trs_metafile.o: trs.h z80.h config.h newutils.h trs_metafile.h
+target/deps/trs_patterns.o: trs_iodefs.h
 target/deps/trs_printer.o: z80.h config.h trs.h newutils.h
 target/deps/trs_realtime.o: z80.h config.h trs.h
 target/deps/trs_stringy.o: z80.h config.h trs.h trs_disk.h
@@ -285,4 +287,4 @@ target/deps/trs_xinterface.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
 target/deps/trs_xinterface.o: trs_uart.h trs_hard.h trs_imp_exp.h
 target/deps/z80.o: z80.h config.h trs.h trs_imp_exp.h
 target/deps/trs_ich.o: z80.h config.h
-target/deps/trs_vga.o: trs_vga.h
+target/deps/trs_vga.o: trs.h z80.h config.h trs_vga.h trs_iodefs.h

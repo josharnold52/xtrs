@@ -97,10 +97,14 @@ static int trs_charset;
 static struct scan_buffer *pScanBuffer = 0;
 static unsigned char scanBufferCursor;
 
-static char pattern_table_1[MAXCHARS][TRS_CHAR_HEIGHT];
+//static char pattern_table_1[MAXCHARS][TRS_CHAR_HEIGHT];
 
-static char pattern_table_1_wideleft[MAXCHARS][TRS_CHAR_HEIGHT];
-static char pattern_table_1_wideright[MAXCHARS][TRS_CHAR_HEIGHT];
+//static char pattern_table_1_wideleft[MAXCHARS][TRS_CHAR_HEIGHT];
+//static char pattern_table_1_wideright[MAXCHARS][TRS_CHAR_HEIGHT];
+
+static trs_pattern_table *p_current_table;
+
+static trs_pattern_table primary_pattern_table;
 
 static int currentmode = 0;
 
@@ -165,10 +169,16 @@ static void expand_3to6bit_block(void *p, int bitoffset, int len) {
     }
 }
 
-static void not_implemented(const char *msg) {
-
-    joshlog("Not implemented: %s\n", msg);
-
+static void not_implemented(const char *msg, int *counter) {
+    int cnt;
+    cnt = counter ? (*counter) : -1;
+    if (cnt < 3) {
+        joshlog("Not implemented: %s %d\n", msg, cnt);
+        cnt++;
+        if (counter) {
+            *counter = cnt;
+        }
+    }
 
     //exit(100);
 }
@@ -291,35 +301,9 @@ static void reload_grx_colors() {
 
 /* exits if something really bad happens */
 void trs_screen_init() {
-
+    init_pattern_table(&primary_pattern_table, trs_char_data[1], 1);
+    p_current_table = &primary_pattern_table;
     memset(trs_screen, 32, sizeof(trs_screen));
-    memcpy(pattern_table_1, trs_char_data[1], sizeof(pattern_table_1));
-    reverse_bits_block(pattern_table_1, sizeof(pattern_table_1));
-
-    for (int grindex = 0; grindex < 64; grindex++) {
-        char scans[3] = {0, 0, 0};
-        scans[0] |= (grindex & 1) ? 0xE0 : 0;
-        scans[0] |= (grindex & 2) ? 0x1C : 0;
-        scans[1] |= (grindex & 4) ? 0xE0 : 0;
-        scans[1] |= (grindex & 8) ? 0x1C : 0;
-        scans[2] |= (grindex & 16) ? 0xE0 : 0;
-        scans[2] |= (grindex & 32) ? 0x1C : 0;
-        for (int scanline = 0; scanline < TRS_CHAR_HEIGHT; scanline++) {
-            int row = scanline / (TRS_CHAR_HEIGHT / 3);
-            pattern_table_1[128 + grindex][scanline] = scans[row];
-            pattern_table_1[192 + grindex][scanline] = scans[row];
-        }
-    }
-
-    memcpy(pattern_table_1_wideleft, pattern_table_1, sizeof(pattern_table_1));
-    reverse_bits_block(pattern_table_1_wideleft, sizeof(pattern_table_1_wideleft));
-    expand_3to6bit_block(pattern_table_1_wideleft, 0, sizeof(pattern_table_1_wideleft));
-    reverse_bits_block(pattern_table_1_wideleft, sizeof(pattern_table_1_wideleft));
-
-    memcpy(pattern_table_1_wideright, pattern_table_1, sizeof(pattern_table_1));
-    reverse_bits_block(pattern_table_1_wideright, sizeof(pattern_table_1_wideright));
-    expand_3to6bit_block(pattern_table_1_wideright, 3, sizeof(pattern_table_1_wideright));
-    reverse_bits_block(pattern_table_1_wideright, sizeof(pattern_table_1_wideright));
 
 
     //FILE * modout;
@@ -409,15 +393,18 @@ void trs_screen_expanded(int flag) {
 }
 
 void trs_screen_alternate(int flag) {
-    not_implemented("trs_screen_alternate");
+    static int nicounter = 0;
+    not_implemented("trs_screen_alternate", &nicounter);
 }
 
 void trs_screen_80x24(int flag) {
-    not_implemented("trs_screen_80x24");
+    static int nicounter = 0;
+    not_implemented("trs_screen_80x24", &nicounter);
 }
 
 void trs_screen_inverse(int flag) {
-    not_implemented("trs_screen_inverse");
+    static int nicounter = 0;
+    not_implemented("trs_screen_inverse", &nicounter);
 }
 
 void trs_screen_scroll() {
@@ -499,101 +486,137 @@ void trs_screen_write_char(int position, int char_index) {
     trs_screen[position] = (char) char_index;
 
     if (!(currentmode & EXPANDED)) {
-        WRITE_GLYPH_FN(pattern_table_1[char_index], position);
+        WRITE_GLYPH_FN(p_current_table->normal[char_index], position);
     } else {
         if (position & 1) {
             return;
         }
-        WRITE_GLYPH_FN(pattern_table_1_wideleft[char_index], position);
-        WRITE_GLYPH_FN(pattern_table_1_wideright[char_index], position | 1);
+        WRITE_GLYPH_FN(p_current_table->wideleft[char_index], position);
+        WRITE_GLYPH_FN(p_current_table->wideright[char_index], position | 1);
     }
     return;
 }
 
 
 void trs_get_mouse_pos(int *x, int *y, unsigned int *buttons) {
-    not_implemented("trs_get_mouse_pos");
+    static int nicounter = 0;
+    not_implemented("trs_get_mouse_pos", &nicounter);
 }
 
 void trs_set_mouse_pos(int x, int y) {
-    not_implemented("trs_set_mouse_pos");
+    static int nicounter = 0;
+    not_implemented("trs_set_mouse_pos", &nicounter);
 }
 
 void trs_get_mouse_max(int *x, int *y, unsigned int *sens) {
-    not_implemented("trs_get_mouse_max");
+    static int nicounter = 0;
+    not_implemented("trs_get_mouse_max", &nicounter);
 }
 
 void trs_set_mouse_max(int x, int y, unsigned int sens) {
-    not_implemented("trs_set_mouse_max");
+    static int nicounter = 0;
+    not_implemented("trs_set_mouse_max", &nicounter);
 }
 
 int trs_get_mouse_type() {
-    not_implemented("trs_get_mouse_type");
+    static int nicounter = 0;
+    not_implemented("trs_get_mouse_type", &nicounter);
     return 0;
 }
 
 
-void grafyx_write_byte(int x, int y, char byte) { not_implemented("grafyx_write_byte"); }
+void grafyx_write_byte(int x, int y, char byte) {
+    static int nicounter = 0;
+    not_implemented("grafyx_write_byte", &nicounter); }
 
-void grafyx_write_x(int value) { not_implemented("grafyx_write_x"); }
+void grafyx_write_x(int value) {
+    static int nicounter = 0;
+    not_implemented("grafyx_write_x", &nicounter); }
 
-void grafyx_write_y(int value) { not_implemented("grafyx_write_y"); }
+void grafyx_write_y(int value) {
+    static int nicounter = 0;
+    not_implemented("grafyx_write_y", &nicounter); }
 
-void grafyx_write_data(int value) { not_implemented("grafyx_write_data"); }
+void grafyx_write_data(int value) {
+    static int nicounter = 0;
+    not_implemented("grafyx_write_data", &nicounter); }
 
 int grafyx_read_data() {
-    not_implemented("grafyx_read_data");
+    static int nicounter = 0;
+    not_implemented("grafyx_read_data", &nicounter);
     return 0;
 }
 
-void grafyx_write_mode(int value) { not_implemented("grafyx_write_mode"); }
+void grafyx_write_mode(int value) {
+    static int nicounter = 0;
+    not_implemented("grafyx_write_mode", &nicounter); }
 
-void grafyx_write_xoffset(int value) { not_implemented("grafyx_write_xoffset"); }
+void grafyx_write_xoffset(int value) {
+    static int nicounter = 0;
+    not_implemented("grafyx_write_xoffset", &nicounter); }
 
-void grafyx_write_yoffset(int value) { not_implemented("grafyx_write_yoffset"); }
+void grafyx_write_yoffset(int value) {
+    static int nicounter = 0;
+    not_implemented("grafyx_write_yoffset", &nicounter); }
 
-void grafyx_write_overlay(int value) { not_implemented("grafyx_write_overlay"); }
+void grafyx_write_overlay(int value) {
+    static int nicounter = 0;
+    not_implemented("grafyx_write_overlay", &nicounter); }
 
 int grafyx_get_microlabs() {
-    not_implemented("grafyx_get_microlabs");
+    static int nicounter = 0;
+    not_implemented("grafyx_get_microlabs", &nicounter);
     return 0;
 }
 
-void grafyx_set_microlabs(int on_off) { not_implemented("grafyx_set_microlabs"); }
+void grafyx_set_microlabs(int on_off) {
+    static int nicounter = 0;
+    not_implemented("grafyx_set_microlabs", &nicounter);
+}
 
-void grafyx_m3_reset() { not_implemented("grafyx_m3_reset"); }
+void grafyx_m3_reset() {
+    static int nicounter = 0;
+    not_implemented("grafyx_m3_reset", &nicounter); }
 
-void grafyx_m3_write_mode(int value) { not_implemented("grafyx_m3_write_mode"); }
+void grafyx_m3_write_mode(int value) {
+    static int nicounter = 0;
+    not_implemented("grafyx_m3_write_mode", &nicounter); }
 
 int grafyx_m3_write_byte(int position, int byte) {
-    not_implemented("grafyx_m3_write_byte");
+    static int nicounter = 0;
+    not_implemented("grafyx_m3_write_byte", &nicounter);
     return 0;
 }
 
 unsigned char grafyx_m3_read_byte(int position) {
-    not_implemented("grafyx_m3_read_byte");
+    static int nicounter = 0;
+    not_implemented("grafyx_m3_read_byte", &nicounter);
     return 0;
 }
 
 int grafyx_m3_active() {
-    static volatile char logged = 0;
-    if (!logged) {
-        logged = 1;
-        not_implemented("grafyx_m3_active");
-    }
+    static int nicounter = 0;
+    not_implemented("grafyx_m3_active", &nicounter);
     return 0;
 }
 
 int hrg_read_data() {
-    not_implemented("hrg_read_data");
+    static int nicounter = 0;
+    not_implemented("hrg_read_data", &nicounter);
     return 0;
 }
 
-void hrg_write_addr(int addr, int mask) { not_implemented("hrg_write_addr"); }
+void hrg_write_addr(int addr, int mask) {
+    static int nicounter = 0;
+    not_implemented("hrg_write_addr", &nicounter); }
 
-void hrg_write_data(int data) { not_implemented("hrg_write_data"); }
+void hrg_write_data(int data) {
+    static int nicounter = 0;
+    not_implemented("hrg_write_data", &nicounter); }
 
-void hrg_onoff(int enable) { not_implemented("hrg_onoff"); }
+void hrg_onoff(int enable) {
+    static int nicounter = 0;
+    not_implemented("hrg_onoff", &nicounter); }
 
 
 /*
@@ -913,6 +936,8 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
 
     if (trs_video_ram_7_bit) {
         joshlog("Video RAM is 7 bits\n");
+    } else {
+        joshlog("Video RAM is 8 bits\n");
     }
     if (trs_model == 1 && !trs_expansion_interface) {
         trs_ram_end = 0x8000;
@@ -1065,7 +1090,9 @@ trs_load_romfile() {
 #endif
             }
             if (romfile != NULL) {
+                joshlog("Loading rom %s\n", romfile);
                 trs_load_rom(romfile);
+                joshlog("Loaded rom %s\n", romfile);
             } else if (trs_rom3_size > 0) {
                 trs_load_compiled_rom(trs_rom3_size, trs_rom3);
             } else {
