@@ -29,8 +29,9 @@
 #define EXPANDED 1
 #define INVERSE 2
 #define ALTERNATE 4
+#define GR80_PROGRAM 8
+#define GR80_ENABLE 16
 
-extern const char *emulator_printer_directory;
 extern const char *emulator_base_directory;
 extern const char *cassette_base_directory;
 
@@ -53,6 +54,7 @@ extern int trs_video_ram_7_bit;
 extern int trs_model1_lowercase;
 extern int trs_ram_end;
 extern int trs_expansion_interface;
+extern int trs_model1_grafix80;
 
 int trs_parse_command_line(int argc, char **argv, int *debug);
 
@@ -62,8 +64,10 @@ void trs_screen_expanded(int flag);
 void trs_screen_alternate(int flag);
 void trs_screen_80x24(int flag);
 void trs_screen_inverse(int flag);
+void trs_screen_grafix80(int mode_bits);
 void trs_screen_scroll(void);
 void trs_screen_refresh(void);
+
 
 void trs_reset(int poweron);
 void trs_exit(void);

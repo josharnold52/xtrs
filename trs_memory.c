@@ -131,22 +131,22 @@ void trs_reset(int poweron)
 
     if (trs_model == 5) {
         /* Switch in boot ROM */
-	z80_out(0x9C, 1);
+        z80_out(0x9C, 1);
     }
     if (trs_model >= 4) {
         /* Turn off various memory map and video mode bits */
-	z80_out(0x84, 0);
+        z80_out(0x84, 0);
     }
     if (trs_model >= 3) {
-	grafyx_write_mode(0);
-	trs_interrupt_mask_write(0);
-	trs_nmi_mask_write(0);
+        grafyx_write_mode(0);
+        trs_interrupt_mask_write(0);
+        trs_nmi_mask_write(0);
     }
     if (trs_model == 3) {
         grafyx_m3_reset();
     }
     if (trs_model == 1) {
-	hrg_onoff(0);		/* Switch off HRG1B hi-res graphics. */
+        hrg_onoff(0);        /* Switch off HRG1B hi-res graphics. */
     }
     trs_kb_reset();  /* Part of keyboard stretch kludge */
 
@@ -154,11 +154,11 @@ void trs_reset(int poweron)
     trs_timer_interrupt(0);
     if (poweron || trs_model >= 4) {
         /* Reset processor */
-	z80_reset();
+        z80_reset();
     } else {
-	/* Signal a nonmaskable interrupt. */
-	trs_reset_button_interrupt(1);
-	trs_schedule_event(trs_reset_button_interrupt, 0, 2000);
+        /* Signal a nonmaskable interrupt. */
+        trs_reset_button_interrupt(1);
+        trs_schedule_event(trs_reset_button_interrupt, 0, 2000);
     }
 
     /*
@@ -240,193 +240,192 @@ int mem_read(int address)
     address &= 0xffff; /* allow callers to be sloppy */
 
     switch (memory_map) {
-      case 0x10: /* Model I */
-	if (address >= VIDEO_START) return memory[address];
-	if (address < trs_rom_size) return memory[address];
-	if (address == TRSDISK_DATA) return trs_disk_data_read();
-	if (TRS_INTLATCH(address)) return trs_interrupt_latch_read();
-	if (address == TRSDISK_STATUS) return trs_disk_status_read();
-	if (address == PRINTER_ADDRESS)	return trs_printer_read();
-	if (address == TRSDISK_TRACK) return trs_disk_track_read();
-	if (address == TRSDISK_SECTOR) return trs_disk_sector_read();
-	if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
-	return 0xff;
+        case 0x10: /* Model I */
+            if (address >= VIDEO_START) return memory[address];
+            if (address < trs_rom_size) return memory[address];
+            if (address == TRSDISK_DATA) return trs_disk_data_read();
+            if (TRS_INTLATCH(address)) return trs_interrupt_latch_read();
+            if (address == TRSDISK_STATUS) return trs_disk_status_read();
+            if (address == PRINTER_ADDRESS) return trs_printer_read();
+            if (address == TRSDISK_TRACK) return trs_disk_track_read();
+            if (address == TRSDISK_SECTOR) return trs_disk_sector_read();
+            if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
+            return 0xff;
 
-      case 0x30: /* Model III */
-	if (address >= RAM_START) return memory[address];
-	if (address == PRINTER_ADDRESS)	return trs_printer_read();
-	if (address < trs_rom_size) return memory[address];
-	if (address >= VIDEO_START) {
-        //TODO - The original xtrs always did the read through this grafyx routine.
-        //  since we don't support it yet, just read memory directly
-	  //return grafyx_m3_read_byte(address - VIDEO_START);
-        return memory[address];
-	}
-	if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
-	return 0xff;
+        case 0x30: /* Model III */
+            if (address >= RAM_START) return memory[address];
+            if (address == PRINTER_ADDRESS) return trs_printer_read();
+            if (address < trs_rom_size) return memory[address];
+            if (address >= VIDEO_START) {
+                //TODO - The original xtrs always did the read through this grafyx routine.
+                //  since we don't support it yet, just read memory directly
+                //return grafyx_m3_read_byte(address - VIDEO_START);
+                return memory[address];
+            }
+            if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
+            return 0xff;
 
-      case 0x40: /* Model 4 map 0 */
-	if (address >= RAM_START) {
-	    return memory[address + bank_offset[address>>15]];
-	}
-	if (address == PRINTER_ADDRESS) return trs_printer_read();
-	if (address < trs_rom_size) return rom[address];
-	if (address >= VIDEO_START) {
-	    return video[address + video_offset];
-	}
-	if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
-	return 0xff;
+        case 0x40: /* Model 4 map 0 */
+            if (address >= RAM_START) {
+                return memory[address + bank_offset[address >> 15]];
+            }
+            if (address == PRINTER_ADDRESS) return trs_printer_read();
+            if (address < trs_rom_size) return rom[address];
+            if (address >= VIDEO_START) {
+                return video[address + video_offset];
+            }
+            if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
+            return 0xff;
 
-      case 0x54: /* Model 4P map 0, boot ROM in */
-      case 0x55: /* Model 4P map 1, boot ROM in */
-	if (address < trs_rom_size) return rom[address];
-	/* else fall thru */
-      case 0x41: /* Model 4 map 1 */
-      case 0x50: /* Model 4P map 0, boot ROM out */
-      case 0x51: /* Model 4P map 1, boot ROM out */
-	if (address >= RAM_START || address < KEYBOARD_START) {
-	    return memory[address + bank_offset[address>>15]];
-	}
-	if (address >= VIDEO_START) {
-	    return video[address + video_offset];
-	}
-	if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
-	return 0xff;
+        case 0x54: /* Model 4P map 0, boot ROM in */
+        case 0x55: /* Model 4P map 1, boot ROM in */
+            if (address < trs_rom_size) return rom[address];
+            /* else fall thru */
+        case 0x41: /* Model 4 map 1 */
+        case 0x50: /* Model 4P map 0, boot ROM out */
+        case 0x51: /* Model 4P map 1, boot ROM out */
+            if (address >= RAM_START || address < KEYBOARD_START) {
+                return memory[address + bank_offset[address >> 15]];
+            }
+            if (address >= VIDEO_START) {
+                return video[address + video_offset];
+            }
+            if (address >= KEYBOARD_START) return trs_kb_mem_read(address);
+            return 0xff;
 
-      case 0x42: /* Model 4 map 2 */
-      case 0x52: /* Model 4P map 2, boot ROM out */
-      case 0x56: /* Model 4P map 2, boot ROM in */
-	if (address < 0xf400) {
-	    return memory[address + bank_offset[address>>15]];
-	}
-	if (address >= 0xf800) return video[address-0xf800];
-	return trs_kb_mem_read(address);
+        case 0x42: /* Model 4 map 2 */
+        case 0x52: /* Model 4P map 2, boot ROM out */
+        case 0x56: /* Model 4P map 2, boot ROM in */
+            if (address < 0xf400) {
+                return memory[address + bank_offset[address >> 15]];
+            }
+            if (address >= 0xf800) return video[address - 0xf800];
+            return trs_kb_mem_read(address);
 
-      case 0x43: /* Model 4 map 3 */
-      case 0x53: /* Model 4P map 3, boot ROM out */
-      case 0x57: /* Model 4P map 3, boot ROM in */
-	return memory[address + bank_offset[address>>15]];
+        case 0x43: /* Model 4 map 3 */
+        case 0x53: /* Model 4P map 3, boot ROM out */
+        case 0x57: /* Model 4P map 3, boot ROM in */
+            return memory[address + bank_offset[address >> 15]];
     }
     /* not reached */
     return 0xff;
 }
 
-void mem_write(int address, int value)
-{
+void mem_write(int address, int value) {
     address &= 0xffff;
 
     switch (memory_map) {
-      case 0x10: /* Model I */
-        if (address >= trs_ram_end) {
-            return;
-        }
-	if (address >= RAM_START) {
-	    memory[address] = value;
-	} else if (address >= VIDEO_START) {
-	    int vaddr = address + video_offset;
-        if (trs_video_ram_7_bit ) {
-    	    /*
-    	     * Video write.  Hack here to make up for the missing bit 6
-    	     * video ram, emulating the gate in Z30.
-    	     */
-            // TODO - The check for model 1 probably isn't necessary since the above switch has
-            //   already determined we are in the model 1 memory map
-    	    if (trs_model == 1) {
-    		if(value & 0xa0)
-    		  value &= 0xbf;
-    		else
-    		  value |= 0x40;
-    	    }
-        }
-	    if (video[vaddr] != value) {
-		video[vaddr] = value;
-		trs_screen_write_char(vaddr, value);
-	    }
-	} else if (address == PRINTER_ADDRESS) {
-            trs_printer_write(value);
-        } else if (!trs_expansion_interface) {
-            return;
-	} else if (address == CASSETTE_SELECT) {
-	    trs_cassette_select(value);
-	} else if (address == TRSDISK_DATA) {
-	    trs_disk_data_write(value);
-	} else if (address == TRSDISK_STATUS) {
-	    trs_disk_command_write(value);
-	} else if (address == TRSDISK_TRACK) {
-	    trs_disk_track_write(value);
-	} else if (address == TRSDISK_SECTOR) {
-	    trs_disk_sector_write(value);
-	} else if (TRSDISK_SELECT(address)) {
-	    trs_disk_select_write(value);
-	}
-	break;
+        case 0x10: /* Model I */
+            if (address >= trs_ram_end) {
+                return;
+            }
+            if (address >= RAM_START) {
+                memory[address] = value;
+            } else if (address >= VIDEO_START) {
+                int vaddr = address + video_offset;
+                if (trs_video_ram_7_bit) {
+                    /*
+                     * Video write.  Hack here to make up for the missing bit 6
+                     * video ram, emulating the gate in Z30.
+                     */
+                    // TODO - The check for model 1 probably isn't necessary since the above switch has
+                    //   already determined we are in the model 1 memory map
+                    if (trs_model == 1) {
+                        if (value & 0xa0)
+                            value &= 0xbf;
+                        else
+                            value |= 0x40;
+                    }
+                }
+                if (video[vaddr] != value) {
+                    video[vaddr] = value;
+                    trs_screen_write_char(vaddr, value);
+                }
+            } else if (address == PRINTER_ADDRESS) {
+                trs_printer_write(value);
+            } else if (!trs_expansion_interface) {
+                return;
+            } else if (address == CASSETTE_SELECT) {
+                trs_cassette_select(value);
+            } else if (address == TRSDISK_DATA) {
+                trs_disk_data_write(value);
+            } else if (address == TRSDISK_STATUS) {
+                trs_disk_command_write(value);
+            } else if (address == TRSDISK_TRACK) {
+                trs_disk_track_write(value);
+            } else if (address == TRSDISK_SECTOR) {
+                trs_disk_sector_write(value);
+            } else if (TRSDISK_SELECT(address)) {
+                trs_disk_select_write(value);
+            }
+            break;
 
-      case 0x30: /* Model III */
-	if (address >= RAM_START) {
-	    memory[address] = value;
-	} else if (address >= VIDEO_START) {
-	    int vaddr = address + video_offset;
-        //TODO for now the grafyx write is a no-op
-	    if (grafyx_m3_write_byte(vaddr, value)) return;
-        //TODO simulate wait states?
-	    if (video[vaddr] != value) {
-	      video[vaddr] = value;
-	      trs_screen_write_char(vaddr, value);
-	    }
-	} else if (address == PRINTER_ADDRESS) {
-	    trs_printer_write(value);
-	}
-	break;
+        case 0x30: /* Model III */
+            if (address >= RAM_START) {
+                memory[address] = value;
+            } else if (address >= VIDEO_START) {
+                int vaddr = address + video_offset;
+                //TODO for now the grafyx write is a no-op
+                if (grafyx_m3_write_byte(vaddr, value)) return;
+                //TODO simulate wait states?
+                if (video[vaddr] != value) {
+                    video[vaddr] = value;
+                    trs_screen_write_char(vaddr, value);
+                }
+            } else if (address == PRINTER_ADDRESS) {
+                trs_printer_write(value);
+            }
+            break;
 
-      case 0x40: /* Model 4 map 0 */
-      case 0x50: /* Model 4P map 0, boot ROM out */
-      case 0x54: /* Model 4P map 0, boot ROM in */
-	if (address >= RAM_START) {
-	    memory[address + bank_offset[address>>15]] = value;
-	} else if (address >= VIDEO_START) {
-	    int vaddr = address+ video_offset;
-	    if (video[vaddr] != value) {
-		video[vaddr] = value;
-		trs_screen_write_char(vaddr, value);
-	    }
-	} else if (address == PRINTER_ADDRESS) {
-	    trs_printer_write(value);
-	}
-	break;
+        case 0x40: /* Model 4 map 0 */
+        case 0x50: /* Model 4P map 0, boot ROM out */
+        case 0x54: /* Model 4P map 0, boot ROM in */
+            if (address >= RAM_START) {
+                memory[address + bank_offset[address >> 15]] = value;
+            } else if (address >= VIDEO_START) {
+                int vaddr = address + video_offset;
+                if (video[vaddr] != value) {
+                    video[vaddr] = value;
+                    trs_screen_write_char(vaddr, value);
+                }
+            } else if (address == PRINTER_ADDRESS) {
+                trs_printer_write(value);
+            }
+            break;
 
-      case 0x41: /* Model 4 map 1 */
-      case 0x51: /* Model 4P map 1, boot ROM out */
-      case 0x55: /* Model 4P map 1, boot ROM in */
-	if (address >= RAM_START || address < KEYBOARD_START) {
-	    memory[address + bank_offset[address>>15]] = value;
-	} else if (address >= VIDEO_START) {
-	    int vaddr = address + video_offset;
-	    if (video[vaddr] != value) {
-		video[vaddr] = value;
-		trs_screen_write_char(vaddr, value);
-	    }
-	}
-	break;
+        case 0x41: /* Model 4 map 1 */
+        case 0x51: /* Model 4P map 1, boot ROM out */
+        case 0x55: /* Model 4P map 1, boot ROM in */
+            if (address >= RAM_START || address < KEYBOARD_START) {
+                memory[address + bank_offset[address >> 15]] = value;
+            } else if (address >= VIDEO_START) {
+                int vaddr = address + video_offset;
+                if (video[vaddr] != value) {
+                    video[vaddr] = value;
+                    trs_screen_write_char(vaddr, value);
+                }
+            }
+            break;
 
-      case 0x42: /* Model 4 map 2 */
-      case 0x52: /* Model 4P map 2, boot ROM out */
-      case 0x56: /* Model 4P map 2, boot ROM in */
-	if (address < 0xf400) {
-	    memory[address + bank_offset[address>>15]] = value;
-	} else if (address >= 0xf800) {
-	    int vaddr = address - 0xf800;
-	    if (video[vaddr] != value) {
-		video[vaddr] = value;
-		trs_screen_write_char(vaddr, value);
-	    }
-	}
-	break;
+        case 0x42: /* Model 4 map 2 */
+        case 0x52: /* Model 4P map 2, boot ROM out */
+        case 0x56: /* Model 4P map 2, boot ROM in */
+            if (address < 0xf400) {
+                memory[address + bank_offset[address >> 15]] = value;
+            } else if (address >= 0xf800) {
+                int vaddr = address - 0xf800;
+                if (video[vaddr] != value) {
+                    video[vaddr] = value;
+                    trs_screen_write_char(vaddr, value);
+                }
+            }
+            break;
 
-      case 0x43: /* Model 4 map 3 */
-      case 0x53: /* Model 4P map 3, boot ROM out */
-      case 0x57: /* Model 4P map 3, boot ROM in */
-	memory[address + bank_offset[address>>15]] = value;
-	break;
+        case 0x43: /* Model 4 map 3 */
+        case 0x53: /* Model 4P map 3, boot ROM out */
+        case 0x57: /* Model 4P map 3, boot ROM in */
+            memory[address + bank_offset[address >> 15]] = value;
+            break;
     }
 }
 
@@ -548,35 +547,26 @@ mem_block_transfer(Ushort dest, Ushort source, int direction, Ushort count)
 {
     int ret;
     /* special case for screen scroll */
-    if((trs_model <= 3 || (memory_map & 3) < 2) &&
-       (dest == VIDEO_START) && (source == VIDEO_START + 0x40) &&
-       (count == 0x3c0) && (direction > 0) && !grafyx_m3_active())
-    {
-	/* scroll screen one line */
+    //TODO -
+    if ((trs_model <= 3 || (memory_map & 3) < 2) &&
+        (dest == VIDEO_START) && (source == VIDEO_START + 0x40) &&
+        (count == 0x3c0) && (direction > 0) && !grafyx_m3_active()) {
+        /* scroll screen one line */
         unsigned char *p = video, *q = video + 0x40;
-	trs_screen_scroll();
-	do { *p++ = ret = *q++; } while (count--);
-    }
-    else
-    {
-	if(direction > 0)
-	{
-	    do
-	    {
-		mem_write(dest++, ret = mem_read(source++));
-		count--;
-	    }
-	    while(count);
-	}
-	else
-	{
-	    do
-	    {
-		mem_write(dest--, ret = mem_read(source--));
-		count--;
-	    }
-	    while(count);
-	}
+        trs_screen_scroll();
+        do { *p++ = ret = *q++; } while (count--);
+    } else {
+        if (direction > 0) {
+            do {
+                mem_write(dest++, ret = mem_read(source++));
+                count--;
+            } while (count);
+        } else {
+            do {
+                mem_write(dest--, ret = mem_read(source--));
+                count--;
+            } while (count);
+        }
 
     }
     return ret;

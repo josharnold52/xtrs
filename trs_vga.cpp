@@ -55,6 +55,13 @@ static void setCGAHighRes() {
     regs.h.al = 6;  //640x200 - 1 bit
     __dpmi_simulate_real_mode_interrupt(0x10, &regs);
 }
+static void setVGAHighRes() {
+    __dpmi_regs regs;
+    prepare_bios_regs(&regs);
+    regs.h.ah  = 0;
+    regs.h.al = 0x11;  //640x480 - 1 bit
+    __dpmi_simulate_real_mode_interrupt(0x10, &regs);
+}
 
 
 
@@ -77,25 +84,41 @@ static void rotate_left_block(void *p, int steps, int len) {
     }
 }
 
-static int init = 0;
+#define VGA_INIT_MODE_NONE 0
+#define VGA_INIT_MODE_6 1
+#define VGA_INIT_MODE_17 2
 
-static unsigned char shadowbuf[0x4000];
+
+static int init = VGA_INIT_MODE_NONE;
+
+static unsigned char shadowbuf[0x10000];
 
 void vga_needs_reset() {
-    init = 0;
+    init = VGA_INIT_MODE_NONE;
 }
 
 static const unsigned char maskl[] = {0xFC,0x3,0xF,0x3F};
 static const unsigned char maskr[] = {0,0xF0,0xC0,0};
 
-void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
 
-
-    if (!init) {
+inline static void chk_init_6() {
+    if (init != VGA_INIT_MODE_6) {
         setCGAHighRes();
         memset(shadowbuf, 0, sizeof(shadowbuf));
-        init = 1;
+        init = VGA_INIT_MODE_6;
     }
+}
+inline static void chk_init_17() {
+    if (init != VGA_INIT_MODE_17) {
+        setVGAHighRes();
+        memset(shadowbuf, 0, sizeof(shadowbuf));
+        init = VGA_INIT_MODE_17;
+    }
+}
+
+void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
+
+    chk_init_6();
 
     char patData[TRS_CHAR_HEIGHT];
     memcpy(patData, glyphRows, TRS_CHAR_HEIGHT);
@@ -147,12 +170,81 @@ void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
 
 }
 
-void vga_screen_scroll_64_16() {
-    if (!init) {
-        setCGAHighRes();
-        memset(shadowbuf, 0, sizeof(shadowbuf));
-        init = 1;
+void vga_screen_write_glyph_64_16_8ppc(char *glyphRows, int position) {
+    chk_init_6();
+
+    int x, y;
+
+    x = (position & 63);
+    y = (position >> 6) & 0xF;
+    int px, py;
+    px = x * 8 + 64;   //offset (640-64*8)/2
+    py = y * TRS_CHAR_HEIGHT + 0;  //offset (200-192)/2 then round down to a multiple of 12 so patterns line up
+
+    int offset = ((py>>1) * 80);
+
+    _farsetsel(_dos_ds);
+    offset += (px >> 3);
+    for(int r = 0; r < TRS_CHAR_HEIGHT; r++) {
+        unsigned char curb = shadowbuf[offset];
+        unsigned char newb = glyphRows[r];
+        if (curb != newb) {
+            _farnspokeb( 0xB8000 + offset, newb);
+            shadowbuf[offset] = newb;
+        }
+        //Interleaved planes
+        if (r & 1) offset = offset - 0x2000 + 80;
+        else offset += 0x2000;
     }
+}
+
+void vga_screen_write_glyph_80_24_8ppc(char *glyphRows, int position) {
+    chk_init_17(); //640 x 480
+
+    int x, y;
+    position = position & 0xFFFF;  //Mostly to ensure signed
+
+    x = (position % 80);
+    y = (position / 80) % 24;
+
+    // Note that model 4 only uses 10 vertical pixels per character (which is why the block graphics
+    // looked funny in model 4 mode and probably is why they didn't provide set/reset functions in model 4 basic
+
+    int px, py;
+    px = x * 8;   //No offset because 8 * 80 = 640
+    py = y * TRS_CHAR_HEIGHT4;  //No offset - we will do 2 rows per trs-80 row which gives us 24 * 10 * 2 = 480
+
+    int offset = py * 2 * 80; // 2 rows per trs-80 row
+
+    _farsetsel(_dos_ds);
+    offset += (px >> 3);
+    for(int r = 0; r < TRS_CHAR_HEIGHT4; r++) {
+        unsigned const char newb = glyphRows[r];
+        unsigned char curb;
+
+        // 2 rows
+        curb = shadowbuf[offset];
+        if (curb != newb) {
+            _farnspokeb( 0xA0000 + offset, newb);
+            shadowbuf[offset] = newb;
+        }
+        offset += 80;
+
+        curb = shadowbuf[offset];
+        if (curb != newb) {
+            _farnspokeb( 0xA0000 + offset, newb);
+            shadowbuf[offset] = newb;
+        }
+        offset += 80;
+    }
+
+}
+
+
+
+void vga_screen_scroll_64_16() {
+    chk_init_6();
+
     const int shift = 80 * TRS_CHAR_HEIGHT / 2;
     const int copySize = 80 * 100  - shift;
 

@@ -68,6 +68,7 @@ GrColor COLOR_SECONDARY_BRIGHT;
 GrColor COLOR_TERTIARY;
 
 int trs_model1_lowercase = 0;
+int trs_model1_grafix80 = 0;
 
 const char *emulator_base_directory = 0;
 const char *cassette_base_directory = 0;
@@ -81,9 +82,10 @@ static GrPattern trs_screen_pattern;
 
 // Private data
 static unsigned char trs_screen[2048];
+
+//Note that these get changed when we switch to/from 80x24 mode!
 static int screen_chars = 1024;
 static int row_chars = 64;
-//static int col_chars = 16;
 
 
 static int scale_x = 1;
@@ -105,6 +107,8 @@ static unsigned char scanBufferCursor;
 static trs_pattern_table *p_current_table;
 
 static trs_pattern_table primary_pattern_table;
+static trs_pattern_table grafix80_table; //TODO
+static trs_pattern_table grafix80_programming_table; //TODO
 
 static int currentmode = 0;
 
@@ -301,11 +305,43 @@ static void reload_grx_colors() {
 
 /* exits if something really bad happens */
 void trs_screen_init() {
-    init_pattern_table(&primary_pattern_table, trs_char_data[1], 1);
+    int pat_flags;
+    if (trs_charset < CHARSET_MIN || trs_charset > CHARSET_MAX) {
+        fatal("Invalid charset %d\n", trs_charset);
+    }
+    pat_flags = 0;
+    if (trs_charset >= CHARSET_MIN_8_PIXEL) {
+        pat_flags |= PATTERN_FLAG_8_PIXEL_CHARS;
+    }
+    pat_flags |= PATTERN_FLAG_GRAPHICS_AT_128;
+    if (trs_model == 1) {
+        pat_flags |= PATTERN_FLAG_GRAPHICS_AT_192;
+    }
+
+    joshlog("Init pattern table: %d - %08x\n", trs_charset, pat_flags);
+    init_pattern_table(&primary_pattern_table, trs_char_data[trs_charset], pat_flags);
+
+    if (trs_model == 1) {
+        joshlog("Init pattern gr80 table: %d - %08x\n", trs_charset, pat_flags | PATTERN_FLAG_BLANK_HIGH_CHARS);
+        init_pattern_table(&grafix80_table, trs_char_data[trs_charset], pat_flags | PATTERN_FLAG_BLANK_HIGH_CHARS);
+
+        //Note: We can't emulate 80-grafix in a standard way for 8 pixel fonts, but we can extend the idea to 8 pixel chars
+        //  The only difference is that we will have to blank _all_ characters during programming because we need all 8 bits
+        //  to define the character
+        joshlog("Init pattern gr80prog table: %d - %08x\n", trs_charset, pat_flags | PATTERN_FLAG_BLANK_HIGH_CHARS);
+        init_pattern_table(&grafix80_programming_table, trs_char_data[trs_charset],
+                           pat_flags | PATTERN_FLAG_BLANK_HIGH_CHARS |
+                                   ((pat_flags & PATTERN_FLAG_8_PIXEL_CHARS) ? PATTERN_FLAG_BLANK_LOW_CHARS : 0));
+
+        if (pat_flags & PATTERN_FLAG_8_PIXEL_CHARS) {
+            joshlog("NOTE: 80-grafix emulation behaves in a non-standard way for 8ppc fonts!");
+        }
+    }
+
     p_current_table = &primary_pattern_table;
     memset(trs_screen, 32, sizeof(trs_screen));
 
-
+    // TODO - Move GRX stuff out to its own driver (except what we need for modals?)
     //FILE * modout;
     GrSetDriver("stdvga");
     //GrSetDriver("s3");
@@ -357,8 +393,6 @@ void trs_screen_init() {
      //sleep(1);
       */
 
-    //TODO: This really should be done elsewhere... It's in trs_djgpp.c because it
-    //uses our command line options.
 
     GrSetMode(GR_width_height_graphics, 640, 200);
     joshlog("Video Driver is %s %d\n", GrCurrentVideoDriver()->name, (int)GrAdapterType());
@@ -377,6 +411,8 @@ void trs_screen_init() {
     trs_screen_pattern.gp_bitmap.bmp_memflags = 0;
     reload_grx_colors();
     repaint_screen();
+    //TODO: This really should be done elsewhere... It's in trs_djgpp.c because it
+    // uses our command line options.
     trs_load_romfile();
 
     return;
@@ -398,13 +434,54 @@ void trs_screen_alternate(int flag) {
 }
 
 void trs_screen_80x24(int flag) {
-    static int nicounter = 0;
-    not_implemented("trs_screen_80x24", &nicounter);
+    if (flag && row_chars != 80) {
+        joshlog("Switching to 80x24 mode");
+        row_chars = 80;
+        screen_chars = 80 * 24;
+        repaint_screen();
+    } else if (!flag && row_chars != 64) {
+        joshlog("Switching to 80x24 mode");
+        row_chars = 64;
+        screen_chars = 64 * 16;
+        repaint_screen();
+    }
+
 }
 
 void trs_screen_inverse(int flag) {
     static int nicounter = 0;
     not_implemented("trs_screen_inverse", &nicounter);
+}
+
+void trs_screen_grafix80(int mode_bits) {
+    mode_bits = mode_bits & 0xC0;
+    if (mode_bits == 0 || mode_bits == 0xC0) {
+        if (currentmode & (GR80_ENABLE | GR80_PROGRAM)) {
+            currentmode &= ~(GR80_ENABLE | GR80_PROGRAM);
+            p_current_table = &primary_pattern_table;
+            repaint_screen();
+        }
+    } else if (mode_bits == 0x80) {
+        if (!(currentmode & GR80_ENABLE)) {
+            currentmode |= GR80_ENABLE;
+            currentmode &= ~GR80_PROGRAM;
+            p_current_table = &grafix80_table;
+            repaint_screen();
+        }
+    } else if (mode_bits == 0x40) {
+        if (!(currentmode & GR80_PROGRAM)) {
+            currentmode |= GR80_PROGRAM;
+            currentmode &= ~GR80_ENABLE;
+            p_current_table = &grafix80_programming_table;
+            repaint_screen();
+        }
+    }
+}
+static void trs_screen_grafix80_program(int location, int value) {
+    int charNum = (location & 1023) >> 4;
+    int row = value & 0xF;
+    update_pattern_table(&grafix80_table, charNum + 128, row, value);
+    update_pattern_table(&grafix80_table, charNum + 196, row, value);
 }
 
 void trs_screen_scroll() {
@@ -419,16 +496,38 @@ void trs_screen_scroll() {
     trs_realtime_sync(5000);
     memmove(trs_screen, trs_screen + row_chars, screen_chars - row_chars);
 #if VIDEO_DRIVER_VGA
-    vga_screen_scroll_64_16();
+    if (row_chars != 80) {
+        vga_screen_scroll_64_16();
+    } else {
+        //TODO
+        joshlog("OOPS!  80x24 scroll not implemented yet");
+    }
 #else
-    GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
+    if (row_chars != 80) {
+        GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
+    } else {
+        //TODO
+        joshlog("OOPS!  80x24 scroll not implemented yet");
+    }
 #endif
+
+    if (trs_model == 1 && (currentmode & GR80_PROGRAM)) {
+        for(int i=0;i<(screen_chars - row_chars);i++) {
+            trs_screen_grafix80_program(i, trs_screen[i]);
+        }
+    }
+
 }
 
 #if VIDEO_DRIVER_VGA
 #define WRITE_GLYPH_FN vga_screen_write_glyph_64_16
+#define WRITE_GLYPH_FN8 vga_screen_write_glyph_64_16_8ppc
+#define WRITE_GLYPH_FN8_8024 vga_screen_write_glyph_80_24_8ppc
 #else
 #define WRITE_GLYPH_FN trs_screen_write_glyph
+//TODO - these are not supported
+#define WRITE_GLYPH_FN8 trs_screen_write_glyph_8ppc
+#define WRITE_GLYPH_FN8_8024 trs_screen_write_glyph_80_24_8ppc
 #endif
 
 static void trs_screen_write_glyph(char *glyphRows, int position) {
@@ -464,37 +563,42 @@ static void trs_screen_write_glyph(char *glyphRows, int position) {
 void trs_screen_write_char(int position, int char_index) {
     //joshlog("WC %d %d\n", position, char_index);
 
+    void (*gfn)(char *glyphRows, int position);
+    if (p_current_table->pixels_per_char == 6) {
+        gfn = WRITE_GLYPH_FN;
+    } else if (row_chars == 64) {
+        gfn = WRITE_GLYPH_FN8;
+    } else {
+        gfn = WRITE_GLYPH_FN8_8024;
+    }
 
-
+    if (trs_model == 1 && (currentmode & GR80_PROGRAM)) {
+        trs_screen_grafix80_program(position, char_index);
+    }
 
     //trs_realtime_sync(5000);
-    /*
-    NB - This is no longer needed since it is done in trs_memory
-
-    if (trs_model == 1) {
-       //TODO - Maybe this changes with a lowercase conversion, but
-       //the model 1 sets bit 6 to Bit 5 NOR bit 7
-       if ((char_index & 0xA0) != 0)
-         char_index &= (~0x40);
-       else
-         char_index |= 0x40;
-    }
-    */
     char_index = char_index & 0xff;
 
-    position = position & 1023;  //TODO - Assume 64x16
+    if (row_chars == 64) {
+        position = position & 1023;
+    } else {
+        position = position & 2047;
+        if (position >= screen_chars) {
+            return;
+        }
+    }
+
     trs_screen[position] = (char) char_index;
 
     if (!(currentmode & EXPANDED)) {
-        WRITE_GLYPH_FN(p_current_table->normal[char_index], position);
+        gfn(p_current_table->normal[char_index], position);
     } else {
         if (position & 1) {
             return;
         }
-        WRITE_GLYPH_FN(p_current_table->wideleft[char_index], position);
-        WRITE_GLYPH_FN(p_current_table->wideright[char_index], position | 1);
+        gfn(p_current_table->wideleft[char_index], position);
+        gfn(p_current_table->wideright[char_index], position | 1);
     }
-    return;
 }
 
 
@@ -700,6 +804,8 @@ struct option options[] = {
         {"nom1lc",         FALSE, &trs_model1_lowercase,    FALSE},
         {"expintf",        FALSE, &trs_expansion_interface, TRUE},
         {"noexpintf",      FALSE, &trs_expansion_interface, FALSE},
+        {"grafix80",        FALSE, &trs_model1_grafix80, TRUE},
+        {"nografix80",      FALSE, &trs_model1_grafix80, FALSE},
         {NULL, 0,                 0,                0}
 };
 
@@ -963,7 +1069,11 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
     /* Note: charset numbers must match trs_chars.c */
     if (trs_model == 1) {
         if (opt_charset == NULL) {
-            opt_charset = "wider"; /* default */
+            if (!trs_model1_lowercase) {
+                opt_charset = "stock"; /* default */
+            } else {
+                opt_charset = "lcmod";
+            }
         }
         if (isdigit(*opt_charset)) {
             trs_charset = strtol(opt_charset, NULL, 0);
@@ -984,7 +1094,8 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
             } else if (opt_charset[0] == 'g'/*genie or german*/) {
                 trs_charset = 10;
                 cur_char_width = 8 * scale_x;
-            } else {
+            }
+            else {
                 fatal("unknown charset name %s", opt_charset);
             }
         }

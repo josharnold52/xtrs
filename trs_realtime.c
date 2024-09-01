@@ -16,20 +16,26 @@
 
 #define TSTATES_PER_SEC_M1 ( 1774000u )
 
+// Note - This doesn't take wait states into account.  For the model 3, I think
+// wait stats only happen (potentially) when accessing video memory
+#define TSTATES_PER_SEC_M3 ( 2027520u )
+
+
 #define REAL_USEC_FACTOR ( 1.0e6 / UCLOCKS_PER_SEC  )
 
 #define TSTATE_USEC_FACTOR_M1 ( 1.0e6 / TSTATES_PER_SEC_M1  )
 
+#define TSTATE_USEC_FACTOR_M3 ( 1.0e6 / TSTATES_PER_SEC_M3  )
 
 
 #define MIN_TSTATE_CHANGE_BEFORE_SYNC 25
-
 
 #define MIN_UCLOCK_BEFORE_RESET ( ((uclock_t)(  UCLOCKS_PER_SEC)) * 3600  )
 
 
 static int realtime_suppress = 0;
 
+static tstate_t tstates_per_sec = TSTATES_PER_SEC_M1;
 static double tstate_usec_factor = TSTATE_USEC_FACTOR_M1;
 
 
@@ -45,7 +51,14 @@ void trs_realtime_sync_uclock(tstate_t threhsold);
 void trs_realtime_reset() {
     joshlog("Reset realtime counters model=%d\n", trs_model);
 
-    tstate_usec_factor = TSTATES_PER_SEC_M1;
+    if (trs_model == 1) {
+        tstate_usec_factor = TSTATE_USEC_FACTOR_M1;
+        tstates_per_sec = TSTATES_PER_SEC_M1;
+    } else {
+        //TODO: Handle M4
+        tstate_usec_factor = TSTATE_USEC_FACTOR_M3;
+        tstates_per_sec = TSTATES_PER_SEC_M3;
+    }
     trs_realtime_sync = trs_realtime_sync_uclock;
     z80_basetime = z80_state.t_count;
     real_basetime = uclock();
@@ -81,7 +94,7 @@ void trs_realtime_log_status(char ctl) {
     double elapsed_delta;
 
     elapsed_rt = (now_uclock - real_basetime) * REAL_USEC_FACTOR;
-    elapsed_t = (z80_state.t_count - z80_basetime) * TSTATE_USEC_FACTOR_M1;
+    elapsed_t = (z80_state.t_count - z80_basetime) * tstate_usec_factor;
     elapsed_delta = elapsed_t - elapsed_rt;
 
 
@@ -90,7 +103,7 @@ void trs_realtime_log_status(char ctl) {
         tsc,now_tod,sizeof(tstate_t), sizeof(uclock_t),
         z80_state.t_count, z80_basetime, last_synced_at_tstate,
         now_uclock, real_basetime, last_reset_at_uclock,
-        ((uclock_t)UCLOCKS_PER_SEC), ((tstate_t)TSTATES_PER_SEC_M1),
+        ((uclock_t)UCLOCKS_PER_SEC), ((tstate_t)tstates_per_sec),
         elapsed_rt, elapsed_t, elapsed_delta);
 }
 
@@ -120,7 +133,7 @@ void trs_realtime_sync_uclock(tstate_t threhsold) {
         now_uclock = uclock();
 
         elapsed_rt = ((double)(now_uclock - real_basetime)) * REAL_USEC_FACTOR;
-        elapsed_t = ((double)(z80_state.t_count - z80_basetime)) * TSTATE_USEC_FACTOR_M1;
+        elapsed_t = ((double)(z80_state.t_count - z80_basetime)) * tstate_usec_factor;
         elapsed_delta = elapsed_t - elapsed_rt;
         if (elapsed_delta <= 10) {
             break;

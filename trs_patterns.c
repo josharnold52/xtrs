@@ -65,10 +65,14 @@ static void expand_4to8bit_block(void *p, int bitoffset, int len) {
     }
 }
 
-void init_pattern_table(trs_pattern_table *dest, const char **src_data, int model) {
+void init_pattern_table(trs_pattern_table *dest, const trs_charset_definition src_data, int flags) {
     joshlog("Init pattern table entry %p\n", dest);
-    //TODO
     memset(dest, 0, sizeof(trs_pattern_table));
+    if (flags & PATTERN_FLAG_8_PIXEL_CHARS) {
+        dest->pixels_per_char = 8;
+    } else {
+        dest->pixels_per_char = 6;
+    }
     memcpy(dest->normal, src_data, sizeof(dest->normal));
     reverse_bits_block(dest->normal, sizeof(dest->normal));
     //Todo to generate the model3/4 ENALTSET, we need to copy the
@@ -79,27 +83,38 @@ void init_pattern_table(trs_pattern_table *dest, const char **src_data, int mode
     //  The only addition I will need is the ability to change the grafix-80 pattern
     //  set on the fly.
 
-    for (int grindex = 0; grindex < 64; grindex++) {
-        char scans[3] = {0, 0, 0};
-        scans[0] |= (grindex & 1) ? 0xE0 : 0;
-        scans[0] |= (grindex & 2) ? 0x1C : 0;
-        scans[1] |= (grindex & 4) ? 0xE0 : 0;
-        scans[1] |= (grindex & 8) ? 0x1C : 0;
-        scans[2] |= (grindex & 16) ? 0xE0 : 0;
-        scans[2] |= (grindex & 32) ? 0x1C : 0;
-        for (int scanline = 0; scanline < TRS_CHAR_HEIGHT; scanline++) {
-            int row = scanline / (TRS_CHAR_HEIGHT / 3);
-            dest->normal[128 + grindex][scanline] = scans[row];
-            if (model == 1) {
-                //Models 3 and 4 display extended chars instead of repeating the graphic chars
-                dest->normal[192 + grindex][scanline] = scans[row];
+    char grhigh = (char)(flags & PATTERN_FLAG_8_PIXEL_CHARS ? 0xF0 : 0xE0);
+    char grlow = (char)(flags & PATTERN_FLAG_8_PIXEL_CHARS ? 0x0F : 0x1C);
+
+    if (flags & PATTERN_FLAG_BLANK_HIGH_CHARS) {
+        memset(dest->normal[128], 0, 128 * TRS_CHAR_HEIGHT);
+    } else {
+        for (int grindex = 0; grindex < 64; grindex++) {
+            char scans[3] = {0, 0, 0};
+            scans[0] |= (grindex & 1) ? grhigh : 0;
+            scans[0] |= (grindex & 2) ? grlow : 0;
+            scans[1] |= (grindex & 4) ? grhigh : 0;
+            scans[1] |= (grindex & 8) ? grlow : 0;
+            scans[2] |= (grindex & 16) ? grhigh : 0;
+            scans[2] |= (grindex & 32) ? grlow : 0;
+            for (int scanline = 0; scanline < TRS_CHAR_HEIGHT; scanline++) {
+                int row = scanline / (TRS_CHAR_HEIGHT / 3);
+                if (flags & PATTERN_FLAG_GRAPHICS_AT_128) {
+                    dest->normal[128 + grindex][scanline] = scans[row];
+                }
+                if (flags & PATTERN_FLAG_GRAPHICS_AT_192) {
+                    dest->normal[192 + grindex][scanline] = scans[row];
+                }
             }
         }
+    }
+    if (flags & PATTERN_FLAG_BLANK_LOW_CHARS) {
+        memset(dest->normal, 0, 128 * TRS_CHAR_HEIGHT);
     }
 
     memcpy(dest->wideleft, dest->normal, sizeof(dest->normal));
     reverse_bits_block(dest->wideleft, sizeof(dest->wideleft));
-    if (model == 1) {
+    if (dest->pixels_per_char == 6) {
         expand_3to6bit_block(dest->wideleft, 0, sizeof(dest->wideleft));
     } else {
         expand_4to8bit_block(dest->wideleft, 0, sizeof(dest->wideleft));
@@ -108,12 +123,32 @@ void init_pattern_table(trs_pattern_table *dest, const char **src_data, int mode
 
     memcpy(dest->wideright, dest->normal, sizeof(dest->normal));
     reverse_bits_block(dest->wideright, sizeof(dest->wideright));
-    if (model == 1) {
+    if (dest->pixels_per_char == 6) {
         expand_3to6bit_block(dest->wideright, 3, sizeof(dest->wideright));
     } else {
-        expand_4to8bit_block(dest->wideright, 3, sizeof(dest->wideright));
+        expand_4to8bit_block(dest->wideright, 4, sizeof(dest->wideright));
     }
     reverse_bits_block(dest->wideright, sizeof(dest->wideright));
 
-    return;
+}
+
+void update_pattern_table(trs_pattern_table *dest, int charNum, int row, int bits) {
+    if (charNum < 0 || charNum >= 256) {
+        return;
+    }
+    if (row < 0 || row >= TRS_CHAR_HEIGHT) {
+        return;
+    }
+    bits = dest->pixels_per_char == 8 ? (bits & 0xFF) : ((bits << 2) & 0xFF);
+    char bits_rev = reverse_bits((char)bits);
+
+    dest->normal[charNum][row] = (char)bits;
+    if (dest->pixels_per_char == 6) {
+        dest->wideleft[charNum][row] = reverse_bits(expand_3to6bit(bits_rev, 0));
+        dest->wideright[charNum][row] = reverse_bits(expand_3to6bit(bits_rev, 3));
+    } else {
+        dest->wideleft[charNum][row] = reverse_bits(expand_4to8bit(bits_rev, 0));
+        dest->wideright[charNum][row] = reverse_bits(expand_4to8bit(bits_rev, 4));
+    }
+
 }
