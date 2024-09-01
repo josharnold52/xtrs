@@ -32,6 +32,7 @@
 #define GR80_PROGRAM 8
 #define GR80_ENABLE 16
 
+extern const char *emulator_printer_directory;
 extern const char *emulator_base_directory;
 extern const char *cassette_base_directory;
 
