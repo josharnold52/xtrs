@@ -147,6 +147,9 @@ void trs_reset(int poweron)
     }
     if (trs_model == 1) {
         hrg_onoff(0);        /* Switch off HRG1B hi-res graphics. */
+        if (trs_model1_grafix80) {
+            z80_out(255, 32); //Switch out of grafix 80 mode
+        }
     }
     trs_kb_reset();  /* Part of keyboard stretch kludge */
 
@@ -323,6 +326,9 @@ void mem_write(int address, int value) {
                 memory[address] = value;
             } else if (address >= VIDEO_START) {
                 int vaddr = address + video_offset;
+                if (trs_model == 1 && trs_model1_grafix80) {
+                    trs_screen_grafix80_program(vaddr, value);
+                }
                 if (trs_video_ram_7_bit) {
                     /*
                      * Video write.  Hack here to make up for the missing bit 6
@@ -547,7 +553,6 @@ mem_block_transfer(Ushort dest, Ushort source, int direction, Ushort count)
 {
     int ret;
     /* special case for screen scroll */
-    //TODO -
     if ((trs_model <= 3 || (memory_map & 3) < 2) &&
         (dest == VIDEO_START) && (source == VIDEO_START + 0x40) &&
         (count == 0x3c0) && (direction > 0) && !grafyx_m3_active()) {
@@ -555,6 +560,11 @@ mem_block_transfer(Ushort dest, Ushort source, int direction, Ushort count)
         unsigned char *p = video, *q = video + 0x40;
         trs_screen_scroll();
         do { *p++ = ret = *q++; } while (count--);
+        if (trs_model == 1 && trs_model1_grafix80) {
+            // Programs won't normally scroll while programming, but I think this is what
+            // would happen...
+            trs_screen_grafix80_program_block(0, (const char *)video, 0x3c0);
+        }
     } else {
         if (direction > 0) {
             do {

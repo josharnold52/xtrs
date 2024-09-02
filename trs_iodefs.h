@@ -62,5 +62,6 @@ typedef char trs_charset_definition[MAXCHARS][TRS_CHAR_HEIGHT];
 void init_pattern_table(trs_pattern_table *dest, const trs_charset_definition, int flags);
 void update_pattern_table(trs_pattern_table *dest, int charNum, int row, int bits);
 
-
+// No real reason this should be here except sometimes it's handy for io/memory handlers
+char reverse_bits_char(char c);
 

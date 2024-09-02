@@ -25,12 +25,8 @@
 #define _TRS_H
 #include "z80.h"
 
-#define NORMAL 0
-#define EXPANDED 1
-#define INVERSE 2
-#define ALTERNATE 4
-#define GR80_PROGRAM 8
-#define GR80_ENABLE 16
+
+
 
 extern const char *emulator_printer_directory;
 extern const char *emulator_base_directory;
@@ -68,7 +64,8 @@ void trs_screen_inverse(int flag);
 void trs_screen_grafix80(int mode_bits);
 void trs_screen_scroll(void);
 void trs_screen_refresh(void);
-
+void trs_screen_grafix80_program(int location, int value);
+void trs_screen_grafix80_program_block(int location_start, const char * value_start, int count);
 
 void trs_reset(int poweron);
 void trs_exit(void);

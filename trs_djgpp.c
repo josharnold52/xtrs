@@ -110,30 +110,21 @@ static trs_pattern_table primary_pattern_table;
 static trs_pattern_table grafix80_table; //TODO
 static trs_pattern_table grafix80_programming_table; //TODO
 
-static int currentmode = 0;
+#define NORMAL 0
+#define EXPANDED 1
+#define INVERSE 2
+#define ALTERNATE 4
+#define GR80_PROGRAM 8
+#define GR80_ENABLE 16
+static int trs_current_video_mode = 0;
 
 static void trs_load_romfile();
 
 #define VIDEO_DRIVER_VGA 1
 
-static char reverse_bits(char c) {
-    char r = 0;
-    for (int i = 0; i < 8; i++) {
-        r = (r << 1) | (c & 1);
-        c >>= 1;
-    }
-    return r;
-}
-
-void reverse_bits_block(void *p, int len) {
-    char *c = (char *) p;
-    for (; len > 0; c++, len--) {
-        *c = reverse_bits(*c);
-    }
-}
 
 
-void rotate_left_block(void *p, int steps, int len) {
+static void rotate_left_block(void *p, int steps, int len) {
     char *c = (char *) p;
     //Using inline assembly, so we can do a single op-code rotation.
     //I think it may be worth it because we are rotating on the fly
@@ -150,28 +141,6 @@ void rotate_left_block(void *p, int steps, int len) {
     }
 }
 
-static char expand_3to6bit(char c, int bitoffset) {
-    char res;
-    int i;
-    int bt;
-    res = 0;
-
-    for (i = 0; i < 6; i++) {
-        bt = bitoffset + (i / 2);
-        if (c & (1 << bt)) {
-            res |= (1 << i);
-        }
-    }
-    //joshlog("(%d) %02X -> %02X\n", bitoffset, c & 0xFF, res);
-    return res;
-}
-
-static void expand_3to6bit_block(void *p, int bitoffset, int len) {
-    char *c = (char *) p;
-    for (; len > 0; c++, len--) {
-        *c = expand_3to6bit(*c, bitoffset);
-    }
-}
 
 static void not_implemented(const char *msg, int *counter) {
     int cnt;
@@ -422,8 +391,8 @@ void trs_screen_init() {
 
 void trs_screen_expanded(int flag) {
     int bit = flag ? EXPANDED : 0;
-    if ((currentmode ^ bit) & EXPANDED) {
-        currentmode ^= EXPANDED;
+    if ((trs_current_video_mode ^ bit) & EXPANDED) {
+        trs_current_video_mode ^= EXPANDED;
         repaint_screen();
     }
 }
@@ -456,32 +425,53 @@ void trs_screen_inverse(int flag) {
 void trs_screen_grafix80(int mode_bits) {
     mode_bits = mode_bits & 0xC0;
     if (mode_bits == 0 || mode_bits == 0xC0) {
-        if (currentmode & (GR80_ENABLE | GR80_PROGRAM)) {
-            currentmode &= ~(GR80_ENABLE | GR80_PROGRAM);
+        if (trs_current_video_mode & (GR80_ENABLE | GR80_PROGRAM)) {
+            joshlog("SWITCHING TO NON-GRAFIX-80 MODE\n");
+            trs_current_video_mode &= ~(GR80_ENABLE | GR80_PROGRAM);
             p_current_table = &primary_pattern_table;
             repaint_screen();
         }
     } else if (mode_bits == 0x80) {
-        if (!(currentmode & GR80_ENABLE)) {
-            currentmode |= GR80_ENABLE;
-            currentmode &= ~GR80_PROGRAM;
+        if (!(trs_current_video_mode & GR80_ENABLE)) {
+            joshlog("SWITCHING TO GRAFIX-80 MODE\n");
+            trs_current_video_mode |= GR80_ENABLE;
+            trs_current_video_mode &= ~GR80_PROGRAM;
             p_current_table = &grafix80_table;
             repaint_screen();
         }
     } else if (mode_bits == 0x40) {
-        if (!(currentmode & GR80_PROGRAM)) {
-            currentmode |= GR80_PROGRAM;
-            currentmode &= ~GR80_ENABLE;
+        if (!(trs_current_video_mode & GR80_PROGRAM)) {
+            joshlog("SWITCHING TO GRAFIX-80 PROGRAM MODE\n");
+            trs_current_video_mode |= GR80_PROGRAM;
+            trs_current_video_mode &= ~GR80_ENABLE;
             p_current_table = &grafix80_programming_table;
             repaint_screen();
         }
     }
 }
-static void trs_screen_grafix80_program(int location, int value) {
+
+void trs_screen_grafix80_program(int location, int value) {
+    if ((trs_current_video_mode & GR80_PROGRAM) == 0) {
+        return;
+    }
     int charNum = (location & 1023) >> 4;
-    int row = value & 0xF;
-    update_pattern_table(&grafix80_table, charNum + 128, row, value);
-    update_pattern_table(&grafix80_table, charNum + 196, row, value);
+    int row = location & 0xF;
+    int bitmap = reverse_bits_char((char)value) & 0xFF;
+    if (primary_pattern_table.pixels_per_char == 6) {
+        bitmap = (bitmap >> 1) & 0x3F;
+    }
+    joshlog("Programming %d %d : %02x from %02x\n", charNum, row, bitmap, value & 0xFF);
+    update_pattern_table(&grafix80_table, charNum + 128, row, bitmap);
+    update_pattern_table(&grafix80_table, charNum + 196, row, bitmap);
+}
+
+void trs_screen_grafix80_program_block(int location_start, const char * value_start, int count) {
+    if ((trs_current_video_mode & GR80_PROGRAM) == 0) {
+        return;
+    }
+    for(int i=0;i<count;i++) {
+        trs_screen_grafix80_program(location_start++, *value_start++);
+    }
 }
 
 void trs_screen_scroll() {
@@ -510,12 +500,6 @@ void trs_screen_scroll() {
         joshlog("OOPS!  80x24 scroll not implemented yet");
     }
 #endif
-
-    if (trs_model == 1 && (currentmode & GR80_PROGRAM)) {
-        for(int i=0;i<(screen_chars - row_chars);i++) {
-            trs_screen_grafix80_program(i, trs_screen[i]);
-        }
-    }
 
 }
 
@@ -572,9 +556,6 @@ void trs_screen_write_char(int position, int char_index) {
         gfn = WRITE_GLYPH_FN8_8024;
     }
 
-    if (trs_model == 1 && (currentmode & GR80_PROGRAM)) {
-        trs_screen_grafix80_program(position, char_index);
-    }
 
     //trs_realtime_sync(5000);
     char_index = char_index & 0xff;
@@ -590,7 +571,7 @@ void trs_screen_write_char(int position, int char_index) {
 
     trs_screen[position] = (char) char_index;
 
-    if (!(currentmode & EXPANDED)) {
+    if (!(trs_current_video_mode & EXPANDED)) {
         gfn(p_current_table->normal[char_index], position);
     } else {
         if (position & 1) {

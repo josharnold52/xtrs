@@ -3,7 +3,7 @@
 #include "z80.h"
 
 
-static char reverse_bits(char c) {
+char reverse_bits_char(char c) {
     char r = 0;
     for (int i = 0; i < 8; i++) {
         r = (r << 1) | (c & 1);
@@ -15,7 +15,7 @@ static char reverse_bits(char c) {
 static void reverse_bits_block(void *p, int len) {
     char *c = (char *) p;
     for (; len > 0; c++, len--) {
-        *c = reverse_bits(*c);
+        *c = reverse_bits_char(*c);
     }
 }
 
@@ -139,16 +139,15 @@ void update_pattern_table(trs_pattern_table *dest, int charNum, int row, int bit
     if (row < 0 || row >= TRS_CHAR_HEIGHT) {
         return;
     }
-    bits = dest->pixels_per_char == 8 ? (bits & 0xFF) : ((bits << 2) & 0xFF);
-    char bits_rev = reverse_bits((char)bits);
+    char bits_rev = reverse_bits_char(bits);
 
-    dest->normal[charNum][row] = (char)bits;
+    dest->normal[charNum][row] = (char)bits_rev;
     if (dest->pixels_per_char == 6) {
-        dest->wideleft[charNum][row] = reverse_bits(expand_3to6bit(bits_rev, 0));
-        dest->wideright[charNum][row] = reverse_bits(expand_3to6bit(bits_rev, 3));
+        dest->wideleft[charNum][row] = reverse_bits_char(expand_3to6bit(bits, 0));
+        dest->wideright[charNum][row] = reverse_bits_char(expand_3to6bit(bits, 3));
     } else {
-        dest->wideleft[charNum][row] = reverse_bits(expand_4to8bit(bits_rev, 0));
-        dest->wideright[charNum][row] = reverse_bits(expand_4to8bit(bits_rev, 4));
+        dest->wideleft[charNum][row] = reverse_bits_char(expand_4to8bit(bits, 0));
+        dest->wideright[charNum][row] = reverse_bits_char(expand_4to8bit(bits, 4));
     }
 
 }
