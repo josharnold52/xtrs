@@ -148,7 +148,7 @@ void trs_reset(int poweron)
     if (trs_model == 1) {
         hrg_onoff(0);        /* Switch off HRG1B hi-res graphics. */
         if (trs_model1_grafix80) {
-            z80_out(255, 32); //Switch out of grafix 80 mode
+            trs_screen_grafix80(0); //Switch out of grafix 80 mode
         }
     }
     trs_kb_reset();  /* Part of keyboard stretch kludge */

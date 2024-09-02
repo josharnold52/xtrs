@@ -126,7 +126,7 @@ void z80_out(int port, int value) {
                 /* do cassette emulation */
                 trs_cassette_motor((value >> 2) & 1);
                 trs_cassette_out(value & 0x3);
-                if (value & 32 && trs_model1_grafix80) {
+                if ((value & 32) && trs_model1_grafix80) {
                     trs_screen_grafix80(value & 0xC0);
                 }
                 break;

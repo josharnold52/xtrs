@@ -24,6 +24,8 @@ char emus_base[MAXPATH+14];
 
 char start_wd[MAXPATH+14];
 
+int is_submenu;
+
 int emu_count() {
     struct emu *p;
     int res;
@@ -52,6 +54,19 @@ int _emu_compare(const void * v1, const void * v2) {
     return strcmpi(a1->dir, a2->dir);
 }
 
+void reset_emu_base() {
+    int l;
+    memcpy(emus_base, start_wd, sizeof(start_wd));
+
+    l = strlen(emus_base);
+    if (!l || emus_base[l-1] != '\\') {
+        emus_base[l] = '\\';
+        emus_base[l+1] = 0;
+    }
+    strcat(emus_base, "EMUS\\");
+    is_submenu = 0;
+}
+
 void sort_emus() {
     int cnt,i;
     struct emu *p,*table,*tmp;
@@ -75,6 +90,75 @@ void sort_emus() {
     free(table);
 }
 
+void free_emus() {
+    struct emu *p;
+    while (emu_list) {
+        p = emu_list->next;
+        free(emu_list);
+        emu_list = p;
+    }
+}
+
+/**
+ * reads the emulator directories in emu_base and populates the emu_list.  As a side effect,
+ * ensures that emu_base ends in a '/'
+ * @return
+ */
+int read_emus() {
+    int l;
+    int find_res;
+    int emu_counter;
+    struct emu *first, *last, *p;
+    struct ffblk dirblk;
+
+
+    l = strlen(emus_base);
+    if (!l || emus_base[l-1] != '\\') {
+        emus_base[l] = '\\';
+        emus_base[l+1] = 0;
+    }
+    strcat(emus_base, "*");
+
+    first = last = 0;
+    emu_counter = 0;
+    for(find_res = findfirst(emus_base, &dirblk, FA_DIREC); find_res == 0 && emu_counter < 20; find_res = findnext(&dirblk)) {
+        p = calloc(1, sizeof(struct emu));
+        if (!p) {
+            printf("calloc error %u\n", errno);
+            return 0;
+        }
+        if (dirblk.ff_name[0] == '.') {
+            continue;
+        }
+        if (dirblk.ff_name[0] == '_') {
+            continue;
+        }
+        memcpy(p->dir, dirblk.ff_name, 13);
+        p->dir[12] = 0;
+        p->next = 0;
+        if (!first) {
+            first = p;
+        }
+        if (last) {
+            last->next = p;
+        }
+        last = p;
+        emu_counter ++;
+    }
+
+    free_emus();
+    emu_list = first;
+    l=strlen(emus_base);
+    emus_base[l-1] = 0;
+
+    sort_emus();
+    return 1;
+}
+
+/**
+ * Returns 0 if fail, 1 if successful launch, 2 if submenu.
+ * If 2 is returned, the menus will have been reloaded
+ */
 int launch(int cur_emu) {
     char config[MAX_CONFIG_LEN+1];
     size_t config_len, pos;
@@ -82,6 +166,7 @@ int launch(int cur_emu) {
     struct emu *p;
     FILE * config_file;
     int exec_res;
+    int subchk;
 
     p = get_emu(cur_emu);
     strcpy(dir, emus_base);
@@ -91,6 +176,16 @@ int launch(int cur_emu) {
         cprintf("DIR ERROR");
         return 0;
     }
+
+    subchk = access("ISSUB.MRK", 0);
+    if (subchk == 0) {
+        /* file exists */
+        strcpy(emus_base, dir);
+        read_emus();
+        is_submenu = 1;
+        return 2;
+    }
+
 
     config_file = fopen("CONFIG.XTR","rt");
     if (!config_file) {
@@ -157,6 +252,13 @@ void show_options(int cur_emu) {
         cprintf("%s", p->dir);
         opt_count+= 1;
     }
+    if (is_submenu) {
+        textbackground(0);
+        textcolor(7);
+        gotoxy(41,22);
+        cprintf("<Press ESC to return to main menu>");
+    }
+
     textbackground(0);
     textcolor(15);
     gotoxy(1,10);
@@ -192,7 +294,7 @@ int move(int cur_emu, int dx, int dy) {
 void mainloop() {
     static const char escape_hatch[] = "exit";
 
-    int c,is_special,next_emu, cur_emu, escape_counter;
+    int c,is_special,next_emu, cur_emu, escape_counter, launch_res;
     is_special = 0;
     escape_counter = 0;
 
@@ -221,8 +323,25 @@ void mainloop() {
             escape_counter = 0;
             continue;
         }
+        if (c == 27) { /*ESC, I think*/
+            next_emu = 0;
+            cur_emu = -1;
+            escape_counter = 0;
+            reset_emu_base();
+            read_emus();
+            clrscr();
+            continue;
+        }
         if (c == 0xd) {
-            if (launch(cur_emu)) {
+            launch_res = launch(cur_emu);
+            if (launch_res == 2) {
+                /* sub menu */
+                clrscr();
+                show_options(0);
+                next_emu = 0;
+                cur_emu = -1;
+            } else if (launch_res == 1) {
+                /** Ran the emulator */
                 clrscr();
                 show_options(cur_emu);
             }
@@ -240,62 +359,19 @@ void mainloop() {
 
 int init() {
     int l;
-    struct ffblk dirblk; 
     int find_res;
     int emu_counter;
     struct emu *first, *last, *p;
+
+    emu_list = 0;
 
     if (!getcwd(start_wd, MAXPATH)) {
         printf("getcwd error %u\n", errno);
         return 0;
     }
+    reset_emu_base();
+    return read_emus();
 
-    if (!getcwd(emus_base, MAXPATH)) {
-        printf("getcwd error %u\n", errno);
-        return 0;
-    }
-
-    l = strlen(emus_base);
-    if (!l || emus_base[l-1] != '\\') {
-        emus_base[l] = '\\';
-        emus_base[l+1] = 0;
-    }
-    strcat(emus_base, "EMUS\\*");
-
-    first = last = 0;
-    emu_counter = 0;
-    for(find_res = findfirst(emus_base, &dirblk, FA_DIREC); find_res == 0 && emu_counter < 20; find_res = findnext(&dirblk)) {
-        p = calloc(1, sizeof(struct emu));
-        if (!p) {
-            printf("calloc error %u\n", errno);
-            return 0;
-        }
-        if (dirblk.ff_name[0] == '.') {
-            continue;
-        }
-        if (dirblk.ff_name[0] == '_') {
-            continue;
-        }
-        memcpy(p->dir, dirblk.ff_name, 13);
-        p->dir[12] = 0;
-        p->next = 0;
-        if (!first) {
-            first = p;
-        }
-        if (last) {
-            last->next = p;
-        }
-        last = p;
-        emu_counter ++;
-    }
-
-    emu_list = first;
-    l=strlen(emus_base);
-    emus_base[l-1] = 0;
-
-    sort_emus();
-
-    return 1;
 
 }
 

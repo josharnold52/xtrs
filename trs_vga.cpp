@@ -116,6 +116,8 @@ inline static void chk_init_17() {
     }
 }
 
+
+
 void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
 
     chk_init_6();
@@ -260,3 +262,21 @@ void vga_screen_scroll_64_16() {
 
 
 }
+
+
+/** HRG Notes
+ *
+ * So...I think we need to rethink the split between the screen related entry points in trs_djgpp and the
+ * ones here.   To properly support all of the HRG options, I feel like we may need to "know" the various
+ * mode bits, etc., kept in trs_djgpp (originally trs_xinterface)
+ *
+ * The "holy grail" would be to extract out an emulator front-end interface that we can plug in to whatever
+ * system we are compiling for.
+ *
+ * For now, I will try a first-pass support that only works in model 4 mode and does not handle overlays.
+ * That should suffice to get the BASICG code running
+ ***/
+
+
+// First pass at model 4 HRG here.
+static unsigned char hrgbuf[0x10000];

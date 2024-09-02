@@ -611,95 +611,126 @@ int trs_get_mouse_type() {
 
 
 void grafyx_write_byte(int x, int y, char byte) {
+    //Write a byte to HRG memory after x and y have been decoded.  For the Radio Shack boards and the
+    // microlabs model 4 board, the x and y registers are set separately and then this method should be called
+    // from grafyx_write_data
+    // For the microlabs model 3 board, which is memory mapped, they get partially? decoded from the
+    // address via grafyx_m3_write_byte.
+
+    //Note that auto incrementing/decrementing does not happen hea
     static int nicounter = 0;
     not_implemented("grafyx_write_byte", &nicounter); }
 
 void grafyx_write_x(int value) {
+    //Set the "X" register for the next HRG write
     static int nicounter = 0;
     not_implemented("grafyx_write_x", &nicounter); }
 
 void grafyx_write_y(int value) {
+    //Set the "Y" register for the next HRG write
     static int nicounter = 0;
     not_implemented("grafyx_write_y", &nicounter); }
 
 void grafyx_write_data(int value) {
+    // Call grafyx_write_byte, then do any auto-inc/auto-dec
     static int nicounter = 0;
     not_implemented("grafyx_write_data", &nicounter); }
 
 int grafyx_read_data() {
+    // Read the grafyx byte, do auto-inc/auto-dec, and then return the value
     static int nicounter = 0;
     not_implemented("grafyx_read_data", &nicounter);
     return 0;
 }
 
 void grafyx_write_mode(int value) {
+    // Set all the auto-inc/auto-dec values
     static int nicounter = 0;
     not_implemented("grafyx_write_mode", &nicounter); }
 
 void grafyx_write_xoffset(int value) {
+    // Write the x-offset (undocumented scroll feature)
     static int nicounter = 0;
     not_implemented("grafyx_write_xoffset", &nicounter); }
 
 void grafyx_write_yoffset(int value) {
+    // Write the y-offset (undocumented scroll feature)
     static int nicounter = 0;
     not_implemented("grafyx_write_yoffset", &nicounter); }
 
 void grafyx_write_overlay(int value) {
+    // Write the undocumented model 4 byte that lets you overlay
+    //  text with hi-res grafix.  In model 3 grafyx (microlabs only?), this is
+    //  set via the write_mode?
     static int nicounter = 0;
     not_implemented("grafyx_write_overlay", &nicounter); }
 
 int grafyx_get_microlabs() {
+    //This returns true if we are emulating the microlabs board (model 3 or 4 board, which are very different from
+    // each other)
     static int nicounter = 0;
     not_implemented("grafyx_get_microlabs", &nicounter);
     return 0;
 }
 
 void grafyx_set_microlabs(int on_off) {
+    //Sets if we are emulating the microlabs board (model 3 or 4 board, which are very different from
+    // each other)
     static int nicounter = 0;
     not_implemented("grafyx_set_microlabs", &nicounter);
 }
 
 void grafyx_m3_reset() {
+    //Called when M3 resets - in old xtrs, really only needed for the
+    //microlabs card but it is called regardless
     static int nicounter = 0;
     not_implemented("grafyx_m3_reset", &nicounter); }
 
 void grafyx_m3_write_mode(int value) {
+    //Called for m3 microlabs - seems to be mapped to port 0xFF
     static int nicounter = 0;
     not_implemented("grafyx_m3_write_mode", &nicounter); }
 
 int grafyx_m3_write_byte(int position, int byte) {
+    //Called for m3 microlabs - memory mapped
     static int nicounter = 0;
     not_implemented("grafyx_m3_write_byte", &nicounter);
     return 0;
 }
 
 unsigned char grafyx_m3_read_byte(int position) {
+    //Called for m3 microlabs - memory mapped
     static int nicounter = 0;
     not_implemented("grafyx_m3_read_byte", &nicounter);
     return 0;
 }
 
 int grafyx_m3_active() {
+    // For microlabs model3, returns true if is enabled
     static int nicounter = 0;
     not_implemented("grafyx_m3_active", &nicounter);
     return 0;
 }
 
 int hrg_read_data() {
+    //Model 1 I think
     static int nicounter = 0;
     not_implemented("hrg_read_data", &nicounter);
     return 0;
 }
 
 void hrg_write_addr(int addr, int mask) {
+    //Model 1 I think
     static int nicounter = 0;
     not_implemented("hrg_write_addr", &nicounter); }
 
 void hrg_write_data(int data) {
+    //Model 1 I think
     static int nicounter = 0;
     not_implemented("hrg_write_data", &nicounter); }
 
 void hrg_onoff(int enable) {
+    //Model 1 I think
     static int nicounter = 0;
     not_implemented("hrg_onoff", &nicounter); }
 
