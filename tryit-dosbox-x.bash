@@ -7,7 +7,7 @@ cd "$SCRIPT_DIR"
 export PATH="/usr/gitarnold/gitarnold-dosbox-x/bin:$PATH"
 
 function dosbox {
-  dosbox-x "$@"
+  dosbox-x -conf dbox-conf/dosbox-x.conf "$@"
 }
 
 
