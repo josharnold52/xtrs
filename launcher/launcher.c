@@ -56,7 +56,7 @@ int _emu_compare(const void * v1, const void * v2) {
 
 void reset_emu_base() {
     int l;
-    memcpy(emus_base, start_wd, sizeof(start_wd));
+    strcpy(emus_base, start_wd);
 
     l = strlen(emus_base);
     if (!l || emus_base[l-1] != '\\') {
@@ -118,7 +118,6 @@ int read_emus() {
         emus_base[l+1] = 0;
     }
     strcat(emus_base, "*");
-
     first = last = 0;
     emu_counter = 0;
     for(find_res = findfirst(emus_base, &dirblk, FA_DIREC); find_res == 0 && emu_counter < 20; find_res = findnext(&dirblk)) {
@@ -147,6 +146,7 @@ int read_emus() {
     }
 
     free_emus();
+
     emu_list = first;
     l=strlen(emus_base);
     emus_base[l-1] = 0;
@@ -167,6 +167,9 @@ int launch(int cur_emu) {
     FILE * config_file;
     int exec_res;
     int subchk;
+    char dostrspath[MAXPATH*14];
+    char exepath[MAXPATH+14];
+    char rpath[MAXPATH+15];
 
     p = get_emu(cur_emu);
     strcpy(dir, emus_base);
@@ -212,10 +215,28 @@ int launch(int cur_emu) {
     for(pos=config_len - 1; pos > 0 && config[pos] == ' '; pos--) {
         config[pos] = 0;
     }
-    exec_res = spawnl(P_WAIT, "..\\..\\KEYTRAP.COM", "..\\..\\KEYTRAP.COM", "..\\..\\DOSXTRS", config, 0);
+
+    strcpy(exepath, start_wd);
+    if (!strlen(exepath) || (exepath[strlen(exepath)-1]!= '\\')) {
+        strcat(exepath, "\\");
+    }
+    strcpy(dostrspath, exepath);
+    strcat(exepath,"KEYTRAP.COM");
+    strcat(dostrspath, "DOSXTRS");
+
+    /**
+     * Even though ROMPATH shouldn't change, we set it before each spawn.  For some
+     * reason, functions like cprintf seem to be blowing away some of the environment
+     * changes we make.  This is a bit unsettling so need to watch for crashes, etc.
+     */
+    sprintf(rpath, "ROMPATH=%s", strlen(start_wd) ? start_wd : "\\");
+    putenv(rpath);
+
+
+    exec_res = spawnl(P_WAIT, exepath, "KEYTRAP.COM", dostrspath, config, 0);
     if (exec_res < 0) {
         gotoxy(1,23);
-        cprintf("SPAWN FAIL [%s]", config);
+        cprintf("SPAWN FAIL [%s] [%s] [%s]", exepath, dostrspath, config);
         return 0;
     }
 
@@ -332,7 +353,7 @@ void mainloop() {
             clrscr();
             continue;
         }
-        if (c == 0xd) {
+        if (c == 0xd || c == 'z') {
             launch_res = launch(cur_emu);
             if (launch_res == 2) {
                 /* sub menu */
@@ -341,9 +362,16 @@ void mainloop() {
                 next_emu = 0;
                 cur_emu = -1;
             } else if (launch_res == 1) {
-                /** Ran the emulator */
-                clrscr();
-                show_options(cur_emu);
+                /*
+                 * If "z" was pressed then we don't clear the screen so we can see any console output
+                 * that may have happened
+                 */
+                if (c == 0xd) {
+                    clrscr();
+                    show_options(cur_emu);
+                } else {
+                    printf("\nPress ESC\n");
+                }
             }
             escape_counter = 0;
             continue;

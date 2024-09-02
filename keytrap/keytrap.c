@@ -126,7 +126,11 @@ void main(int argc, char **argv, char **env) {
     unsigned int c,i;
     char tbuf[32];
 
-
+    /*
+    printf("ROMPATH=%s\n", getenv("ROMPATH") ? getenv("ROMPATH") : "<null>");
+    printf("PATH=%s\n", getenv("PATH") ? getenv("PATH") : "<null>");
+    */
+    
     if (argc < 2) {
         printf("ERROR: You need to specify a command to spawn\n");
         exit(1);

@@ -47,47 +47,64 @@ void trs_load_rom(char *filename)
 {
     FILE *program;
     int c;
+    char newpath[2000];
 
-    if((program = fopen(filename, "rb")) == NULL)
-    {
-	char message[100];
-	sprintf(message, "could not read %s", filename);
-	fatal(message);
+    program = fopen(filename, "rb");
+    if (program == NULL) {
+        if (strchr(filename, '\\') == 0 && strchr(filename, '/') == 0) {
+            joshlog("Rom file not found - checking rompath\n");
+            // HARDENME - Being super lazy here - array sizing, etc.
+            const char *rp = getenv("ROMPATH");
+            joshlog("ROMPATH=%s\n", rp ? rp : "<null>");
+            if (rp && strlen(rp)) {
+                const char *sep;
+                sep = (strchr(filename, '\\') == 0 && strchr(filename, '/') == 0) ? "/" : "";
+                sprintf(newpath, "%s%s%s", rp, sep, filename);
+                joshlog("Trying to find %s in %s\n", filename, rp);
+                program = fopen(newpath, "rb");
+            }
+        }
+        if (program == NULL) {
+            char message[2000];
+            sprintf(message, "could not read %s\n", filename);
+            fatal(message);
+        }
     }
+
     c = getc(program);
     if (c == ':') {
         /* Assume Intel hex format */
         rewind(program);
         trs_rom_size = load_hex(program);
-	fclose(program);
-	return;
+        fclose(program);
+        return;
     } else if (c == 1 || c == 5) {
-	/* Assume MODELA/III file */
-	int res;
-	extern Uchar *rom; /*!! fixme*/
-	Uchar loadmap[Z80_ADDRESS_LIMIT];
-	rewind(program);
-	res = load_cmd(program, rom, loadmap, 0, NULL, -1, NULL, NULL, 1);
-	if (res == LOAD_CMD_OK) {
-	    trs_rom_size = Z80_ADDRESS_LIMIT;
-	    while (trs_rom_size > 0) {
-		if (loadmap[--trs_rom_size] != 0) {
-		    trs_rom_size++;
-		    break;
-		}
-	    }
-	    fclose(program);
-	    return;
-	} else {
-	    /* Guess it wasn't one */
-	    rewind(program);
-	    c = getc(program);
-	}
+        /* Assume MODELA/III file */
+        int res;
+        extern Uchar *rom; /*!! fixme*/
+        Uchar loadmap[Z80_ADDRESS_LIMIT];
+        rewind(program);
+        res = load_cmd(program, rom, loadmap, 0, NULL, -1, NULL, NULL, 1);
+        if (res == LOAD_CMD_OK) {
+            trs_rom_size = Z80_ADDRESS_LIMIT;
+            while (trs_rom_size > 0) {
+                if (loadmap[--trs_rom_size] != 0) {
+                    trs_rom_size++;
+                    break;
+                }
+            }
+            fclose(program);
+            return;
+        } else {
+            /* Guess it wasn't one */
+            rewind(program);
+            c = getc(program);
+        }
     }
     trs_rom_size = 0;
     while (c != EOF) {
         mem_write_rom(trs_rom_size++, c);
-	c = getc(program);
+        c = getc(program);
     }
     joshlog("Rom size is %d\n", trs_rom_size);
 }
