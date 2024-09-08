@@ -225,6 +225,7 @@ void z80_out(int port, int value) {
                 trs_screen_alternate(!((modeimage & 0x08) >> 3));
                 /* clock speed is on D6; it affects timer HZ too */
                 trs_timer_speed((modeimage & 0x40) >> 6);
+                trs_realtime_set_m4_speed((modeimage & 0x40) >> 6);
                 break;
             case TRSDISK3_COMMAND: /* 0xF0 */
                 trs_disk_command_write(value);

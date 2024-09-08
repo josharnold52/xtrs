@@ -20,7 +20,7 @@ extern "C" {
  * If more space is needed, use djgpp/dpmi calls to allocate our own
  * dos memory buffer.
  *
- * This should be used "__dpmi_simulate_real_mode_interrupt" because
+ * This should be used with "__dpmi_simulate_real_mode_interrupt" because
  * we manage the real-mode stack.
  * */
 static unsigned long prepare_bios_regs(__dpmi_regs *regs) {
@@ -92,6 +92,12 @@ static void rotate_left_block(void *p, int steps, int len) {
 static int init = VGA_INIT_MODE_NONE;
 
 static unsigned char shadowbuf[0x10000];
+static unsigned char shadowbuf_hires[0x10000];
+
+static const int trsmode_normal = 0;
+static const int trsmode_hires = 1;
+
+static unsigned char trsmode = 0; // 0 for normal, 1 for hires, 2 for both (2 not implemented yet)
 
 void vga_needs_reset() {
     init = VGA_INIT_MODE_NONE;
@@ -105,6 +111,7 @@ inline static void chk_init_6() {
     if (init != VGA_INIT_MODE_6) {
         setCGAHighRes();
         memset(shadowbuf, 0, sizeof(shadowbuf));
+        memset(shadowbuf_hires, 0, sizeof(shadowbuf_hires));
         init = VGA_INIT_MODE_6;
     }
 }
@@ -112,10 +119,55 @@ inline static void chk_init_17() {
     if (init != VGA_INIT_MODE_17) {
         setVGAHighRes();
         memset(shadowbuf, 0, sizeof(shadowbuf));
+        memset(shadowbuf_hires, 0, sizeof(shadowbuf_hires));
         init = VGA_INIT_MODE_17;
     }
 }
 
+
+static void redraw() {
+    const int mx17 = 80 * 480;
+    const int mx6 = 80 * 100;
+
+    _farsetsel(_dos_ds);
+    if (trsmode == trsmode_normal) {
+        if (init == VGA_INIT_MODE_17) {
+            for (int i = 0; i < mx17; i++) {
+                _farnspokeb(0xA0000 + i, shadowbuf[i]);
+            }
+        } else if (init == VGA_INIT_MODE_6) {
+            for (int i = 0; i < mx6; i++) {
+                _farnspokeb(0xB8000 + i, shadowbuf[i]);
+                _farnspokeb(0xBA000 + i, shadowbuf[i + 0x2000]);
+            }
+        }
+    } else if (trsmode == trsmode_hires) {
+        if (init == VGA_INIT_MODE_17) {
+            for (int i = 0; i < mx17; i++) {
+                _farnspokeb(0xA0000 + i, shadowbuf_hires[i]);
+            }
+        } else if (init == VGA_INIT_MODE_6) {
+            for (int i = 0; i < mx6; i++) {
+                _farnspokeb(0xB8000 + i, shadowbuf_hires[i]);
+                _farnspokeb(0xBA000 + i, shadowbuf_hires[i + 0x2000]);
+            }
+        }
+    }
+
+}
+
+void vga_set_hires() {
+    if (trsmode != trsmode_hires) {
+        trsmode = trsmode_hires;
+        redraw();
+    }
+}
+void vga_set_text() {
+    if (trsmode != trsmode_normal) {
+        trsmode = trsmode_normal;
+        redraw();
+    }
+}
 
 
 void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
@@ -126,16 +178,6 @@ void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
     memcpy(patData, glyphRows, TRS_CHAR_HEIGHT);
     rotate_left_block(patData, (position & 3) << 1, TRS_CHAR_HEIGHT);
 
-    /*
-   GrPattern pat;
-   pat.gp_bitmap.bmp_ispixmap = 0;
-   pat.gp_bitmap.bmp_height = TRS_CHAR_HEIGHT;
-   pat.gp_bitmap.bmp_data = patData;
-   pat.gp_bitmap.bmp_fgcolor = GrWhite();
-   pat.gp_bitmap.bmp_bgcolor = GrBlack();
-   pat.gp_bitmap.bmp_memflags = 0;
-   */
-    //trs_screen_pattern.gp_bitmap.bmp_data = patData;
     unsigned char ml = maskl[position & 3];
     unsigned char mr = maskr[position & 3];
 
@@ -155,14 +197,18 @@ void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
         unsigned char curb = shadowbuf[offset];
         unsigned char newb = (patData[r] & ml) | (curb & ~ml);
         if (curb != newb) {
-            _farnspokeb( 0xB8000 + offset, newb);
+            if (trsmode == trsmode_normal) {
+                _farnspokeb(0xB8000 + offset, newb);
+            }
             shadowbuf[offset] = newb;
         }
         if (mr) {
             curb = shadowbuf[offset + 1];
             newb = (patData[r] & mr) | (curb & ~mr);
             if (curb != newb) {
-                _farnspokeb(0xB8000 + offset + 1, newb);
+                if (trsmode == trsmode_normal) {
+                    _farnspokeb(0xB8000 + offset + 1, newb);
+                }
                 shadowbuf[offset+1] = newb;
             }
         }
@@ -191,7 +237,9 @@ void vga_screen_write_glyph_64_16_8ppc(char *glyphRows, int position) {
         unsigned char curb = shadowbuf[offset];
         unsigned char newb = glyphRows[r];
         if (curb != newb) {
-            _farnspokeb( 0xB8000 + offset, newb);
+            if (trsmode == trsmode_normal) {
+                _farnspokeb(0xB8000 + offset, newb);
+            }
             shadowbuf[offset] = newb;
         }
         //Interleaved planes
@@ -227,14 +275,18 @@ void vga_screen_write_glyph_80_24_8ppc(char *glyphRows, int position) {
         // 2 rows
         curb = shadowbuf[offset];
         if (curb != newb) {
-            _farnspokeb( 0xA0000 + offset, newb);
+            if (trsmode == trsmode_normal) {
+                _farnspokeb(0xA0000 + offset, newb);
+            }
             shadowbuf[offset] = newb;
         }
         offset += 80;
 
         curb = shadowbuf[offset];
         if (curb != newb) {
-            _farnspokeb( 0xA0000 + offset, newb);
+            if (trsmode == trsmode_normal) {
+                _farnspokeb(0xA0000 + offset, newb);
+            }
             shadowbuf[offset] = newb;
         }
         offset += 80;
@@ -253,13 +305,13 @@ void vga_screen_scroll_64_16() {
     memmove(shadowbuf, shadowbuf + shift, copySize);
     memmove(shadowbuf + 0x2000, shadowbuf + 0x2000 + shift, copySize);
 
-    _farsetsel(_dos_ds);
-    for(int i=0;i<copySize;i+=4) {
-        _farnspokel(0xB8000 + i, *(reinterpret_cast<unsigned long *>(shadowbuf + i)));
-        _farnspokel(0xB8000 + i + 0x2000, *(reinterpret_cast<unsigned long *>(shadowbuf + i + 0x2000)));
+    if (trsmode == trsmode_normal) {
+        _farsetsel(_dos_ds);
+        for (int i = 0; i < copySize; i += 4) {
+            _farnspokel(0xB8000 + i, *(reinterpret_cast<unsigned long *>(shadowbuf + i)));
+            _farnspokel(0xB8000 + i + 0x2000, *(reinterpret_cast<unsigned long *>(shadowbuf + i + 0x2000)));
+        }
     }
-
-
 
 }
 
@@ -276,7 +328,59 @@ void vga_screen_scroll_64_16() {
  * For now, I will try a first-pass support that only works in model 4 mode and does not handle overlays.
  * That should suffice to get the BASICG code running
  ***/
+void vga_hires_set(int x, int y, unsigned char data) {
+    if (init == VGA_INIT_MODE_6) {
+        // TODO - Mod 3 support...Maybe even Mod 1 support?
+        return;
+    }
+    x &= 0x7F;
+    y &= 0xFF;
+    //Note - I should probably change this so that the shadow_hires mimics the layout of the trs-80
+    // screen memory (256 rows of 128 bytes) and then translate to VGA coordinates when copying the
+    // shadow to main hires.  This would let me implement the undocumented scrolling feature of the hires
+    // card.   For now, I'll just limit the size
+    if (x > 79) {
+        x = 79;
+    }
+    if (y > 239) {
+        y = 239;
+    }
+    _farsetsel(_dos_ds);
+    int offset = (2 * y * 80) + x;
+    if (shadowbuf_hires[offset] != data) {
+        shadowbuf_hires[offset] = data;
+        if (trsmode == trsmode_hires) {
+            _farnspokeb(0xA0000 + offset, data);
+        }
+    }
+    offset += 80;
+    if (shadowbuf_hires[offset] != data) {
+        shadowbuf_hires[offset] = data;
+        if (trsmode == trsmode_hires) {
+            _farnspokeb(0xA0000 + offset, data);
+        }
+    }
+}
+
+unsigned char vga_hires_get(int x, int y) {
+    if (init == VGA_INIT_MODE_6) {
+        // TODO - Mod 3 support...Maybe even Mod 1 support?
+        return 0;
+    }
+    x &= 0x7F;
+    y &= 0xFF;
+    //Note - I should probably change this so that the shadow_hires mimics the layout of the trs-80
+    // screen memory (256 rows of 128 bytes) and then translate to VGA coordinates when copying the
+    // shadow to main hires.  This would let me implement the undocumented scrolling feature of the hires
+    // card.   For now, I'll just limit the size
+    if (x > 79) {
+        x = 79;
+    }
+    if (y > 239) {
+        y = 239;
+    }
+    const int offset = (2 * y * 80) + x;
+    return shadowbuf_hires[offset];
+}
 
 
-// First pass at model 4 HRG here.
-static unsigned char hrgbuf[0x10000];

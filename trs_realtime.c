@@ -46,6 +46,8 @@ static uclock_t real_basetime;
 static tstate_t last_synced_at_tstate;
 static uclock_t last_reset_at_uclock;
 
+static int m4_fast = 0;
+
 void trs_realtime_sync_uclock(tstate_t threhsold);
 
 void trs_realtime_reset() {
@@ -54,10 +56,13 @@ void trs_realtime_reset() {
     if (trs_model == 1) {
         tstate_usec_factor = TSTATE_USEC_FACTOR_M1;
         tstates_per_sec = TSTATES_PER_SEC_M1;
-    } else {
-        //TODO: Handle M4
+    } else if (trs_model == 3) {
         tstate_usec_factor = TSTATE_USEC_FACTOR_M3;
         tstates_per_sec = TSTATES_PER_SEC_M3;
+    } else {
+        //M4
+        tstate_usec_factor = TSTATE_USEC_FACTOR_M3 * (m4_fast ? 0.5 : 1);
+        tstates_per_sec = TSTATES_PER_SEC_M3 * (m4_fast ? 2 : 1);
     }
     trs_realtime_sync = trs_realtime_sync_uclock;
     z80_basetime = z80_state.t_count;
@@ -67,6 +72,10 @@ void trs_realtime_reset() {
 
 }
 
+void trs_realtime_set_m4_speed(int fast) {
+    m4_fast = fast;
+    trs_realtime_reset();
+}
 
 unsigned long long trs_rt_rdtsc(){
     unsigned int lo,hi;

@@ -243,13 +243,14 @@ void trs_get_event(int wait) {
     //not_implemented("trs_get_event");
 }
 
-static void repaint_screen() {
+static void repaint_screen(int reset) {
+    if (reset) {
 #if VIDEO_DRIVER_VGA
-    vga_needs_reset();
+        vga_needs_reset();
 #else
-    GrFilledBox(0, 0, GrMaxX(), GrMaxY(), GrBlack());
+        GrFilledBox(0, 0, GrMaxX(), GrMaxY(), GrBlack());
 #endif
-
+    }
     for (int i = 0; i < screen_chars; i++) {
         trs_screen_write_char(i, trs_screen[i]);
     }
@@ -379,7 +380,7 @@ void trs_screen_init() {
     trs_screen_pattern.gp_bitmap.bmp_bgcolor = GrBlack();
     trs_screen_pattern.gp_bitmap.bmp_memflags = 0;
     reload_grx_colors();
-    repaint_screen();
+    repaint_screen(1);
     //TODO: This really should be done elsewhere... It's in trs_djgpp.c because it
     // uses our command line options.
     trs_load_romfile();
@@ -393,7 +394,7 @@ void trs_screen_expanded(int flag) {
     int bit = flag ? EXPANDED : 0;
     if ((trs_current_video_mode ^ bit) & EXPANDED) {
         trs_current_video_mode ^= EXPANDED;
-        repaint_screen();
+        repaint_screen(0);
     }
 }
 
@@ -407,12 +408,12 @@ void trs_screen_80x24(int flag) {
         joshlog("Switching to 80x24 mode");
         row_chars = 80;
         screen_chars = 80 * 24;
-        repaint_screen();
+        repaint_screen(1);
     } else if (!flag && row_chars != 64) {
         joshlog("Switching to 80x24 mode");
         row_chars = 64;
         screen_chars = 64 * 16;
-        repaint_screen();
+        repaint_screen(1);
     }
 
 }
@@ -429,7 +430,7 @@ void trs_screen_grafix80(int mode_bits) {
             joshlog("SWITCHING TO NON-GRAFIX-80 MODE\n");
             trs_current_video_mode &= ~(GR80_ENABLE | GR80_PROGRAM);
             p_current_table = &primary_pattern_table;
-            repaint_screen();
+            repaint_screen(0);
         }
     } else if (mode_bits == 0x80) {
         if (!(trs_current_video_mode & GR80_ENABLE)) {
@@ -437,7 +438,7 @@ void trs_screen_grafix80(int mode_bits) {
             trs_current_video_mode |= GR80_ENABLE;
             trs_current_video_mode &= ~GR80_PROGRAM;
             p_current_table = &grafix80_table;
-            repaint_screen();
+            repaint_screen(0);
         }
     } else if (mode_bits == 0x40) {
         if (!(trs_current_video_mode & GR80_PROGRAM)) {
@@ -445,7 +446,7 @@ void trs_screen_grafix80(int mode_bits) {
             trs_current_video_mode |= GR80_PROGRAM;
             trs_current_video_mode &= ~GR80_ENABLE;
             p_current_table = &grafix80_programming_table;
-            repaint_screen();
+            repaint_screen(0);
         }
     }
 }
@@ -610,43 +611,57 @@ int trs_get_mouse_type() {
 }
 
 
-void grafyx_write_byte(int x, int y, char byte) {
-    //Write a byte to HRG memory after x and y have been decoded.  For the Radio Shack boards and the
-    // microlabs model 4 board, the x and y registers are set separately and then this method should be called
-    // from grafyx_write_data
-    // For the microlabs model 3 board, which is memory mapped, they get partially? decoded from the
-    // address via grafyx_m3_write_byte.
+static int grafyx_x = 0;
+static int grafyx_y = 0;
+static int grafyx_mode_bits = 0;
 
-    //Note that auto incrementing/decrementing does not happen hea
-    static int nicounter = 0;
-    not_implemented("grafyx_write_byte", &nicounter); }
+static const int grafyx_auto_x_dec = 0x04;
+static const int grafyx_auto_y_dec = 0x08;
+static const int grafyx_noauto_x_on_read = 0x10;
+static const int grafyx_noauto_y_on_read = 0x20;
+static const int grafyx_noauto_x_on_write = 0x40;
+static const int grafyx_noauto_y_on_write = 0x80;
 
 void grafyx_write_x(int value) {
     //Set the "X" register for the next HRG write
-    static int nicounter = 0;
-    not_implemented("grafyx_write_x", &nicounter); }
+    grafyx_x = value & 0xFF;
+}
 
 void grafyx_write_y(int value) {
     //Set the "Y" register for the next HRG write
-    static int nicounter = 0;
-    not_implemented("grafyx_write_y", &nicounter); }
+    grafyx_y = value & 0xFF;
+}
 
 void grafyx_write_data(int value) {
-    // Call grafyx_write_byte, then do any auto-inc/auto-dec
-    static int nicounter = 0;
-    not_implemented("grafyx_write_data", &nicounter); }
+    vga_hires_set(grafyx_x, grafyx_y, value & 0xFF);
+    if (!(grafyx_mode_bits & grafyx_noauto_x_on_write)) {
+        grafyx_x = (grafyx_x + ((grafyx_mode_bits & grafyx_auto_x_dec) ? -1 : 1)) & 0xFF;
+    }
+    if (!(grafyx_mode_bits & grafyx_noauto_y_on_write)) {
+        grafyx_y = (grafyx_y + ((grafyx_mode_bits & grafyx_auto_y_dec) ? -1 : 1)) & 0xFF;
+    }
+}
 
 int grafyx_read_data() {
-    // Read the grafyx byte, do auto-inc/auto-dec, and then return the value
-    static int nicounter = 0;
-    not_implemented("grafyx_read_data", &nicounter);
-    return 0;
+    int res;
+    res = vga_hires_get(grafyx_x, grafyx_y);
+    if (!(grafyx_mode_bits & grafyx_noauto_x_on_read)) {
+        grafyx_x = (grafyx_x + ((grafyx_mode_bits & grafyx_auto_x_dec) ? -1 : 1)) & 0xFF;
+    }
+    if (!(grafyx_mode_bits & grafyx_noauto_y_on_read)) {
+        grafyx_y = (grafyx_y + ((grafyx_mode_bits & grafyx_auto_y_dec) ? -1 : 1)) & 0xFF;
+    }
+    return res;
 }
 
 void grafyx_write_mode(int value) {
-    // Set all the auto-inc/auto-dec values
-    static int nicounter = 0;
-    not_implemented("grafyx_write_mode", &nicounter); }
+    grafyx_mode_bits = value & 0xFF;
+    if (value & 1) {
+        vga_set_hires();
+    } else {
+        vga_set_text();
+    }
+}
 
 void grafyx_write_xoffset(int value) {
     // Write the x-offset (undocumented scroll feature)
@@ -1258,7 +1273,7 @@ int joshem_do_modal(joshem_modal_handler handler, void *input) {
     pScanBuffer->suppress_flag = 0;
 
     handler(&context);
-    repaint_screen();
+    repaint_screen(1);
     pScanBuffer->suppress_flag = 1;
 
     scanBufferCursor = pScanBuffer->next_offset;

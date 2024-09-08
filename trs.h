@@ -147,6 +147,7 @@ void trs_change_all(void);
 
 void trs_realtime_reset(void);
 //void trs_realtime_sync(tstate_t threhsold);
+void trs_realtime_set_m4_speed(int fast);
 extern void (*trs_realtime_sync)(tstate_t threhsold);
 
 void trs_realtime_disable();
