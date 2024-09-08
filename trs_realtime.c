@@ -74,7 +74,9 @@ void trs_realtime_reset() {
 
 void trs_realtime_set_m4_speed(int fast) {
     m4_fast = fast;
-    trs_realtime_reset();
+    if (trs_model == 4) {
+        trs_realtime_reset();
+    }
 }
 
 unsigned long long trs_rt_rdtsc(){

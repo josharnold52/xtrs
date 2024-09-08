@@ -110,6 +110,9 @@ static trs_pattern_table primary_pattern_table;
 static trs_pattern_table grafix80_table; //TODO
 static trs_pattern_table grafix80_programming_table; //TODO
 
+static trs_pattern_table mod34_altset_table; //TODO
+static trs_pattern_table mod4_inverse_table; //TODO
+
 #define NORMAL 0
 #define EXPANDED 1
 #define INVERSE 2
@@ -306,6 +309,14 @@ void trs_screen_init() {
         if (pat_flags & PATTERN_FLAG_8_PIXEL_CHARS) {
             joshlog("NOTE: 80-grafix emulation behaves in a non-standard way for 8ppc fonts!");
         }
+    } else {
+        joshlog("Init altset pattern table: %d - %08x\n", trs_charset, pat_flags | PATTERN_FLAG_USE_ALTSET);
+        init_pattern_table(&mod34_altset_table, trs_char_data[trs_charset], pat_flags | PATTERN_FLAG_USE_ALTSET);
+
+        int invFlags = pat_flags | PATTERN_FLAG_USE_INVERSE;
+        invFlags &= ~ (PATTERN_FLAG_GRAPHICS_AT_128 | PATTERN_FLAG_GRAPHICS_AT_192);
+        joshlog("Init inverse pattern table: %d - %08x\n", trs_charset, invFlags);
+        init_pattern_table(&mod4_inverse_table, trs_char_data[trs_charset], invFlags);
     }
 
     p_current_table = &primary_pattern_table;
@@ -399,8 +410,22 @@ void trs_screen_expanded(int flag) {
 }
 
 void trs_screen_alternate(int flag) {
-    static int nicounter = 0;
-    not_implemented("trs_screen_alternate", &nicounter);
+    flag = flag ? 1 : 0;
+    int cur = trs_current_video_mode & ALTERNATE ? 1 : 0;
+    if (cur == flag) {
+        return;
+    }
+    trs_current_video_mode &= ~(ALTERNATE);
+    // If in inverse mode, then the alt set has no effect, so exit now
+    if (trs_current_video_mode & INVERSE) {
+        return;
+    }
+    if (!flag) {
+        p_current_table = &primary_pattern_table;
+    } else {
+        p_current_table = &mod34_altset_table;
+    }
+    repaint_screen(0);
 }
 
 void trs_screen_80x24(int flag) {
@@ -419,8 +444,18 @@ void trs_screen_80x24(int flag) {
 }
 
 void trs_screen_inverse(int flag) {
-    static int nicounter = 0;
-    not_implemented("trs_screen_inverse", &nicounter);
+    flag = flag ? 1 : 0;
+    int cur = trs_current_video_mode & INVERSE ? 1 : 0;
+    if (cur == flag) {
+        return;
+    }
+    trs_current_video_mode &= ~(INVERSE);
+    if (!flag) {
+        p_current_table = (trs_current_video_mode & ALTERNATE) ? &mod34_altset_table : &primary_pattern_table;
+    } else {
+        p_current_table = &mod4_inverse_table;
+    }
+    repaint_screen(0);
 }
 
 void trs_screen_grafix80(int mode_bits) {

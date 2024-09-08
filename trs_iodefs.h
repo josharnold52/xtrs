@@ -55,6 +55,8 @@ typedef struct trs_pattern_table {
 #define PATTERN_FLAG_8_PIXEL_CHARS    4
 #define PATTERN_FLAG_BLANK_HIGH_CHARS 8
 #define PATTERN_FLAG_BLANK_LOW_CHARS 16
+#define PATTERN_FLAG_USE_ALTSET 32
+#define PATTERN_FLAG_USE_INVERSE 32
 
 typedef char trs_charset_definition[MAXCHARS][TRS_CHAR_HEIGHT];
 

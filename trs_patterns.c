@@ -66,6 +66,7 @@ static void expand_4to8bit_block(void *p, int bitoffset, int len) {
 }
 
 void init_pattern_table(trs_pattern_table *dest, const trs_charset_definition src_data, int flags) {
+
     joshlog("Init pattern table entry %p\n", dest);
     memset(dest, 0, sizeof(trs_pattern_table));
     if (flags & PATTERN_FLAG_8_PIXEL_CHARS) {
@@ -85,6 +86,25 @@ void init_pattern_table(trs_pattern_table *dest, const trs_charset_definition sr
 
     char grhigh = (char)(flags & PATTERN_FLAG_8_PIXEL_CHARS ? 0xF0 : 0xE0);
     char grlow = (char)(flags & PATTERN_FLAG_8_PIXEL_CHARS ? 0x0F : 0x1C);
+
+    if (flags & PATTERN_FLAG_USE_INVERSE) {
+        //Model 4 inverse mode -> copy patterns 0-127 to 128-255 and invert the copies
+        for(int i = 0; i < 128; i++) {
+            for(int j=0; j < TRS_CHAR_HEIGHT; j++) {
+                dest->normal[i+128][j] = (char)(~dest->normal[i][j]);
+            }
+        }
+    } else if (flags & PATTERN_FLAG_USE_ALTSET) {
+        //Model 3/4 AltSet -> swap the top 2 64-byte pages of the pattern table so that
+        // Once graphics are added, this will make 128-191 be graphics, and 192-255 be
+        // the original pattern's values for 128-191
+        char tmpbuf[TRS_CHAR_HEIGHT];
+        for(int i=128; i < 192; i++) {
+            memcpy(tmpbuf, dest->normal[i], TRS_CHAR_HEIGHT);
+            memcpy(dest->normal[i], dest->normal[i+128], TRS_CHAR_HEIGHT);
+            memcpy(dest->normal[i+128], tmpbuf, TRS_CHAR_HEIGHT);
+        }
+    }
 
     if (flags & PATTERN_FLAG_BLANK_HIGH_CHARS) {
         memset(dest->normal[128], 0, 128 * TRS_CHAR_HEIGHT);

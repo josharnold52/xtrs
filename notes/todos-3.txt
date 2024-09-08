@@ -1,0 +1,47 @@
+It's been a while since I touched the TODOs list.  Here's top of mind stuff:
+
+* Finish implementing HiRes graphics (Things not done as of this writing are mod 3, mod 1 HRG (i.e. - not grafix80),
+  mod4 undocumented features, microlabs) and  alternate character sets for 3/4.
+    UPDATE - I implemented alt character sets and inverse.  Inverse seems to work - have not yet tested alt
+             sets.  Note: These, along with grafix80 use "pattern tables".  When initializing the pattern tables,
+             I only initialize the ones relevant for the given model's hardware.  It would be better to initialize
+             all tables for all models and then use the io port mapping to contol which get enabled.  That would let
+             me play things like grafix-80 style support for model 3/4, etc.
+* Figure out how I want to deal with changing removable disks - Emulator UI or TRSDOS cmd?   In some ways I prefer
+  the latter because I can also tell the OS about the change
+* Some cassette improvements - For user tapes, it would be nice to set descriptions and or documentation for tracks.
+  Also cool would be some ability to delete/rearrange/move tracks
+* SOUND SOUND SOUND SOUND.   Need to figure out HDA sound!!!   I have a lot of the core stuff written, but I have
+  not yet gotten it to work on real hardware
+* Improve the Launcher (improved navigation/subdirectory support, support launching non-trs stuff so I can expand to
+  other things)
+* See if switching to _rdtsc for realtime support is worth it
+* Support "Default" disk files...maybe even cassette files.  Each of these defaults would be paired with a "user" file
+  that is used at runtime.  When starting, if the corresponding user file doesn't exist, it would be pre-initialized
+  as a copy of the default file.   The idea is to distribute "editable" media but then have it be preserved when the
+  user starts updating it.  Maybe even arrange it so that the user-copy gets re-updated if the default copy changes and
+  the user copy has not been touched.
+* General Cleanup - would be nice to properly isolate all display-related code so I can swap in other drivers in the
+  future.  Ditto for keyboard.   Also move the command line parsing to its own file.    Finally, some QOL improvements -
+  reformat old code (I've already started doing this), move source files into their own directory, rip out stuff I
+  don't care about.   (Note: Many of the command-line tools are not needed for dos and shouldn't be compile for them,
+  but compiling linux versions would still be useful because I might want to enhance them)
+* Emulate video waits? ... Probably not worth the effort. but I'm impressed with the trs80gp emulator that manages
+  to do it along with realistic "hashing" if the waits are not used
+
+
+
+Here is stuff from todos-2 that I think is still relevant:
+
+1.  Figure out which -march and -mtune settings to use.
+2.  Speed up compilation of the 16 bit programs.
+6.  Try TPAUSE on more modern cpus (Use with TSC) for timing/sleepig
+7.  Fix the makedepend code (currently using "fake" targets)
+
+Here is stuff that is out of date/obsolete:
+8.  Speed up display - This is essentially complete with my change to use
+    the VGA directly instead of going through Grx.  I still use Grx for emulator menus.
+9.  Add a "local" save area that gets preserved when I reload new code - I think I have
+    some conventions for this (e.g. - cassette), although a single directory for all of
+    this could be nice.   Also, see above for some ideas about "defaults"
+
