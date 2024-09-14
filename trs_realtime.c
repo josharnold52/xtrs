@@ -52,7 +52,9 @@ void trs_realtime_sync_uclock(tstate_t threhsold);
 
 void trs_realtime_reset() {
     joshlog("Reset realtime counters model=%d\n", trs_model);
-
+    // TODO: These values should be calculated from z80_state.clockMHz - and we should automatically
+    //  reset whenever they change.  (Maybe save old value and do a very quick comparison / reset-on-change when
+    //  we perform a realtime sync.  This way, we won't need to explicitly reset when the speen changes
     if (trs_model == 1) {
         tstate_usec_factor = TSTATE_USEC_FACTOR_M1;
         tstates_per_sec = TSTATES_PER_SEC_M1;

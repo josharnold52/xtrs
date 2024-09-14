@@ -349,12 +349,18 @@ trs_timer_event(int signo)
 
 //Return the timer period in T_STATES
 tstate_t trs_timer_get_period() {
-  static int logged_warning = 0;
-  if (!logged_warning) {
-    logged_warning = 1;
-    joshlog("TODO: Need to adjust timer period based on model and mode\n");
+  static int period = 44352; // 1.77Mhz * 0.025 sec;
+  static typeof(timer_hz) hz = 0;
+  static typeof(z80_state.clockMHz) mhz = 0;
+  if (mhz != z80_state.clockMHz || hz != timer_hz) {
+    mhz = z80_state.clockMHz;
+    hz = timer_hz;
+    period = (int)(mhz * 1e6 / hz);
+    joshlog("Period set to %d\n",period);
   }
-  return 44352; // 1.77Mhz * 0.025 sec
+
+
+  return period;
 }
 
 void trs_timer_trigger_pulse() {
