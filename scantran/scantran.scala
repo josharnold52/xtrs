@@ -72,7 +72,7 @@
   addkey("Backspace (Map to Left)", "^Backspace", "TK_Left")
   addkey("Right Arrow", "^Right Arrow 6", "TK_Right")
   addkey("Down Arrow", "^Down Arrow 2", "TK_Down")
-  addkey("F1 (maps to shift-@)","^F1$","TK_AtSign","TK_ForceShift")
+  addkey("F1 (maps to @ so you can do a SHIFT-@)","^F1$","TK_AtSign")
   addkey("Home (maps to clear)","^Home 7$","TK_Clear")
 
   for(i <- 0 to 127) {
