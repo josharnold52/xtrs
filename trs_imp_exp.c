@@ -49,6 +49,15 @@ typedef struct {
 #define MAX_OPENDISK 32
 OpenDisk od[MAX_OPENDISK];
 
+static int can_use_fd(int fd) {
+    for(int i = 0; i < MAX_OPENDISK; i++) {
+        if (od[i].fd == fd && od[i].inuse) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void do_emt_system()
 {
   int res;

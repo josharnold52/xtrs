@@ -55,6 +55,11 @@ zip -r "$SCRIPT_DIR"/dist/jahdatst.zip jahdatst.exe
 
 
 
+mkdir DEVLOCAL
+rsync -av "$SCRIPT_DIR"/dboxrun/EMUS/LOCAL/ DEVLOCAL/
+rm -rf "$SCRIPT_DIR"/dist/devlocal.zip
+zip -r "$SCRIPT_DIR"/dist/devlocal.zip DEVLOCAL
+
 
 cd "$SCRIPT_DIR"
 
@@ -74,13 +79,18 @@ CD \
 MD NDX
 CD NDX
 UNZIP -o A:\dosxtrs.zip
+CD EMUS
+UNZIP -o A:\devlocal.zip
+CD ..
 LAUNCHER
 ' | perl -pe 's/\n/\r\n/g' > "$ar"
 
 
 mdel -i dist/dosxtrs-flp.img ::/dosxtrs.zip 2>/dev/null || true
+mdel -i dist/dosxtrs-flp.img ::/devlocal.zip 2>/dev/null || true
 
 mcopy -i dist/dosxtrs-flp.img dist/dosxtrs.zip ::/DOSXTRS.ZIP && \
+  mcopy -i dist/dosxtrs-flp.img dist/devlocal.zip ::/DEVLOCAL.ZIP && \
   mcopy -o -i dist/dosxtrs-flp.img "$ar" ::/AUTORUN.BAT && \
   echo "Updated floppy image"
 
