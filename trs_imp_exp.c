@@ -49,32 +49,51 @@ typedef struct {
 #define MAX_OPENDISK 32
 OpenDisk od[MAX_OPENDISK];
 
-static int can_use_fd(int fd) {
-    for (int i = 0; i < MAX_OPENDISK; i++) {
-        if (od[i].fd == fd && od[i].inuse) {
-            return 1;
+#define MAX_OPENFILE (MAX_OPENDISK + 4)
+static int open_fds[MAX_OPENFILE];
+static int used_fds = 0;
+
+/** return -1 if not found - return index if found */
+static int find_in_use_fd(int fd) {
+    for (int i = 0; i < used_fds; i++) {
+        if (open_fds[i] == fd) {
+            return i;
         }
     }
-    return 0;
+    return -1;
+}
+
+static int can_use_fd(int fd) {
+    return find_in_use_fd(fd) >= 0 ? 1 : 0;
+}
+static int set_fd_in_use(int fd) {
+    if (find_in_use_fd(fd) >= 0) {
+        return 1;
+    }
+    if (used_fds >= MAX_OPENFILE) {
+        return 0;
+    }
+    open_fds[used_fds++] = fd;
+    joshlog("used_fds=%d\n", used_fds);
+}
+static void remove_fd_in_use(int fd) {
+    int p = find_in_use_fd(fd);
+    // Really just need to check p <= 0 - the rest is sanity checking
+    if (p <= 0 || p >= used_fds || p >= MAX_OPENFILE) {
+        return;
+    }
+    for(int i=p+1;i<used_fds;i++) {
+        open_fds[i-1] = open_fds[i];
+    }
+    used_fds--;
+    open_fds[used_fds] = -1;
+    joshlog("used_fds=%d\n", used_fds);
 }
 
 void do_emt_system() {
-    int res;
-    if (trs_emtsafe) {
-        error("emt_system: potentially dangerous emulator trap blocked");
-        REG_A = EACCES;
-        REG_F &= ~ZERO_MASK;
-        return;
-    }
-    res = system((char *) mem_pointer(REG_HL, 0));
-    if (res == -1) {
-        REG_A = errno;
-        REG_F &= ~ZERO_MASK;
-    } else {
-        REG_A = 0;
-        REG_F |= ZERO_MASK;
-    }
-    REG_BC = res;
+    error("emt_system: potentially dangerous emulator trap blocked");
+    REG_A = EACCES;
+    REG_F &= ~ZERO_MASK;
 }
 
 void do_emt_mouse() {
@@ -142,29 +161,15 @@ void do_emt_getddir() {
 }
 
 void do_emt_setddir() {
-    if (trs_emtsafe) {
-        error("emt_setddir: potentially dangerous emulator trap blocked");
-        REG_A = EACCES;
-        REG_F &= ~ZERO_MASK;
-        return;
-    }
-    trs_disk_dir = strdup((char *) mem_pointer(REG_HL, 0));
-    if (trs_disk_dir[0] == '~' &&
-        (trs_disk_dir[1] == '/' || trs_disk_dir[1] == '\0')) {
-        char *home = getenv("HOME");
-        if (home) {
-            char *p = (char *) malloc(strlen(home) + strlen(trs_disk_dir) + 2);
-            sprintf(p, "%s/%s", home, trs_disk_dir + 1);
-            free(trs_disk_dir);
-            trs_disk_dir = p;
-        }
-    }
-    REG_A = 0;
-    REG_F |= ZERO_MASK;
+    error("emt_setddir: potentially dangerous emulator trap blocked");
+    REG_A = EACCES;
+    REG_F &= ~ZERO_MASK;
 }
 
 void do_emt_open() {
     int fd, oflag, eoflag;
+
+
     eoflag = REG_BC;
     switch (eoflag & EO_ACCMODE) {
         case EO_RDONLY:
@@ -183,14 +188,25 @@ void do_emt_open() {
     if (eoflag & EO_TRUNC) oflag |= O_TRUNC;
     if (eoflag & EO_APPEND) oflag |= O_APPEND;
 
-    if (trs_emtsafe && oflag != O_RDONLY) {
-        error("emt_open: potentially dangerous emulator trap blocked");
+    if (oflag != O_RDONLY) {
+        //TODO: Make a transfer directory and allow writes to there
+        error("do_emt_open: potentially dangerous emulator trap blocked");
         REG_A = EACCES;
         REG_F &= ~ZERO_MASK;
         return;
     }
+
     fd = open((char *) mem_pointer(REG_HL, 0), oflag, REG_DE);
+
     if (fd >= 0) {
+        if (!set_fd_in_use(fd)) {
+            error("do_emt_open: Cannot add %d to in use table\n",fd);
+            close(fd);
+            REG_A = EFAULT;
+            REG_F &= ~ZERO_MASK;
+            REG_DE = 0xFFFF;
+            return;
+        }
         REG_A = 0;
         REG_F |= ZERO_MASK;
     } else {
@@ -202,7 +218,15 @@ void do_emt_open() {
 
 void do_emt_close() {
     int res;
-    res = close(REG_DE);
+    int fd = REG_DE;
+    if (!find_in_use_fd(fd)) {
+        error("do_emt_close: %d not in the in-use table\n",fd);
+        REG_A = EFAULT;
+        REG_F &= ~ZERO_MASK;
+        return;
+    }
+    remove_fd_in_use(fd);
+    res = close(fd);
     if (res >= 0) {
         REG_A = 0;
         REG_F |= ZERO_MASK;
@@ -220,7 +244,15 @@ void do_emt_read() {
         REG_BC = 0xFFFF;
         return;
     }
-    size = read(REG_DE, mem_pointer(REG_HL, 1), REG_BC);
+    int fd = REG_DE;
+    if (!find_in_use_fd(fd)) {
+        error("do_emt_read: %d not in the in-use table\n",fd);
+        REG_A = EFAULT;
+        REG_F &= ~ZERO_MASK;
+        REG_BC = 0xFFFF;
+        return;
+    }
+    size = read(fd, mem_pointer(REG_HL, 1), REG_BC);
     if (size >= 0) {
         REG_A = 0;
         REG_F |= ZERO_MASK;
@@ -240,7 +272,15 @@ void do_emt_write() {
         REG_BC = 0xFFFF;
         return;
     }
-    size = write(REG_DE, mem_pointer(REG_HL, 0), REG_BC);
+    int fd = REG_DE;
+    if (!find_in_use_fd(fd)) {
+        error("do_emt_write: %d not in the in-use table\n",fd);
+        REG_A = EFAULT;
+        REG_F &= ~ZERO_MASK;
+        REG_BC = 0xFFFF;
+        return;
+    }
+    size = write(fd, mem_pointer(REG_HL, 0), REG_BC);
     if (size >= 0) {
         REG_A = 0;
         REG_F |= ZERO_MASK;
@@ -259,11 +299,18 @@ void do_emt_lseek() {
         REG_F &= ~ZERO_MASK;
         return;
     }
+    int fd = REG_DE;
+    if (!find_in_use_fd(fd)) {
+        error("do_emt_read: %d not in the in-use table\n",fd);
+        REG_A = EFAULT;
+        REG_F &= ~ZERO_MASK;
+        return;
+    }
     offset = 0;
     for (i = 0; i < 8; i++) {
         offset = offset + (mem_read(REG_HL + i) << i * 8);
     }
-    offset = lseek(REG_DE, offset, REG_BC);
+    offset = lseek(fd, offset, REG_BC);
     if (offset != (off_t) -1) {
         REG_A = 0;
         REG_F |= ZERO_MASK;
@@ -352,6 +399,7 @@ void do_emt_time() {
     REG_DE = now & 0xffff;
 }
 
+// TODO - Put some restrictions on the dir table - Maybe structure this more like the file table?
 void do_emt_opendir() {
     int i;
     for (i = 0; i < MAX_OPENDIR; i++) {
@@ -397,6 +445,7 @@ void do_emt_readdir() {
     int size, i = REG_DE;
     struct dirent *result;
 
+
     if (i < 0 || i >= MAX_OPENDIR || dir[i] == NULL) {
         REG_A = EBADF;
         REG_F &= ~ZERO_MASK;
@@ -430,21 +479,9 @@ void do_emt_readdir() {
 }
 
 void do_emt_chdir() {
-    int ok;
-    if (trs_emtsafe) {
-        error("emt_chdir: potentially dangerous emulator trap blocked");
-        REG_A = EACCES;
-        REG_F &= ~ZERO_MASK;
-        return;
-    }
-    ok = chdir((char *) mem_pointer(REG_HL, 0));
-    if (ok < 0) {
-        REG_A = errno;
-        REG_F &= ~ZERO_MASK;
-    } else {
-        REG_A = 0;
-        REG_F |= ZERO_MASK;
-    }
+    error("emt_chdir: potentially dangerous emulator trap blocked");
+    REG_A = EACCES;
+    REG_F &= ~ZERO_MASK;
 }
 
 void do_emt_getcwd() {
@@ -548,11 +585,19 @@ void do_emt_ftruncate() {
         REG_F &= ~ZERO_MASK;
         return;
     }
+    int fd = REG_DE;
+    if (!find_in_use_fd(fd)) {
+        error("do_emt_write: %d not in the in-use table\n",fd);
+        REG_A = EFAULT;
+        REG_F &= ~ZERO_MASK;
+        REG_BC = 0xFFFF;
+        return;
+    }
     offset = 0;
     for (i = 0; i < 8; i++) {
         offset = offset + (mem_read(REG_HL + i) << i * 8);
     }
-    result = ftruncate(REG_DE, offset);
+    result = ftruncate(fd, offset);
     if (result == 0) {
         REG_A = 0;
         REG_F |= ZERO_MASK;
@@ -600,6 +645,14 @@ void do_emt_opendisk() {
     }
 
     if (od[i].fd >= 0) {
+        if (!set_fd_in_use(od[i].fd)) {
+            error("do_emt_opendisk - fd in-use table is full\n");
+            close(od[i].fd);
+            REG_DE = 0xffff;
+            REG_A = EMFILE;
+            REG_F &= ~ZERO_MASK;
+            return;
+        }
         od[i].inuse = 1;
         REG_A = 0;
         REG_F |= ZERO_MASK;
@@ -617,6 +670,7 @@ void do_emt_closedisk() {
     if (REG_DE == 0xffff) {
         for (i = 0; i < MAX_OPENDISK; i++) {
             if (od[i].inuse) {
+                remove_fd_in_use(od[i].fd);
                 close(od[i].fd);
                 od[i].inuse = 0;
             }
@@ -634,6 +688,7 @@ void do_emt_closedisk() {
         REG_F &= ~ZERO_MASK;
         return;
     }
+    remove_fd_in_use(od[i].fd);
     od[i].inuse = 0;
     res = close(od[i].fd);
     if (res >= 0) {
