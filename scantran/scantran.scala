@@ -10,9 +10,10 @@
 
   val outTable = Array.ofDim[String](128)
   
-  def entry(comment: String, i: Int, code: String, shift: String = "TK_Neutral", hasShift: Int = 0, c2: String = "TK_NULL", s2: String= "TK_Neutral") = {
-    val f = "/* SCAN CODE 0x%02X       */    {{ %s, %s }, %s, {%s, %s}},  // %s"
-    f.format(i, code, shift, hasShift, c2, s2, comment);
+  def entry(comment: String, i: Int, code: String, shift: String = "TK_Neutral", hasShift: Int = 0,
+        c2: String = "TK_NULL", s2: String= "TK_Neutral", minModel: Int = 0) = {
+    val f = "/* SCAN CODE 0x%02X       */    {{ %s, %s }, %s, {%s, %s}, %s },  // %s"
+    f.format(i, code, shift, hasShift, c2, s2, minModel, comment);
   }
 
   def regex(n: String): scala.util.matching.Regex = new scala.util.matching.Regex(n)
@@ -24,12 +25,13 @@
     ms(0)._2
   }
 
-  def addkey(name: String, pattern: String, code: String, shift: String = "TK_Neutral", hasShift: Int = 0, c2: String = "TK_NULL", s2: String= "TK_Neutral"): Unit = {
+  def addkey(name: String, pattern: String, code: String, shift: String = "TK_Neutral", hasShift: Int = 0,
+        c2: String = "TK_NULL", s2: String= "TK_Neutral", minModel: Int = 0): Unit = {
     val s = lookup(regex(pattern))
     println(s(0).toInt)
     println(s(1).toInt)
     val i = Integer.parseInt(s.replace('l','1'),16)
-    outTable(i) = entry(name, i, code, shift, hasShift, c2, s2)
+    outTable(i) = entry(name, i, code, shift, hasShift, c2, s2, minModel)
   }
 
 
@@ -66,14 +68,19 @@
   addkey("Escape (maps to break)", "^Esc", "TK_Break")
   addkey("Space", "^Space", "TK_Space")
   addkey("Left Shift", "^Left Shift$", "TK_LeftShift")
-  addkey("Right Shift - forced left", "^Right Shift$", "TK_LeftShift")
+  addkey("Right Shift - forced left on model 1", "^Right Shift$", "TK_RightShift", minModel=3)
   addkey("Up Arrow", "^Up Arrow 8", "TK_Up")
   addkey("Left Arrow", "^Left Arrow 4", "TK_Left")
   addkey("Backspace (Map to Left)", "^Backspace", "TK_Left")
   addkey("Right Arrow", "^Right Arrow 6", "TK_Right")
   addkey("Down Arrow", "^Down Arrow 2", "TK_Down")
-  addkey("F1 (maps to @ so you can do a SHIFT-@)","^F1$","TK_AtSign")
+  addkey("Back-Tick (`) (maps to @ so you can do a SHIFT-@)","^`","TK_AtSign")
   addkey("Home (maps to clear)","^Home 7$","TK_Clear")
+  addkey("F1 (maps to F1)","^F1$","TK_F1", minModel=4)
+  addkey("F2 (maps to F2)","^F2$","TK_F2", minModel=4)
+  addkey("F3 (maps to F3)","^F3$","TK_F3", minModel=4)
+  addkey("Control key","^Ctrl","TK_Ctrl", minModel=4)
+  addkey("Caps Lock","^Caps","TK_CapsLock", minModel=4)
 
   for(i <- 0 to 127) {
     if (outTable(i) == null) {

@@ -415,7 +415,11 @@ void trs_screen_alternate(int flag) {
     if (cur == flag) {
         return;
     }
-    trs_current_video_mode &= ~(ALTERNATE);
+    if (!flag) {
+        trs_current_video_mode &= ~(ALTERNATE);
+    } else {
+        trs_current_video_mode |= ALTERNATE;
+    }
     // If in inverse mode, then the alt set has no effect, so exit now
     if (trs_current_video_mode & INVERSE) {
         return;
@@ -430,12 +434,12 @@ void trs_screen_alternate(int flag) {
 
 void trs_screen_80x24(int flag) {
     if (flag && row_chars != 80) {
-        joshlog("Switching to 80x24 mode");
+        joshlog("Switching to 80x24 mode\n");
         row_chars = 80;
         screen_chars = 80 * 24;
         repaint_screen(1);
     } else if (!flag && row_chars != 64) {
-        joshlog("Switching to 80x24 mode");
+        joshlog("Switching to 64x16 mode\n");
         row_chars = 64;
         screen_chars = 64 * 16;
         repaint_screen(1);
@@ -449,10 +453,11 @@ void trs_screen_inverse(int flag) {
     if (cur == flag) {
         return;
     }
-    trs_current_video_mode &= ~(INVERSE);
     if (!flag) {
+        trs_current_video_mode &= ~(INVERSE);
         p_current_table = (trs_current_video_mode & ALTERNATE) ? &mod34_altset_table : &primary_pattern_table;
     } else {
+        trs_current_video_mode |= INVERSE;
         p_current_table = &mod4_inverse_table;
     }
     repaint_screen(0);

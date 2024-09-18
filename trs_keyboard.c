@@ -715,6 +715,7 @@ struct PcScanMapping {
    KeyTable unshifted;
    int shift_sensitive;
    KeyTable shifted;
+   int min_model;
 };
 
 struct PcScanMapping pcScanCode[] = {
@@ -787,6 +788,8 @@ void trs_xlate_pc_scancode(unsigned char scan_code, int shifted) {
     KeyTable* kt;
     static int shift_action = TK_Neutral;
 
+    static const struct PcScanMapping forcedLeftShift = {{ TK_LeftShift, TK_Neutral }, 0, {TK_NULL, TK_Neutral}, 0 };
+
     /** This was a workaround for the "inconsistent-shift" bug I described elsewhere...
      * Basically, for each scan code, we use bit 7 to tell if the last action was a key-down (1)
      * or key-up (0).   If it is keydowm we use bit 0 to tell if the key was shifted.
@@ -811,7 +814,18 @@ void trs_xlate_pc_scancode(unsigned char scan_code, int shifted) {
 
     int scindex = scan_code & 0x7F;
 
-    struct PcScanMapping *pMap = pcScanCode + scindex;
+    const struct PcScanMapping *pMap = pcScanCode + scindex;
+    //If unsupported key for this model
+    if (trs_model < pMap->min_model) {
+        if (pMap->unshifted.bit_action == TK_RightShift) {
+            //If it's a right-shift, replace it with a left-shift because on the model 1, both shift keys
+            //  map to left-lshift
+            pMap = &forcedLeftShift;
+        } else {
+            // On all other model violations, ignore (model 4 keys that don't exist on earlier models)
+            return;
+        }
+    }
     if (key_down) {  
       if (shift_states[scindex]) {
          //shifted = shift_states[scindex] & 1;

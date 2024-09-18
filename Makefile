@@ -278,7 +278,7 @@ target/deps/trs_io.o: z80.h config.h trs.h trs_disk.h trs_hard.h trs_uart.h
 target/deps/trs_keyboard.o: z80.h config.h trs.h scantran/generated_table.inc
 target/deps/trs_memory.o: z80.h config.h trs.h trs_disk.h trs_hard.h
 target/deps/trs_metafile.o: trs.h z80.h config.h newutils.h trs_metafile.h
-target/deps/trs_patterns.o: trs_iodefs.h
+target/deps/trs_patterns.o: trs_iodefs.h z80.h config.h
 target/deps/trs_printer.o: z80.h config.h trs.h newutils.h
 target/deps/trs_realtime.o: z80.h config.h trs.h
 target/deps/trs_stringy.o: z80.h config.h trs.h trs_disk.h

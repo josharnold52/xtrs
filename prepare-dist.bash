@@ -57,6 +57,7 @@ zip -r "$SCRIPT_DIR"/dist/jahdatst.zip jahdatst.exe
 
 mkdir DEVLOCAL
 rsync -av "$SCRIPT_DIR"/dboxrun/EMUS/LOCAL/ DEVLOCAL/
+find DEVLOCAL -iname '*.LOG' -print -exec rm {} \;
 rm -rf "$SCRIPT_DIR"/dist/devlocal.zip
 zip -r "$SCRIPT_DIR"/dist/devlocal.zip DEVLOCAL
 
@@ -70,6 +71,11 @@ if [[ ! -f dist/dosxtrs-flp.img ]]; then
   mkfs.vfat -D 0 -F 12 -g 2/36 -M 0xF0 -n DOSXTRS -S 512 dist/dosxtrs-flp.img
   echo "Made floppy image" 1>&2
 fi
+if [[ ! -f dist/dosxtrs-flp-b.img ]]; then
+  head -c 2949120 /dev/zero > dist/dosxtrs-flp-b.img
+  mkfs.vfat -D 0 -F 12 -g 2/36 -M 0xF0 -n DOSXTRS -S 512 dist/dosxtrs-flp-b.img
+  echo "Made floppy image" 1>&2
+fi
 
 ar="$(mktemp)"
 
@@ -80,17 +86,17 @@ MD NDX
 CD NDX
 UNZIP -o A:\dosxtrs.zip
 CD EMUS
-UNZIP -o A:\devlocal.zip
+REM UNZIP -o A:\devlocal.zip
 CD ..
 LAUNCHER
 ' | perl -pe 's/\n/\r\n/g' > "$ar"
 
 
 mdel -i dist/dosxtrs-flp.img ::/dosxtrs.zip 2>/dev/null || true
-mdel -i dist/dosxtrs-flp.img ::/devlocal.zip 2>/dev/null || true
+mdel -i dist/dosxtrs-flp-b.img ::/devlocal.zip 2>/dev/null || true
 
 mcopy -i dist/dosxtrs-flp.img dist/dosxtrs.zip ::/DOSXTRS.ZIP && \
-  mcopy -i dist/dosxtrs-flp.img dist/devlocal.zip ::/DEVLOCAL.ZIP && \
+  mcopy -i dist/dosxtrs-flp-b.img dist/devlocal.zip ::/DEVLOCAL.ZIP && \
   mcopy -o -i dist/dosxtrs-flp.img "$ar" ::/AUTORUN.BAT && \
   echo "Updated floppy image"
 
