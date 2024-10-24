@@ -288,6 +288,11 @@ trs_nmi_latch_read()
 void
 trs_nmi_mask_write(unsigned char value)
 {
+  //JOSH NOTES: - Fix emulator bug - Only top 2 bits are used - ignore the rest.  This is needed because nmi_latch
+  //  always has the low bit set (see comment near nmi_latch).  This fixes Defense command because it happens to set
+  //  the low bit when writing to the mask (because of punning) and if we don't strip it out, it will cause a spurious
+  //  interrupt.
+  value &= 0xC0;
   nmi_mask = value | M3_RESET_BIT;
   z80_state.nmi = (nmi_latch & nmi_mask) != 0;
 #if IDEBUG2
