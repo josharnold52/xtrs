@@ -1317,12 +1317,15 @@ void trs_cassette_out(int value)
     }
 
     /* Do sound emulation by sending samples to /dev/dsp if available */
+    // TODO - When we support sound emulation we can bring this back...
+    /*
     if (cassette_motor == 0) {
         if (cassette_state != SOUND && value == 0) return;
         if (assert_state(SOUND) < 0) return;
         trs_suspend_delay();
         transition_out(value);
     }
+    */
 }
 
 /* Cassette #-1 vs. #-2 selection port */
