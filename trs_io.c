@@ -44,6 +44,7 @@ void z80_out(int port, int value) {
     if (trs_io_debug_flags & IODEBUG_OUT) {
         debug("out (0x%02x), 0x%02x; pc 0x%04x\n", port, value, z80_state.pc.word);
     }
+    //joshlog("out (0x%02x), 0x%02x; pc 0x%04x\n", port, value, z80_state.pc.word);
     /** JOSH MODS **/
     switch (port) {
         case 0x20:
@@ -476,6 +477,7 @@ int z80_in(int port) {
     if (trs_io_debug_flags & IODEBUG_IN) {
         debug("in (0x%02x) => 0x%02x; pc %04x\n", port, value, z80_state.pc.word);
     }
+    //joshlog("in (0x%02x), 0x%02x; pc 0x%04x\n", port, value, z80_state.pc.word);
 
     return value;
 }

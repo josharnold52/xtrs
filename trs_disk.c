@@ -1546,6 +1546,7 @@ trs_disk_data_read(void) {
     if (trs_disk_debug_flags & DISKDEBUG_FDCREG) {
         debug("data_read() => 0x%02x pc 0x%04x\n", state.data, REG_PC);
     }
+    //joshlog("data_read() => 0x%02x pc 0x%04x\n", state.data, REG_PC);
     return state.data;
 }
 
@@ -2174,6 +2175,7 @@ trs_disk_command_write(unsigned char cmd) {
     if (trs_disk_debug_flags & DISKDEBUG_FDCREG) {
         debug("command_write(0x%02x) pc 0x%04x\n", cmd, REG_PC);
     }
+    //joshlog("command_write(0x%02x) pc 0x%04x   ts=%d-%d\n", cmd, REG_PC, state.track & 0xFF , state.sector & 0xFF);
 
     /* Handle DMK partial track reformat */
     if (d->emutype == DMK &&
@@ -2515,6 +2517,7 @@ trs_disk_command_write(unsigned char cmd) {
                 } /* end if (d->emutype == ...) */
 
                 state.status |= TRSDISK_BUSY;
+                //joshlog("Schedule firstdrq %d\n", new_status & 0xFF);
                 trs_schedule_event(trs_disk_firstdrq, new_status, 64);
             }
             break;
