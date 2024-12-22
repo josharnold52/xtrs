@@ -63,7 +63,7 @@ static const int WIDGET_TYPE_VOLUME_KNOB = 0x6;
 static const int WIDGET_TYPE_BEEP = 0x7;
 
 
-static const unsigned int DMA_MEM_ALIGN = 0x100;
+static const unsigned int DMA_MEM_ALIGN = 0x1000;
 
 
 /*
@@ -80,7 +80,19 @@ static const unsigned int DMA_MEM_ALIGN = 0x100;
  * I also need to fix connection list parsing - it currently reads the values as
  * 8 bit or 16 bit (depending om short/long form).  But the high bit is actually
  * a flag indicating whether the value is standalone or the top end of a range.
+ *
 */
+
+/*
+ * OTHER HW NOTES:
+ * - If I want to play with the GPIO (I2C) PINS on the VGA of the Asus - Look at
+ *   the GMA500 driver in the linux tree.  The GPIO regs are at 0x5010, 0x5014, etc...
+ *   and the intel_i2c.c file shows how to use them.  I believe these registers are
+ *   relative to the base of the MMIO given by the PCI function for the display.  This
+ *   is pretty easy to confirm by tracing back the get_clock, get_data, etc. functions
+ *   in the i2c file.  I can possibly figure out which GPIO is used by playing with the
+ *   I2C stuff in linux.  That should get to the point where I can do it from DOS probably
+ */
 
 static void joshdebug(const char *msg, ...) {
     va_list args;
@@ -180,6 +192,12 @@ public:
      * macros).  Or can do it ourselves with inline assembly
      */
 
+    void flushLine(unsigned long offset) const {
+        unsigned short sv = _fargetsel();
+        _farsetsel(selector);
+        __asm__ __volatile__ ("clflush %%fs:(%%eax)" : /*none*/ : "a" (offset));
+        _farsetsel(sv);
+    }
 
     static SelectorMem invalid() { return SelectorMem(0) ; }
 
@@ -715,6 +733,42 @@ public:
         }
     }
 
+    void dumpRegs() {
+        for(int i =0 ; i < 16; i++) {
+            unsigned int p[8];
+            for(int j=0; j<8;j++) {
+                SelectorMem::ref32 x = regs.r32(i*32 + j * 4);
+                p[j] = x.peek();
+            }
+            joshlog("REGS %02X - %08X %08X %08X %08X %08X %08X %08X %08X\n",
+                    i * 32, p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]
+            );
+        }
+    }
+    void dumpVendorRegs() {
+        for(int i =0 ; i < 2; i++) {
+            unsigned int p[8];
+            for(int j=0; j<8;j++) {
+                SelectorMem::ref32 x = regs.r32(i*32 + j * 4 + 0x1000);
+                p[j] = x.peek();
+            }
+            joshlog("VREGS %02X - %08X %08X %08X %08X %08X %08X %08X %08X\n",
+                    i * 32, p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]
+            );
+        }
+    }
+    void dumpExtendedRegs() {
+        for(int i =0 ; i < 2; i++) {
+            unsigned int p[8];
+            for(int j=0; j<8;j++) {
+                SelectorMem::ref32 x = regs.r32(i*32 + j * 4 + 0x2000);
+                p[j] = x.peek();
+            }
+            joshlog("EREGS %02X - %08X %08X %08X %08X %08X %08X %08X %08X\n",
+                    i * 32, p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]
+            );
+        }
+    }
 
     void force_reset() {
         joshlog("Resetting the HDA...\n");
@@ -957,6 +1011,9 @@ public:
         for(unsigned int i=0; i < totalBufferSize; i+=2) {
             dev->dmaSelector.poke16(offsetBuffers + i, (i & 0x200) ? 0x1000 : 0xF000 );
         }
+        for(unsigned int i=0; i < totalBufferSize; i+=64) {
+            dev->dmaSelector.flushLine(offsetBuffers + i);
+        }
         for(unsigned int i=0; i < bufferCount; i++) {
             dev->dmaSelector.poke32(offsetBufferDescriptorList + i * 0x10,
                                     dev->dmaPhysicalAddress + offsetBuffers
@@ -974,6 +1031,7 @@ public:
                     dev->dmaSelector.peek32(offsetBufferDescriptorList + i * 0x10 + 0x8),
                     dev->dmaSelector.peek32(offsetBufferDescriptorList + i * 0x10 + 0xC)
                     );
+            dev->dmaSelector.flushLine(offsetBufferDescriptorList + i * 0x10);
         }
         SDCTL.poke(ctlUpperBits);
         if (dev->get64BitAddressSupported())
@@ -1043,6 +1101,31 @@ public:
     unsigned char getStreamNumber() {
         return streamNumber;
     }
+    unsigned char getDescriptorNumber() {
+        return descriptorNumber;
+    }
+    void dumpBufferDescriptorList() {
+        for(int i =0 ; i < bufferCount; i++) {
+            unsigned int p[4];
+            for(int j=0; j<4;j++) {
+                p[j] = dev->dmaSelector.peek32(offsetBufferDescriptorList + i*16 + j * 4);
+            }
+            joshlog("BDL %02X %08X %08X %08X %08X\n",
+                    i , p[0],p[1],p[2],p[3]
+            );
+        }
+    }
+
+    void testWriteToBuffer(unsigned int mask) {
+        for(unsigned int i=0; i < totalBufferSize; i+=2) {
+            dev->dmaSelector.poke16(offsetBuffers + i, (i & mask) ? 0x1000 : 0xF000 );
+        }
+        for(unsigned int i=0; i<totalBufferSize; i += 64) {
+            dev->dmaSelector.flushLine(offsetBuffers + i);
+        }
+        dev->dmaSelector.flushLine(offsetBuffers + totalBufferSize - 1);
+    }
+    //TODODMP
 };
 
 
@@ -1706,8 +1789,16 @@ struct codec_info {
 static void try_it_out(HdaDevice &dev, const codec_info &codec) {
 
     HdaStreamBuffer myStream(&dev, 4096, 2, dev.getNumberOfInputStreamsSupported(), 1);
+    joshlog("streamDescriptorNumber=%d streamNumber=%d\n", myStream.getDescriptorNumber(), myStream.getStreamNumber());
     HdaDevice::Codec codecControl(dev, codec.codecNumber);
     const audio_function_group_info &afg = codec.audioFunctionGroups[0];
+    
+
+    //TODO: This is needed to make virtualbox work on the second run (Without this, the first run works
+    // but not subsequent runs without hard-resetting the VM
+    joshlog("Root Reset %u\n", 0);
+    codecControl.nodeVerb(0, 0x7FF, 0);
+
 
     joshdebug("AFG Function RESET\n");
     codecControl.nodeVerb(afg.nodeNumber, 0x7ff, 0);
@@ -1734,9 +1825,22 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
 
     joshlog("Powering up...");
     //TODO - Hack! power up FG and other stuff
+    joshlog("Power state of AFG is 0x%x\n", codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0));
+    joshlog("Powering Down %u\n", afg.nodeNumber);
+    codecControl.nodeVerb(afg.nodeNumber, 0x705, 3);
+    usleep(100 * 1000);
+    joshlog("Powering Up %u\n", afg.nodeNumber);
+    codecControl.nodeVerb(afg.nodeNumber, 0x705, 0);
+    usleep(100 * 1000);
+    joshlog("Resetting %u\n", afg.nodeNumber);
+    codecControl.nodeVerb(afg.nodeNumber, 0x7FF, 0);
+    joshlog("Resetting %u\n", afg.nodeNumber);
+    codecControl.nodeVerb(afg.nodeNumber, 0x7FF, 0);
+    joshlog("Power state of AFG is 0x%x\n", codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0));
     joshlog("Powering up %u\n", afg.nodeNumber);
     codecControl.nodeVerb(afg.nodeNumber, 0x705, 0);
     joshlog("Power state of AFG is %ul\n", codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0));
+
     for(unsigned int i = 0; i < chainLen; i++) {
         joshlog("Powering up %u\n", i);
         codecControl.nodeVerb(chain[i], 0x705, 0);
@@ -1750,6 +1854,7 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
 
     for(unsigned int i=0;i<chainLen;i++) {
         const widget_info *cur = afg.lookupNode(chain[chainLen - i - 1]);
+        joshlog("Setting up widget %u\n", cur->nodeNumber);
         int prevNode = i > 0 ? chain[chainLen - i] : -1;
         int inputIndex = prevNode >= 0 ?cur->getOffsetOfInputConnection(prevNode) : -1;
         if (cur->widgetCaps.hasInputAmp()) {
@@ -1775,14 +1880,27 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
         }
 
         if (cur->widgetCaps.hasOutputAmp()) {
+            joshlog("Tweaking output amp of node %u\n", cur->nodeNumber);
+            joshlog("OutAmp 0x8000 value is 0x%x\n", codecControl.nodeVerb(cur->nodeNumber, 0xB, 0x8000));
+            joshlog("OutAmp 0xC000 value is 0x%x\n", codecControl.nodeVerb(cur->nodeNumber, 0xB, 0xC000));
+
             amp_capabilities acap = cur->widgetCaps.hasAmpOverride() ?
                                     cur->outputAmpCaps : afg.outputAmpCaps;
-            //TODO: I cranked down the volume because...
+            unsigned int payloadReset = 0xB000 |
+                                   ((inputIndex >= 0 ? (inputIndex & 0xF) : 0) << 8) |
+                                   0;
+            joshlog("Setting output amp of node %u - PL=%04X\n", cur->nodeNumber, payloadReset);
+            codecControl.nodeVerb(cur->nodeNumber, 0x3, payloadReset);
+            // I  used to crank down the volume here, but now I'm not
             unsigned int payload = 0xB000 |
                                    ((inputIndex >= 0 ? (inputIndex & 0xF) : 0) << 8) |
-                    ((acap.getOffset() & 0x7F) >> 1);
+                    ((acap.getOffset() & 0x7F) );
             joshlog("Setting output amp of node %u - PL=%04X\n", cur->nodeNumber, payload);
             codecControl.nodeVerb(cur->nodeNumber, 0x3, payload);
+
+            joshlog("OutAmp 0x8000 value is 0x%x\n", codecControl.nodeVerb(cur->nodeNumber, 0xB, 0x8000));
+            joshlog("OutAmp 0xC000 value is 0x%x\n", codecControl.nodeVerb(cur->nodeNumber, 0xB, 0xC000));
+
         }
         if (cur->numConns > 1 && prevNode >= 0 && cur->getWidgetType() != WIDGET_TYPE_AUDIO_MIXER) {
             unsigned int payload = cur->getOffsetOfInputConnection(prevNode) & 0xFF;
@@ -1790,12 +1908,17 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
             codecControl.nodeVerb(cur->nodeNumber, 0x701,payload);
         }
         if (cur->getWidgetType() == WIDGET_TYPE_PIN_COMPLEX) {
+            joshlog("Tweaking pin control of node %u\n", cur->nodeNumber);
+            joshlog("Pin control of %u is 0x%x\n", cur->nodeNumber, codecControl.nodeVerb(cur->nodeNumber, 0xF07, 0));
             unsigned int payload = 0x40;
             joshlog("Set pin control of %u to %04X\n", cur->nodeNumber, payload);
             codecControl.nodeVerb(cur->nodeNumber, 0x707, payload);
+            joshlog("Pin control of %u is 0x%x\n", cur->nodeNumber, codecControl.nodeVerb(cur->nodeNumber, 0xF07, 0));
         }
+        joshlog("EAPD of %u is 0x%x\n", cur->nodeNumber, codecControl.nodeVerb(cur->nodeNumber, 0xF0C, 0));
         joshlog("Setting EAPD of %u\n", cur->nodeNumber);
         codecControl.nodeVerb(cur->nodeNumber, 0x70C, 0x2);
+        joshlog("EAPD of %u is 0x%x\n", cur->nodeNumber, codecControl.nodeVerb(cur->nodeNumber, 0xF0C, 0));
 
     }
     if (volumeKnob) {
@@ -1813,11 +1936,25 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
 
     // TODO - Stripe Control ??
     codecControl.nodeVerb(dac->nodeNumber, 0x72D, 1);  // 2 channels
+    dev.dumpRegs();
+    dev.dumpVendorRegs();
+    dev.dumpExtendedRegs();
+    dev.dumpDmaBuf();
+    myStream.dumpBufferDescriptorList();
     myStream.run();
-    for(int i=0; i<30; i++) {
+    for(int i=0; i<60; i++) {
         joshlog("%x %x %x\n", myStream.getDmaPos(), myStream.getLinkPos(), myStream.getFifoSize());
+        //dev.dumpRegs();
+        //dev.dumpVendorRegs();
+        //dev.dumpExtendedRegs();
         //dev.dumpDmaBuf();
+        //myStream.dumpBufferDescriptorList();
         usleep(100000);
+        if (i==20) {
+            myStream.testWriteToBuffer(0x100);
+        } else if (i == 40) {
+            myStream.testWriteToBuffer(0x400);
+        }
     }
     myStream.stop();
     //usleep(3000000);
@@ -1907,7 +2044,7 @@ static void setup_hda() {
         joshlog("NEW HDA PCI COMMAND=%02hx\n", pciCommand);
     }
 
-    option<SelectorMem> devMem = SelectorMem::mapDevice(allchunks[4] & 0xFFFFFFF0u, 4096);
+    option<SelectorMem> devMem = SelectorMem::mapDevice(allchunks[4] & 0xFFFFFFF0u, 4096 * 3);
     if (!devMem.exists()) {
         joshlog("Could not map device memory");
         return;
