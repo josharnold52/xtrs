@@ -1,0 +1,18 @@
+HDA Quirks:
+
+* On VirtualBox the capabilities for Volume Knob controls have an incorrect ID (not sure if this
+  has been fixed in VBOX, but I have code that works around the problem if it exists and should
+  safely no-op if it does not exit).   Look at comments in the capabilities code.
+
+* On Asus NB (And probably all hardware using the same SCH chip), the DMAPOS for stream descriptors
+  2 and 3 are at the location where we would expect to see 4 and 5.   T
+
+  TODO: Detect the vendor ID and make this adjustment
+
+* On VirtualBox you have to reset the root node of the code to make it initialize cleanly if it has
+  been used before during the session.
+
+* On real hardware you have to flush writes to the buffer descriptor lists and to the buffer contents
+  in order for the audio hardware to see it.   TODO: Maybe do this for CORB and RIRB to be safe, although
+  I haven't seen a problem with those
+

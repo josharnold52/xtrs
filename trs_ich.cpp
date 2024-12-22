@@ -1792,7 +1792,6 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     joshlog("streamDescriptorNumber=%d streamNumber=%d\n", myStream.getDescriptorNumber(), myStream.getStreamNumber());
     HdaDevice::Codec codecControl(dev, codec.codecNumber);
     const audio_function_group_info &afg = codec.audioFunctionGroups[0];
-    
 
     //TODO: This is needed to make virtualbox work on the second run (Without this, the first run works
     // but not subsequent runs without hard-resetting the VM
