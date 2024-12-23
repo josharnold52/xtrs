@@ -36,7 +36,9 @@ DOS_OBJECTS = \
 	target/dos/trs_ich.o \
 	target/dos/newutils.o \
 	target/dos/trs_vga.o \
-	target/dos/trs_patterns.o
+	target/dos/trs_patterns.o \
+	target/dos/dpmhw/dpmhw.o \
+	target/dos/dpmhw/dpmhw_pci.o
 
 CR_OBJECTS = \
 	target/dos/compile_rom.o \
@@ -68,7 +70,10 @@ LOCAL_CD_OBJECTS = $(subst /dos/,/local/,$(CD_OBJECTS))
 JT1_OBJECTS = \
 	target/dos/jahdatst.o \
 	target/dos/trs_ich.o \
-	target/dos/error.o
+	target/dos/error.o \
+	target/dos/dpmhw/dpmhw.o \
+	target/dos/dpmhw/dpmhw_pci.o
+
 
 VE_OBJECTS = target/dos/video-experiments.o \
 	target/dos/trs_vga.o
@@ -128,13 +133,13 @@ ZMACFLAGS = -h
 .SUFFIXES: .dct .man .txt .html
 
 target/deps/%.o:
-	mkdir -p target/deps && touch $@
+	mkdir -p target/deps && mkdir -p $(@D) && touch $@
 
 target/dos/%.o: %.c target/deps/%.o
-	mkdir -p target/dos && $(CC) $(CFLAGS) $(CPPFLAGS) -fverbose-asm -save-temps=obj -c -o $@ $<
+	mkdir -p $(@D) && $(CC) $(CFLAGS) $(CPPFLAGS) -fverbose-asm -save-temps=obj -c -o $@ $<
 
 target/dos/%.o: %.cpp target/deps/%.o
-	mkdir -p target/dos && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -fverbose-asm  -save-temps=obj -c -o $@ $<
+	mkdir -p $(@D) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -fverbose-asm  -save-temps=obj -c -o $@ $<
 
 target/local/%.o: %.c target/deps/%.o
 	mkdir -p target/local && $(BUILD_CC) -c -o $@ $<
@@ -234,7 +239,7 @@ install-docs: docs
 	$(INSTALL) -c -m 644 dskspec.txt $(DOCDIR)
 
 depend:
-	makedepend -ptarget/deps/ -Y. --  -- *.c *.cpp 2>&1 | \
+	makedepend -ptarget/deps/ -Y. --  -- *.c *.cpp dpmhw/*.cpp 2>&1 | \
 		(egrep -v 'cannot find|not in' || true)
 
 
@@ -288,3 +293,6 @@ target/deps/trs_xinterface.o: trs_uart.h trs_hard.h trs_imp_exp.h
 target/deps/z80.o: z80.h config.h trs.h trs_imp_exp.h
 target/deps/trs_ich.o: z80.h config.h
 target/deps/trs_vga.o: trs.h z80.h config.h trs_vga.h trs_iodefs.h
+target/deps/dpmhw/dpmhw.o: dpmhw/dpmhw.h dpmhw/dpmhw_impl.h z80.h config.h
+target/deps/dpmhw/dpmhw_pci.o: dpmhw/dpmhw_pci.h dpmhw/dpmhw.h
+target/deps/dpmhw/dpmhw_pci.o: dpmhw/dpmhw_impl.h
