@@ -12,6 +12,7 @@ extern "C" {
 #include "z80.h"
 }
 #include "dpmhw/dpmhw_pci.h"
+#include "dpmhw/dpmhw_memory.h"
 
 
 #define INLINE_PAUSE  { __asm__ __volatile__ ("pause"); }
@@ -136,99 +137,18 @@ public:
     }
 };
 
-
-class SelectorMem {
-public:
-    unsigned short selector;
-    explicit SelectorMem(unsigned short sel) : selector(sel) {}
-    unsigned char peek8 (unsigned long offset) const { return  _farpeekb(selector, offset); }
-    unsigned short peek16 (unsigned long offset) const { return  _farpeekw(selector, offset); }
-    unsigned long peek32 (unsigned long offset) const { return  _farpeekl(selector, offset); }
-    void poke8 (unsigned long offset, unsigned char v) const {  _farpokeb(selector, offset, v); }
-    void poke16 (unsigned long offset, unsigned short v) const {  _farpokew(selector, offset, v); }
-    void poke32 (unsigned long offset, unsigned long v) const {  _farpokel(selector, offset, v); }
-    /*
-     * NOTE: If accessing in a tight loop, better to load the descriptor into a segment
-     * reg and access relative that reg many times.  DJGPP has macros for this (see the other _far
-     * macros).  Or can do it ourselves with inline assembly
-     */
-
-    void flushLine(unsigned long offset) const {
-        unsigned short sv = _fargetsel();
-        _farsetsel(selector);
-        __asm__ __volatile__ ("clflush %%fs:(%%eax)" : /*none*/ : "a" (offset));
-        _farsetsel(sv);
-    }
-
-    static SelectorMem invalid() { return SelectorMem(0) ; }
-
-    static option<SelectorMem> mapDevice(unsigned long addr, unsigned long size) {
-        if (size >= 0x100000) {
-            joshlog("Segments > 1M not supported (because I have to be smarter about granularity bit");
-            return option<SelectorMem>(false, SelectorMem::invalid());
-        }
-        __dpmi_meminfo mi;
-        mi.size=size;
-        mi.address = addr;
-        mi.handle = 0;
-        if (__dpmi_physical_address_mapping(&mi)!=0) {
-            joshlog("DPMI map of %x(%u) failed\n", addr,size);
-            return option<SelectorMem>(false, SelectorMem::invalid());
-        }
-        int sel = __dpmi_allocate_ldt_descriptors(1);
-        if (sel  == -1) {
-            joshlog("Unable to allocate descriptor\n");
-            return option<SelectorMem>(false, SelectorMem::invalid());
-        }
-        //Access rights - Data, RW, Ring 3, size in bytes
-        if (__dpmi_set_segment_base_address(sel, addr) |
-            __dpmi_set_segment_limit(sel, size - 1) |
-            __dpmi_set_descriptor_access_rights(sel, 0x4F3) ) {
-            joshlog("Unable to set descriptor params\n");
-            return option<SelectorMem>(false, SelectorMem::invalid());
-        }
-        return option<SelectorMem>(SelectorMem(sel));
-    }
-
-    class ref {
-    public:
-        const unsigned short selector;
-        const unsigned long offset;
-        ref(unsigned short selector, unsigned long offset) : selector(selector), offset(offset) {}
-    };
-    class ref8 : public ref {
-    public:
-        ref8(SelectorMem &mem, unsigned long offset) : ref(mem.selector, offset) {}
-        unsigned char peek() const { return  _farpeekb(selector, offset);  }
-        void poke(unsigned char v) const { _farpokeb(selector, offset, v);  }
-    };
-    SelectorMem::ref8 r8(unsigned long offset) { return {*this, offset}; }
-    class ref16 : public ref {
-    public:
-        ref16(SelectorMem &mem, unsigned long offset) : ref(mem.selector, offset) {}
-        unsigned short peek() const { return  _farpeekw(selector, offset);  }
-        void poke(unsigned short v) const { _farpokew(selector, offset, v);  }
-    };
-    SelectorMem::ref16 r16(unsigned long offset) { return {*this, offset}; }
-    class ref32 : public ref {
-    public:
-        ref32(SelectorMem &mem, unsigned long offset) : ref(mem.selector, offset) {}
-        unsigned long peek() const { return  _farpeekl(selector, offset);  }
-        void poke(unsigned long v) const { _farpokel(selector, offset, v);  }
-    };
-    SelectorMem::ref32 r32(unsigned long offset) { return {*this, offset}; }
-
-
-};
-
+using dpmhw::SelectorMem;
+using dpmhw::DmaRegion;
 
 class HdaStreamBuffer;
 
 class HdaDevice {
     friend class HdaStreamBuffer;
 private:
-    dpmhw::PciFunction pciFunction;
-    SelectorMem regs;
+    const dpmhw::PciFunction pciFunction;
+    const SelectorMem regs;
+
+
     unsigned long dmaMemSize = 0x11000;
     unsigned long dmaMemUsed = 0x0;
     unsigned long dmaPhysicalAddress = 0;

@@ -2,6 +2,8 @@
 // Created by arnold on 12/22/24.
 //
 #include <go32.h>
+#include <dpmi.h>
+#include <cstring>
 
 #include "dpmhw_pci.h"
 #include "dpmhw_impl.h"

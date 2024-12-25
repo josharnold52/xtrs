@@ -38,7 +38,9 @@ DOS_OBJECTS = \
 	target/dos/trs_vga.o \
 	target/dos/trs_patterns.o \
 	target/dos/dpmhw/dpmhw.o \
-	target/dos/dpmhw/dpmhw_pci.o
+	target/dos/dpmhw/dpmhw_pci.o \
+	target/dos/dpmhw/dpmhw_memory.o \
+	target/dos/dpmhw/dpmhw_hdadev.o
 
 CR_OBJECTS = \
 	target/dos/compile_rom.o \
@@ -72,7 +74,9 @@ JT1_OBJECTS = \
 	target/dos/trs_ich.o \
 	target/dos/error.o \
 	target/dos/dpmhw/dpmhw.o \
-	target/dos/dpmhw/dpmhw_pci.o
+	target/dos/dpmhw/dpmhw_pci.o \
+	target/dos/dpmhw/dpmhw_memory.o \
+	target/dos/dpmhw/dpmhw_hdadev.o
 
 
 VE_OBJECTS = target/dos/video-experiments.o \
@@ -291,8 +295,11 @@ target/deps/trs_uart.o: trs.h z80.h config.h trs_uart.h trs_hard.h
 target/deps/trs_xinterface.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
 target/deps/trs_xinterface.o: trs_uart.h trs_hard.h trs_imp_exp.h
 target/deps/z80.o: z80.h config.h trs.h trs_imp_exp.h
-target/deps/trs_ich.o: z80.h config.h
+target/deps/trs_ich.o: z80.h config.h dpmhw/dpmhw_pci.h dpmhw/dpmhw.h
+target/deps/trs_ich.o: dpmhw/dpmhw_memory.h
 target/deps/trs_vga.o: trs.h z80.h config.h trs_vga.h trs_iodefs.h
 target/deps/dpmhw/dpmhw.o: dpmhw/dpmhw.h dpmhw/dpmhw_impl.h z80.h config.h
+target/deps/dpmhw/dpmhw_hdadev.o: dpmhw/dpmhw_hdadev.h
+target/deps/dpmhw/dpmhw_memory.o: dpmhw/dpmhw.h dpmhw/dpmhw_memory.h
 target/deps/dpmhw/dpmhw_pci.o: dpmhw/dpmhw_pci.h dpmhw/dpmhw.h
 target/deps/dpmhw/dpmhw_pci.o: dpmhw/dpmhw_impl.h
