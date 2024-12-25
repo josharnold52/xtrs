@@ -5,6 +5,7 @@
 #ifndef XTRS_DPMHW_MEMORY_H
 #define XTRS_DPMHW_MEMORY_H
 
+#include <cstdlib>
 #include <cstdint>
 #include <sys/farptr.h>
 #include <dpmi.h>
@@ -153,6 +154,12 @@ namespace dpmhw {
 
             [[nodiscard]] bool isError() const {
                 return selectorAddress == ALLOC_FAILED || physicalAddress == ALLOC_FAILED || size == 0;
+            }
+
+            void flushFromCache() const {
+                for(int i=0; i< size; i+=64) {
+                    selector.flushLine(selectorAddress + i);
+                }
             }
 
             static DmaBlock invalidBlock() {

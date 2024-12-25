@@ -45,7 +45,7 @@ namespace dpmhw {
     public:
         explicit PciFunction(unsigned short pci_address) : pci_address(pci_address), had_errors(0) {}
 
-        [[nodiscard]] int hadErrors() const {
+        [[nodiscard]] bool hadErrors() const {
             return had_errors != 0;
         }
 

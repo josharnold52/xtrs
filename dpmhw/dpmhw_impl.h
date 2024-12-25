@@ -10,8 +10,13 @@
 
 #define INLINE_PAUSE  { __asm__ __volatile__ ("pause"); }
 
+// Specify the "memory" clobber to prevent the compiler from reordering reads around the instruction
+#define INLINE_MFENCE  { __asm__ __volatile__ ("mfence" ::: "memory"); }
+
+
 namespace dpmhw {
 
+    bool isPowerOfTwo(uint32_t ai);
 
     /**
      * A template wrapper around qsort for sorting pointers to a type T.  Null pointers

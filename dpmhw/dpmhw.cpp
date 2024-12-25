@@ -3,6 +3,7 @@
 //
 
 #include <cstdarg>
+#include <cstdint>
 #include "dpmhw.h"
 #include "dpmhw_impl.h"
 
@@ -18,6 +19,16 @@ void dpmhw::dpmhw_log(const char *fmt, ...)
     va_start(args, fmt);
     joshlogv(fmt, args);
     va_end(args);
+}
+
+bool dpmhw::isPowerOfTwo(uint32_t ai) {
+    if (ai == 0) {
+        return false;
+    }
+    while( !(ai & 1)) {
+        ai >>= 1;
+    }
+    return ai == 1;
 }
 
 

@@ -8,52 +8,62 @@
 #include "dpmhw_pci.h"
 
 namespace dpmhw {
+    enum HdaDeviceType {
+        intelSch,
+        other
+    };
+
+    HdaDeviceType hdaGetDeviceType(dpmhw::PciFunction &pciFunction);
+
+
     class HdaDevice {
-    private:
+    public:
         const dpmhw::PciFunction pciFunction;
+        const HdaDeviceType deviceType;
         const SelectorMem regs;
 
-        SelectorMem::ref16 GCAP = regs.r16(0x00);
-        SelectorMem::ref8 VMIN = regs.r8(0x02);
-        SelectorMem::ref8 VMAJ = regs.r8(0x03);
-        SelectorMem::ref16 OUTPAY = regs.r16(0x04);
-        SelectorMem::ref16 INPAY = regs.r16(0x06);
-        SelectorMem::ref32 GCTL = regs.r32(0x08);
-        SelectorMem::ref16 WAKEEN = regs.r16(0x0C);
-        SelectorMem::ref16 STATESTS = regs.r16(0x0E);
-        SelectorMem::ref16 GSTS = regs.r16(0x10);
-        SelectorMem::ref16 OUTSTRMPAY = regs.r16(0x18);
-        SelectorMem::ref16 INSTRMPAY = regs.r16(0x1A);
+        const SelectorMem::ref16 GCAP = regs.r16(0x00);
+        const SelectorMem::ref8 VMIN = regs.r8(0x02);
+        const SelectorMem::ref8 VMAJ = regs.r8(0x03);
+        const SelectorMem::ref16 OUTPAY = regs.r16(0x04);
+        const SelectorMem::ref16 INPAY = regs.r16(0x06);
+        const SelectorMem::ref32 GCTL = regs.r32(0x08);
+        const SelectorMem::ref16 WAKEEN = regs.r16(0x0C);
+        const SelectorMem::ref16 STATESTS = regs.r16(0x0E);
+        const SelectorMem::ref16 GSTS = regs.r16(0x10);
+        const SelectorMem::ref16 OUTSTRMPAY = regs.r16(0x18);
+        const SelectorMem::ref16 INSTRMPAY = regs.r16(0x1A);
 
-        SelectorMem::ref32 INTCTL = regs.r32(0x20);
-        SelectorMem::ref32 INTSTS = regs.r32(0x24);
+        const SelectorMem::ref32 INTCTL = regs.r32(0x20);
+        const SelectorMem::ref32 INTSTS = regs.r32(0x24);
 
-        SelectorMem::ref32 WallClockCounter = regs.r32(0x30);
-        SelectorMem::ref32 SSYNC = regs.r32(0x38);
+        const SelectorMem::ref32 WallClockCounter = regs.r32(0x30);
+        const SelectorMem::ref32 SSYNC = regs.r32(0x38);
 
-        SelectorMem::ref32 CORB = regs.r32(0x40);
-        SelectorMem::ref32 CORBUBASE = regs.r32(0x44);
-        SelectorMem::ref16 CORBWP = regs.r16(0x48);
-        SelectorMem::ref16 CORBRP = regs.r16(0x4A);
-        SelectorMem::ref8 CORBCTL = regs.r8(0x4C);
-        SelectorMem::ref8 CORBSTATUS = regs.r8(0x4D);
-        SelectorMem::ref8 CORBSIZE = regs.r8(0x4E);
+        const SelectorMem::ref32 CORB = regs.r32(0x40);
+        const SelectorMem::ref32 CORBUBASE = regs.r32(0x44);
+        const SelectorMem::ref16 CORBWP = regs.r16(0x48);
+        const SelectorMem::ref16 CORBRP = regs.r16(0x4A);
+        const SelectorMem::ref8 CORBCTL = regs.r8(0x4C);
+        const SelectorMem::ref8 CORBSTATUS = regs.r8(0x4D);
+        const SelectorMem::ref8 CORBSIZE = regs.r8(0x4E);
 
 
-        SelectorMem::ref32 RIRBLBASE = regs.r32(0x50);
-        SelectorMem::ref32 RIRBUBASE = regs.r32(0x54);
-        SelectorMem::ref16 RIRBWP = regs.r16(0x58);
-        SelectorMem::ref16 RINTCNT = regs.r16(0x5A);
-        SelectorMem::ref8 RIRBCTL = regs.r8(0x5C);
-        SelectorMem::ref8 RIRBSTS = regs.r8(0x5D);
-        SelectorMem::ref8 RIRBSIZE = regs.r8(0x5E);
+        const SelectorMem::ref32 RIRBLBASE = regs.r32(0x50);
+        const SelectorMem::ref32 RIRBUBASE = regs.r32(0x54);
+        const SelectorMem::ref16 RIRBWP = regs.r16(0x58);
+        const SelectorMem::ref16 RINTCNT = regs.r16(0x5A);
+        const SelectorMem::ref8 RIRBCTL = regs.r8(0x5C);
+        const SelectorMem::ref8 RIRBSTS = regs.r8(0x5D);
+        const SelectorMem::ref8 RIRBSIZE = regs.r8(0x5E);
 
-        SelectorMem::ref32 ICW = regs.r32(0x60);
-        SelectorMem::ref32 IRR = regs.r32(0x64);
-        SelectorMem::ref32 ICS = regs.r32(0x68);
+        const SelectorMem::ref32 ICW = regs.r32(0x60);
+        const SelectorMem::ref32 IRR = regs.r32(0x64);
+        const SelectorMem::ref32 ICS = regs.r32(0x68);
 
-        SelectorMem::ref32 DPLBASE = regs.r32(0x70);
-        SelectorMem::ref32 DPUBASE = regs.r32(0x74);
+        const SelectorMem::ref32 DPLBASE = regs.r32(0x70);
+        const SelectorMem::ref32 DPUBASE = regs.r32(0x74);
+    private:
 
         DmaRegion * const pDmaRegion;
         const DmaRegion::DmaBlock corbDma;
@@ -70,14 +80,18 @@ namespace dpmhw {
     public:
         HdaDevice(dpmhw::PciFunction &p, SelectorMem &r) :
                 pciFunction(p),
+                deviceType(hdaGetDeviceType(p)),
                 regs(r),
                 // Worst case 256 CORB entries (256 * 4), 256 RIRB entries (256 * 8), 64 DMAPOS entries (64 * 8)
                 pDmaRegion(DmaRegion::allocate(256 * 4 + 256 * 4 + 256 * 4 + 64 * 8, 128)),
                 corbDma(DmaRegion::reserveBlock(pDmaRegion, 256 * 4)),
                 rirbDma(DmaRegion::reserveBlock(pDmaRegion, 256 * 8)),
                 dmaPosDma(DmaRegion::reserveBlock(pDmaRegion, 64 * 8)),
-                allocationSucceeded(!corbDma.isError() && !rirbDma.isError() && !dmaPosDma.isError())
+                allocationSucceeded(!corbDma.isError() && !rirbDma.isError() && !dmaPosDma.isError() && !p.hadErrors())
                 {
+            if (p.hadErrors()) {
+                dpmhw_log("HDA ERROR: PCI Interface had errors!");
+            }
             dpmhw_log("Allocated HDADevice success=%d\n", allocationSucceeded ? 1 : 0);
         }
 
@@ -87,26 +101,13 @@ namespace dpmhw {
         //  Maybe can avoid it by disabling exceptions/RTTI
         //  See https://stackoverflow.com/questions/329059/what-is-gxx-personality-v0-for
 
-        /*
+
         ~HdaDevice() {
-            if (active) {
-                reset();
-            }
-            if (!active) {
-                //TODO - Should unlock the memory in question?
-                if (dmaMem) {
-                    free(dmaMem);
-                }
-            }
-            joshlog("Destroyed HdaDevice object\n");
-
+            force_reset();
+            DmaRegion::deallocate(pDmaRegion);
         }
-         */
-
 
         bool activate();
-
-
         void force_reset();
 
         unsigned short getGlobalCapabilities() { return GCAP.peek(); }
@@ -119,7 +120,6 @@ namespace dpmhw {
         unsigned short getCodecBitMap() { return STATESTS.peek() & 0x7FFF; }
 
         bool getAcceptsUnsolicitedResponse() { return (GCTL.peek() & 0x100) != 0; }
-
 
         bool singleCommand(unsigned long command,  unsigned long &response);
 
@@ -155,8 +155,6 @@ namespace dpmhw {
             }
         };
 
-
-
         static unsigned int makeCommand(unsigned int codec, unsigned int node, unsigned int command, unsigned int data) {
             if (command >= 0x10) {
                 return ((codec & 0xFu) << 28) |
@@ -178,6 +176,20 @@ namespace dpmhw {
         void dumpRegs();
         void dumpVendorRegs();
         void dumpExtendedRegs();
+
+        uint32_t getDmaPos(int descriptorNo) {
+            if (descriptorNo < 0 || descriptorNo > 63) {
+                return 0xFFFFFFFFu;
+            }
+            //Intel SCH (on the ASUS NB) puts the DMA Position info of its output streams at a different index
+            if (deviceType == HdaDeviceType::intelSch) {
+                if (descriptorNo == 2 || descriptorNo == 3) {
+                    descriptorNo += 2;
+                }
+            }
+
+            return dmaPosDma.selector.peek32(dmaPosDma.selectorAddress + (descriptorNo * 8));
+        }
     };
 
 };

@@ -5,16 +5,7 @@
 #include <cstdlib>
 #include "dpmhw.h"
 #include "dpmhw_memory.h"
-
-static bool isPowerOfTwo(uint32_t ai) {
-    if (ai == 0) {
-        return false;
-    }
-    while( !(ai & 1)) {
-        ai >>= 1;
-    }
-    return ai == 1;
-}
+#include "dpmhw_impl.h"
 
 
 dpmhw::DmaRegion *dpmhw::DmaRegion::allocate(uint32_t size, uint32_t alignment) {

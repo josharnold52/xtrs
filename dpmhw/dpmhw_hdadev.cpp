@@ -4,6 +4,12 @@
 
 using dpmhw::HdaDevice;
 
+dpmhw::HdaDeviceType dpmhw::hdaGetDeviceType(dpmhw::PciFunction &pciFunction) {
+    if (pciFunction.getConfig16(0x02) == 0x811B) {
+        return dpmhw::HdaDeviceType::intelSch;
+    }
+    return dpmhw::HdaDeviceType::other;
+}
 
 bool HdaDevice::activate() {
     if (!allocationSucceeded) {
@@ -147,6 +153,7 @@ void HdaDevice::force_reset() {
     while((CORBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
     dpmhw_debug("Resetting device...\n");
     GCTL.poke(0);
+    corbRirbSystemsActive = false;
     while((GCTL.peek() & 0x1) != 0) INLINE_PAUSE;
 
     GCTL.poke(1);
@@ -202,7 +209,10 @@ bool HdaDevice::singleCommand(unsigned long command,  unsigned long &response) {
         dbgCommandState();
     };
     rirbReadPointer = RIRBWP.peek();
+    //Not really sure if fencing is needed or which side of the flush it should go on...
+    INLINE_MFENCE;  // Intel manual suggests flush isn't ordered with respect to reads.  It is ordered with respect to fences
     rirbDma.selector.flushLine(rirbDma.selectorAddress + 8 * rirbReadPointer);
+    INLINE_MFENCE;  // Intel manual suggests flush isn't ordered with respect to reads.  It is ordered with respect to fences
     unsigned long v1 = rirbDma.selector.peek32(rirbDma.selectorAddress + 8 * rirbReadPointer);
     unsigned long v2 = rirbDma.selector.peek32(rirbDma.selectorAddress + 8 * rirbReadPointer + 4);
     dpmhw_debug("Received %u/%u\n", v1, v2);
