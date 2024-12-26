@@ -16,3 +16,15 @@ HDA Quirks:
   in order for the audio hardware to see it.   TODO: Maybe do this for CORB and RIRB to be safe, although
   I haven't seen a problem with those
 
+
+
+/*
+ * OTHER HW NOTES:
+ * - If I want to play with the GPIO (I2C) PINS on the VGA of the Asus - Look at
+ *   the GMA500 driver in the linux tree.  The GPIO regs are at 0x5010, 0x5014, etc...
+ *   and the intel_i2c.c file shows how to use them.  I believe these registers are
+ *   relative to the base of the MMIO given by the PCI function for the display.  This
+ *   is pretty easy to confirm by tracing back the get_clock, get_data, etc. functions
+ *   in the i2c file.  I can possibly figure out which GPIO is used by playing with the
+ *   I2C stuff in linux.  That should get to the point where I can do it from DOS probably
+ */

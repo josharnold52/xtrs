@@ -67,7 +67,7 @@ namespace dpmhw {
                 return false;
         }
 
-        [[nodiscard]] unsigned int not_found() const {
+        [[nodiscard]] static unsigned int not_found() {
             return sz;
         }
 
