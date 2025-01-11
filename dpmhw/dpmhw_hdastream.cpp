@@ -77,12 +77,14 @@ HdaOutputStream::HdaOutputStream(HdaDevice *d, unsigned int bsize, unsigned char
     SDBDPL.poke(dmaBdl.physicalAddress);
     dpmhw_log("HDA SDBDPL(0x%x) is 0x%x\n", SDBDPL.offset,  SDBDPL.peek());
 
-    SDCBL.poke(totalBufferSize); //TODO: This might be in samples!
+    SDCBL.poke(totalBufferSize); //Pretty sure this is in bytes but at some point I wondered if it was samples
     SDLVI.poke(bufferCount - 1);
+    //TODO - This is setting up a stereo stream - but would be easier to do a mono stream
+    // TODO - I just switched this to 48Khz (was 44.1) - make sure this works
     SDFMT.poke(
-            (1 << 14)
+            (0 << 14)   // 48 KHz
             | ( 1 << 4)
-            | 1
+            | 1   // 48 KHz,  16 Bits,  2 channels
     );
 
 }

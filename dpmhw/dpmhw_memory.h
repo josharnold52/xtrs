@@ -36,14 +36,12 @@ namespace dpmhw {
 
         /** Flushes the cache line at the given offset */
         void flushLine(uint32_t offset) const {
-            ///TODO: I don't think we need to restore the old value value of _fargetsel (a.k.a the fs register)
-            //  see the _farpeek* calls for examples where it isn't restored.  ALSO...We don't need to hardcode
-            //  the use of eax here - I think we can tell the compiler to use any r/m value and let it choose.
-            //  Again see the existing _far* macros for examples.
-            unsigned short sv = _fargetsel();
-            _farsetsel(selector);
-            __asm__ __volatile__ ("clflush %%fs:(%%eax)" : /*none*/ : "a" (offset));
-            _farsetsel(sv);
+            // Look at _farpeek*/_farpoke* calls for similar examples
+            // Also if doing lots of flushes we might want a way to load %fs once and reuse it (see above comment)
+            __asm__ __volatile__ ("movw %w0,%%fs \n"
+                                  "	clflush %%fs:(%k1)"
+                    :
+                    : "rm" (selector), "r" (offset));
         }
 
         /** Sentinel selector used to mark an invalid selector */
@@ -165,6 +163,8 @@ namespace dpmhw {
             static DmaBlock invalidBlock() {
                 return {SelectorMem::invalid(), ALLOC_FAILED, ALLOC_FAILED, 0};
             }
+
+            void fill16(uint16_t value) const;
         };
 
         /**

@@ -63,3 +63,11 @@ dpmhw::DmaRegion::DmaBlock dpmhw::DmaRegion::reserveBlock(uint32_t size) {
     }
     return { selector, selectorBase + offset, physicalBase + offset, size};
 }
+
+void dpmhw::DmaRegion::DmaBlock::fill16(uint16_t value) const {
+    //TODO: Can optimize this by preloading the selector
+    for(uint32_t offset = 0; offset < size; offset += 2) {
+        selector.poke16(selectorAddress + offset, value);
+    }
+    flushFromCache();
+}

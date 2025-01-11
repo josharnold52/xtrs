@@ -110,6 +110,7 @@ namespace dpmhw {
         bool activate();
         void force_reset();
 
+        int32_t getWallClockCount() { return (int32_t)WallClockCounter.peek(); };
         unsigned short getGlobalCapabilities() { return GCAP.peek(); }
         unsigned int getNumberOfOutputStreamsSupported() { return (getGlobalCapabilities() >> 12) & 0xF; }
         unsigned int getNumberOfInputStreamsSupported() { return (getGlobalCapabilities() >> 8) & 0xF; }
