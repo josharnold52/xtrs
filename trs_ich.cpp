@@ -226,7 +226,7 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
 
     //myStream.dumpBufferDescriptorList();
     double afreq = 300 * 2  * PI;
-    double bfreq = 2  * PI;
+    double bfreq = 4 * 2  * PI;
 
     rtSound.start();
     rtSound.resetBuffer(0x8000);
@@ -238,7 +238,7 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     while(elapsed < 30) {
         double tdiff = (double)(dpmhw::dpmhw_rdtsc() - started);
         elapsed = tdiff * tscFactor;
-        auto x = (uint16_t )lround(0x8000 + 0x4000 * sin(afreq * (1 + 0.1 * cos(bfreq * elapsed)) * elapsed));
+        auto x = (uint16_t )lround(0x8000 + 0x4000 * sin(afreq * (elapsed + 0.02 * sin(bfreq * (elapsed + 0.1 * elapsed * elapsed)))));
         //auto x = (tdiff & 512) ? 0x9999 : 0x7777;
         auto sc = rtSound.soundOut(x);
         counter += sc;
