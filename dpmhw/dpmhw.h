@@ -5,10 +5,23 @@
 #ifndef XTRS_DPMHW_H
 #define XTRS_DPMHW_H
 
+#include <cstdint>
+
 namespace dpmhw {
 
     void dpmhw_debug(const char *msg, ...);
     void dpmhw_log(const char *fmt, ...);
+
+    inline int64_t dpmhw_rdtsc(){
+        int64_t tick;
+        __asm__ __volatile__("rdtsc":"=A"(tick));
+        return tick;
+    }
+
+    inline void dpmhw_x86pause() {
+        __asm__ __volatile__ ("pause");
+    }
+
 
     /**
      * Kind of like option in java/scala but has a placeholder value

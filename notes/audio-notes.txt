@@ -16,7 +16,11 @@ HDA Quirks:
   in order for the audio hardware to see it.   TODO: Maybe do this for CORB and RIRB to be safe, although
   I haven't seen a problem with those
 
-
+* On VirtualBox, the Current DMA Pointer advances in steps of 4096 samples!  (For 2-channel, 16bit , 48Khz format).
+  Also, the VirtualBox WallClockCounter is essentially useless - it more or less onl advances when the DMA Pointer
+  does, so it's resolution is something like 0.08 seconds.   Fortunately, rdtsc works, so we can use that as a clock,
+  but we have to measure its frequency for it to be useful.   I think uclock probably also works.   In any case,
+  I need to abstract out the high-res time source.
 
 /*
  * OTHER HW NOTES:

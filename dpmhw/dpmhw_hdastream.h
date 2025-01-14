@@ -45,25 +45,25 @@ namespace dpmhw {
         void run();
         void stop();
 
-        unsigned long getDmaPos() {
+        [[nodiscard]] unsigned long getDmaPos() const {
             return dev->getDmaPos(descriptorNumber);
         }
-        unsigned long getLinkPos() {
+        [[nodiscard]] unsigned long getLinkPos() const {
             return SDLPIB.peek();
         }
-        unsigned short getFifoSize() {
+        [[nodiscard]] unsigned short getFifoSize() const {
             return SDFIFOS.peek();
         }
-        unsigned char getStatus() {
+        [[nodiscard]] unsigned char getStatus() const {
             return SDSTS.peek();
         }
-        unsigned short getFormat() {
+        [[nodiscard]] unsigned short getFormat() const {
             return SDFMT.peek();
         }
-        unsigned char getStreamNumber() {
+        [[nodiscard]] unsigned char getStreamNumber() const {
             return streamNumber;
         }
-        unsigned char getDescriptorNumber() {
+        [[nodiscard]] unsigned char getDescriptorNumber() const {
             return descriptorNumber;
         }
         void dumpBufferDescriptorList();

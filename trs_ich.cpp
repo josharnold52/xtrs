@@ -7,6 +7,7 @@
 #include <sys/farptr.h>
 #include <unistd.h>
 #include <cstdarg>
+#include <cmath>
 
 extern "C" {
 #include "z80.h"
@@ -16,6 +17,7 @@ extern "C" {
 #include "dpmhw/dpmhw_hdadev.h"
 #include "dpmhw/dpmhw_hdastream.h"
 #include "dpmhw/dpmhw_hdacodec.h"
+#include "dpmhw/dpmhw_rtsound.h"
 
 /*
  * TODO:  The MASTER LIST
@@ -41,19 +43,21 @@ using dpmhw::SelectorMem;
 using dpmhw::DmaRegion;
 using dpmhw::HdaDevice;
 using dpmhw::HdaOutputStream;
+using dpmhw::rtsound::HdaRealTimeSound;
 
 using namespace dpmhw::hda;
 
 static void try_it_out(HdaDevice &dev, const codec_info &codec) {
 
-    HdaOutputStream myStream(&dev, 4096, 2, dev.getNumberOfInputStreamsSupported(), 1);
-    if (!myStream.allocationSucceeded) {
-        joshlog("ERROR: myStream allocation failed");
+    //HdaOutputStream myStream(&dev, 4096, 2, dev.getNumberOfInputStreamsSupported(), 1);
+    HdaRealTimeSound rtSound(&dev, dev.getNumberOfInputStreamsSupported(), 1);
+
+    if (!rtSound.isValid()) {
+        joshlog("ERROR: rtsound allocation failed");
         return;
     }
-    myStream.fillBufferWithTestTone(0x100);
 
-    joshlog("streamDescriptorNumber=%d streamNumber=%d\n", myStream.getDescriptorNumber(), myStream.getStreamNumber());
+    joshlog("streamDescriptorNumber=%d streamNumber=%d\n", rtSound.getDescriptorNumber(), rtSound.getStreamNumber());
     HdaDevice::Codec codecControl(dev, codec.codecNumber);
     const audio_function_group_info &afg = codec.audioFunctionGroups[0];
 
@@ -192,8 +196,8 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
 
     }
 
-    codecControl.nodeVerb(dac->nodeNumber, 0x2, myStream.getFormat()); //Set format
-    codecControl.nodeVerb(dac->nodeNumber, 0x706, (myStream.getStreamNumber() << 4) + 0);
+    codecControl.nodeVerb(dac->nodeNumber, 0x2, rtSound.getStreamFormat()); //Set format
+    codecControl.nodeVerb(dac->nodeNumber, 0x706, (rtSound.getStreamNumber() << 4) + 0);
     //TODO - Set power states
     // TODO - EAPD/BTL ?
 
@@ -203,23 +207,46 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     dev.dumpVendorRegs();
     dev.dumpExtendedRegs();
     dev.dumpDmaBuf();
-    myStream.dumpBufferDescriptorList();
-    myStream.run();
-    for(int i=0; i<60; i++) {
-        joshlog("%x %x %x\n", myStream.getDmaPos(), myStream.getLinkPos(), myStream.getFifoSize());
-        //dev.dumpRegs();
-        //dev.dumpVendorRegs();
-        //dev.dumpExtendedRegs();
-        //dev.dumpDmaBuf();
-        //myStream.dumpBufferDescriptorList();
-        usleep(100000);
-        if (i==20) {
-            myStream.fillBufferWithTestTone(0x80);
-        } else if (i == 40) {
-            myStream.fillBufferWithTestTone(0x200);
-        }
+
+    const double secPerWall = 1.0 / 24e6;
+    joshlog("Timing rdtsc\n");
+    const auto calib_run = (int32_t) (1 * 24e6);
+    int32_t calib_start = dev.getWallClockCount();
+    int64_t rdt_start = dpmhw::dpmhw_rdtsc();
+    while( (dev.getWallClockCount() - calib_start) < calib_run) {
+        dpmhw::dpmhw_x86pause();
     }
-    myStream.stop();
+    int64_t rdt_end = dpmhw::dpmhw_rdtsc();
+    int64_t rdt_diff = rdt_end - rdt_start;
+    joshlog("Elapsed after 10 %llu\n", rdt_diff);
+    joshlog("Elapsed after 10 %lu\n", (int32_t)(rdt_diff));
+
+    //24959999078
+    const double tscFactor = 10.0 / 24959999078.0;
+
+    //myStream.dumpBufferDescriptorList();
+    double afreq = 300 * 2  * PI;
+    double bfreq = 2  * PI;
+
+    rtSound.start();
+    rtSound.resetBuffer(0x8000);
+    //Note - our calculations will overflow if we time longer than 89 seconds
+    const auto started = dpmhw::dpmhw_rdtsc();
+    double elapsed = 0;
+    int32_t counter = 0;
+    int32_t writesCounter = 0;
+    while(elapsed < 30) {
+        double tdiff = (double)(dpmhw::dpmhw_rdtsc() - started);
+        elapsed = tdiff * tscFactor;
+        auto x = (uint16_t )lround(0x8000 + 0x4000 * sin(afreq * (1 + 0.1 * cos(bfreq * elapsed)) * elapsed));
+        //auto x = (tdiff & 512) ? 0x9999 : 0x7777;
+        auto sc = rtSound.soundOut(x);
+        counter += sc;
+        writesCounter++;
+    }
+    joshlog("Sent %u samples (%u)\n", counter, writesCounter);
+    rtSound.stop();
+    //myStream.stop();
     //usleep(3000000);
 
 

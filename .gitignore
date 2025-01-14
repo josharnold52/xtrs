@@ -99,3 +99,5 @@ _CSTE.CTL
 /target/
 /vbox-res/
 /dbox-conf/capture/
+.RData
+.Rhistory

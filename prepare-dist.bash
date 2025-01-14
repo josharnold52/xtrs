@@ -88,7 +88,8 @@ UNZIP -o A:\dosxtrs.zip
 CD EMUS
 REM UNZIP -o A:\devlocal.zip
 CD ..
-LAUNCHER
+REM LAUNCHER
+d:\htst.bat
 ' | perl -pe 's/\n/\r\n/g' > "$ar"
 
 

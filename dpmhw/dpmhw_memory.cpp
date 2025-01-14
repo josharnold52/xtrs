@@ -13,7 +13,7 @@ dpmhw::DmaRegion *dpmhw::DmaRegion::allocate(uint32_t size, uint32_t alignment) 
     //address and get a selector for it.   Eventually we should change this to allocating physical
     //memory elsewhere - See https://www.delorie.com/djgpp/v2faq/faq18_13.html
 
-    if (size == 0 || size > 0x20000 || !isPowerOfTwo(alignment) || alignment > 0x1000) {
+    if (size == 0 || size > 0x42000 || !isPowerOfTwo(alignment) || alignment > 0x1000) {
         dpmhw_log("Bad arguments %u %u\n", size, alignment);
         return nullptr;
     }

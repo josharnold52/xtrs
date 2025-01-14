@@ -17,7 +17,7 @@ namespace dpmhw::rtsound {
         HdaDevice * const pDevice;
         HdaOutputStream stream;
         bool started;
-        int32_t lastWallClock;
+        int64_t lastClock;
 
         int32_t samplePos;
         int32_t fracAmt;
@@ -40,7 +40,20 @@ namespace dpmhw::rtsound {
         void stop();
 
         void resetBuffer(uint16_t level);
-        void soundOut(uint16_t level);
+        int32_t soundOut(uint16_t level);
+
+        [[nodiscard]] bool isValid() const {
+            return stream.allocationSucceeded;
+        }
+        [[nodiscard]] unsigned char getStreamNumber() const {
+            return stream.getStreamNumber();
+        }
+        [[nodiscard]] unsigned char getDescriptorNumber() const {
+            return stream.getDescriptorNumber();
+        }
+        [[nodiscard]] unsigned char getStreamFormat() const {
+            return stream.getFormat();
+        }
 
     };
 
