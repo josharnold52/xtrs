@@ -14,6 +14,7 @@ mkdir _dist_gather || exit 1
 cp target/dos/dosxtrs.exe _dist_gather/ || exit 1
 
 cp target/dos/jahdatst.exe _dist_gather/ || exit 1
+cp target/dos/dpmcli.exe _dist_gather/ || exit 1
 cp target/dos/videxp.exe _dist_gather/ || exit 1
 cp cwsdpmi/BIN/CWSDPMI.EXE _dist_gather/ || exit 1
 cp ./keytrap/target/KEYTRAP.COM _dist_gather || exit 1
@@ -53,6 +54,8 @@ zip -r "$SCRIPT_DIR"/dist/emus.zip EMUS
 rm -rf "$SCRIPT_DIR"/dist/jahdatst.zip
 zip -r "$SCRIPT_DIR"/dist/jahdatst.zip jahdatst.exe
 
+rm -rf "$SCRIPT_DIR"/dist/dpmcli.zip
+zip -r "$SCRIPT_DIR"/dist/dpmcli.zip dpmcli.exe
 
 
 mkdir DEVLOCAL

@@ -20,6 +20,9 @@ if [[ -n "$1" ]]; then
   if [[ "$1" == --custom ]]; then
     shift;
     dosbox -c "mount c ./dboxrun" -c "c:" -c "$*"
+  elif [[ "$1" == --shell ]]; then
+    shift;
+    dosbox -c "mount c ./dboxrun" -c "c:"
   else
     dosbox -c "mount c ./dboxrun" -c "c:" -c "4DOS /C LAUNCH.BAT $1"
   fi

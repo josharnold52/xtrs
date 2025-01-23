@@ -43,7 +43,10 @@ DOS_OBJECTS = \
 	target/dos/dpmhw/dpmhw_hdadev.o \
 	target/dos/dpmhw/dpmhw_hdastream.o \
 	target/dos/dpmhw/dpmhw_hdacodec.o \
-	target/dos/dpmhw/dpmhw_rtsound.o
+	target/dos/dpmhw/dpmhw_rtsound.o \
+	target/dos/dpmhw/dpmhw_config.o \
+	target/dos/dpmhw/dpmhw_hrt.o \
+	target/dos/dpmutil/dpmutil_ini.o
 
 CR_OBJECTS = \
 	target/dos/compile_rom.o \
@@ -82,8 +85,24 @@ JT1_OBJECTS = \
 	target/dos/dpmhw/dpmhw_hdadev.o \
 	target/dos/dpmhw/dpmhw_hdastream.o \
 	target/dos/dpmhw/dpmhw_hdacodec.o \
-	target/dos/dpmhw/dpmhw_rtsound.o
+	target/dos/dpmhw/dpmhw_rtsound.o \
+	target/dos/dpmhw/dpmhw_config.o \
+	target/dos/dpmhw/dpmhw_hrt.o \
+	target/dos/dpmutil/dpmutil_ini.o
 
+DPMCLI_OBJECTS = \
+	target/dos/error.o \
+    target/dos/dpmcli/dpmcli.o \
+	target/dos/dpmhw/dpmhw.o \
+	target/dos/dpmhw/dpmhw_pci.o \
+	target/dos/dpmhw/dpmhw_memory.o \
+	target/dos/dpmhw/dpmhw_hdadev.o \
+	target/dos/dpmhw/dpmhw_hdastream.o \
+	target/dos/dpmhw/dpmhw_hdacodec.o \
+	target/dos/dpmhw/dpmhw_rtsound.o \
+	target/dos/dpmhw/dpmhw_config.o \
+	target/dos/dpmhw/dpmhw_hrt.o \
+	target/dos/dpmutil/dpmutil_ini.o
 
 VE_OBJECTS = target/dos/video-experiments.o \
 	target/dos/trs_vga.o
@@ -108,7 +127,7 @@ PDFMANPAGES = cassette.man.pdf \
 HTMLDOCS = cpmutil.txt \
 	dskspec.txt
 
-PROGS = target/dos/dosxtrs.exe target/dos/mkdisk.exe target/dos/hex2cmd.exe target/dos/cmddump.exe target/dos/jahdatst.exe target/dos/videxp.exe
+PROGS = target/dos/dosxtrs.exe target/dos/mkdisk.exe target/dos/hex2cmd.exe target/dos/cmddump.exe target/dos/jahdatst.exe target/dos/videxp.exe target/dos/dpmcli.exe
 
 ZMACINT = ./zmac-internal/zmac
 
@@ -214,6 +233,9 @@ target/dos/jahdatst.exe: $(JT1_OBJECTS)
 target/dos/videxp.exe: $(VE_OBJECTS)
 	$(CC) $(LDFLAGS) -o target/dos/videxp.exe $(VE_OBJECTS)
 
+target/dos/dpmcli.exe: $(DPMCLI_OBJECTS)
+	$(CC) $(LDFLAGS) -o target/dos/dpmcli.exe $(DPMCLI_OBJECTS)
+
 clean:
 	rm -rf target && rm -f \
 		$(HTMLDOCS) \
@@ -226,30 +248,30 @@ link:
 	rm -f dosxtrs
 	make dosxtrs
 
-install: install-progs install-docs
-
-install-progs: $(PROGS) $(CASSETTE)
-	$(INSTALL) -d -m 755 $(BINDIR)
-	$(INSTALL) -c -m 755 $(PROGS) $(BINDIR)
-	$(INSTALL) -c -m 755 $(CASSETTE) $(BINDIR)/cassette
-
-install-docs: docs
-	$(INSTALL) -d -m 755 $(MANDIR)
-	$(INSTALL) -d -m 755 $(MANDIR)/man1
-	$(INSTALL) -c -m 644 xtrs.man $(MANDIR)/man1/xtrs.1
-	$(INSTALL) -c -m 644 cassette.man $(MANDIR)/man1/cassette.1
-	$(INSTALL) -c -m 644 mkdisk.man $(MANDIR)/man1/mkdisk.1
-	$(INSTALL) -c -m 644 cmddump.man $(MANDIR)/man1/cmddump.1
-	$(INSTALL) -c -m 644 hex2cmd.man $(MANDIR)/man1/hex2cmd.1
-	$(INSTALL) -d -m 755 $(DOCDIR)
-	$(INSTALL) -c -m 644 $(PDFMANPAGES) $(DOCDIR)
-	$(INSTALL) -c -m 644 cpmutil.html $(DOCDIR)
-	$(INSTALL) -c -m 644 cpmutil.txt $(DOCDIR)
-	$(INSTALL) -c -m 644 dskspec.html $(DOCDIR)
-	$(INSTALL) -c -m 644 dskspec.txt $(DOCDIR)
+#install: install-progs install-docs
+#
+#install-progs: $(PROGS) $(CASSETTE)
+#	$(INSTALL) -d -m 755 $(BINDIR)
+#	$(INSTALL) -c -m 755 $(PROGS) $(BINDIR)
+#	$(INSTALL) -c -m 755 $(CASSETTE) $(BINDIR)/cassette
+#
+#install-docs: docs
+#	$(INSTALL) -d -m 755 $(MANDIR)
+#	$(INSTALL) -d -m 755 $(MANDIR)/man1
+#	$(INSTALL) -c -m 644 xtrs.man $(MANDIR)/man1/xtrs.1
+#	$(INSTALL) -c -m 644 cassette.man $(MANDIR)/man1/cassette.1
+#	$(INSTALL) -c -m 644 mkdisk.man $(MANDIR)/man1/mkdisk.1
+#	$(INSTALL) -c -m 644 cmddump.man $(MANDIR)/man1/cmddump.1
+#	$(INSTALL) -c -m 644 hex2cmd.man $(MANDIR)/man1/hex2cmd.1
+#	$(INSTALL) -d -m 755 $(DOCDIR)
+#	$(INSTALL) -c -m 644 $(PDFMANPAGES) $(DOCDIR)
+#	$(INSTALL) -c -m 644 cpmutil.html $(DOCDIR)
+#	$(INSTALL) -c -m 644 cpmutil.txt $(DOCDIR)
+#	$(INSTALL) -c -m 644 dskspec.html $(DOCDIR)
+#	$(INSTALL) -c -m 644 dskspec.txt $(DOCDIR)
 
 depend:
-	makedepend -ptarget/deps/ -Y. --  -- *.c *.cpp dpmhw/*.cpp 2>&1 | \
+	makedepend -ptarget/deps/ -Y. --  -- *.c *.cpp dpmhw/*.cpp dpmutil/*.cpp dpmcli/*.cpp 2>&1 | \
 		(egrep -v 'cannot find|not in' || true)
 
 
@@ -259,8 +281,7 @@ keytrap/target/KEYTRAP.COM: keytrap/build.bash keytrap/keytrap.c  keytrap/scanbu
 launcher/target/LAUNCHER.COM: launcher/build.bash launcher/launcher.c
 	cd launcher && bash build.bash
 
-
-idebuild: target/dos/dosxtrs.exe target/dos/jahdatst.exe target/dos/videxp.exe
+idebuild: target/dos/dosxtrs.exe target/dos/jahdatst.exe target/dos/videxp.exe target/dos/dpmcli.exe
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
@@ -305,20 +326,25 @@ target/deps/trs_ich.o: z80.h config.h dpmhw/dpmhw_pci.h dpmhw/dpmhw.h
 target/deps/trs_ich.o: dpmhw/dpmhw_memory.h dpmhw/dpmhw_hdadev.h
 target/deps/trs_ich.o: dpmhw/dpmhw_memory.h dpmhw/dpmhw_pci.h
 target/deps/trs_ich.o: dpmhw/dpmhw_hdastream.h dpmhw/dpmhw_hdadev.h
-target/deps/trs_ich.o: dpmhw/dpmhw_hdacodec.h
+target/deps/trs_ich.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw_rtsound.h
+target/deps/trs_ich.o: dpmhw/dpmhw_hdastream.h
 target/deps/trs_vga.o: trs.h z80.h config.h trs_vga.h trs_iodefs.h
+target/deps/dpmhw/dpmhw_config.o: dpmhw/dpmhw_config.h
 target/deps/dpmhw/dpmhw.o: dpmhw/dpmhw.h dpmhw/dpmhw_impl.h z80.h config.h
 target/deps/dpmhw/dpmhw_hdacodec.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw.h
 target/deps/dpmhw/dpmhw_hdacodec.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_hdadev.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_hdastream.o: dpmhw/dpmhw_hdastream.h
-target/deps/dpmhw/dpmhw_hdastream.o: dpmhw/dpmhw_memory.h
-target/deps/dpmhw/dpmhw_hdastream.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_impl.h
+target/deps/dpmhw/dpmhw_hdastream.o: dpmhw/dpmhw_impl.h
+target/deps/dpmhw/dpmhw_hrt.o: dpmhw/dpmhw_hrt.h dpmhw/dpmhw.h
+target/deps/dpmhw/dpmhw_hrt.o: dpmhw/dpmhw_hdadev.h
 target/deps/dpmhw/dpmhw_memory.o: dpmhw/dpmhw.h dpmhw/dpmhw_memory.h
 target/deps/dpmhw/dpmhw_memory.o: dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_pci.o: dpmhw/dpmhw_pci.h dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_rtsound.h dpmhw/dpmhw_hdadev.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_hdastream.h
-target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_memory.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw.h
-target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_impl.h dpmhw/dpmhw_pci.h
+target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_impl.h dpmhw/dpmhw_memory.h
+target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_pci.h
+target/deps/dpmutil/dpmutil_ini.o: dpmutil/dpmutil_ini.h dpmhw/dpmhw.h
+target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw.h

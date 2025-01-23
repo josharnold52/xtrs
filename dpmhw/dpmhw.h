@@ -8,7 +8,7 @@
 #include <cstdint>
 
 namespace dpmhw {
-
+    extern bool dpmhw_debug_enabled;
     void dpmhw_debug(const char *msg, ...);
     void dpmhw_log(const char *fmt, ...);
 

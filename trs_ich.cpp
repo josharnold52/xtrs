@@ -393,7 +393,6 @@ static void setup_hda() {
 
 extern "C" void trs_ich_setup() {
 
-
     joshlog("Woo C++ v8\n");
     joshlog("In ich setup\n");
     dpmhw::PciBusInfo pci = dpmhw::detectPci();

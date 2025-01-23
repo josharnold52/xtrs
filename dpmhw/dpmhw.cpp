@@ -11,7 +11,16 @@ extern "C" {
 #include "../z80.h"
 }
 
-void dpmhw::dpmhw_debug(const char *msg, ...){}
+ bool dpmhw::dpmhw_debug_enabled = false;
+
+void dpmhw::dpmhw_debug(const char *fmt, ...){
+    if (dpmhw_debug_enabled) {
+        va_list args;
+        va_start(args, fmt);
+        joshlogv(fmt, args);
+        va_end(args);
+    }
+}
 
 void dpmhw::dpmhw_log(const char *fmt, ...)
 {
@@ -31,6 +40,9 @@ bool dpmhw::isPowerOfTwo(uint32_t ai) {
     return ai == 1;
 }
 
+static_assert(sizeof(int) == 4, "The DPM code assumes int is 4 bytes");
+static_assert(sizeof(long) == 4, "The DPM code assumes long is 4 bytes");
+static_assert(sizeof(long long) == 8, "The DPM code assumes long long is 8 bytes");
 
 
 
