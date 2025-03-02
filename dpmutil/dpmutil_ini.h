@@ -21,6 +21,7 @@ namespace dpmutil {
 
     public:
         [[maybe_unused]] explicit IniSettings(const char *filePath);
+        IniSettings() : buffer({nullptr, 0}) {}
         ~IniSettings();
         IniSettings(const IniSettings &rhs) = delete;
         IniSettings & operator=(const IniSettings &rhs) = delete;
@@ -29,16 +30,16 @@ namespace dpmutil {
             return buffer.pBuf == nullptr;
         }
 
-        [[nodiscard]] bool getInt(const char *section, const char *key, int &value) const ;
-        void getInt(const char *section, const char *key, int &value, int defaultValue) const {
-            if (!getInt(section, key, value)) {
+        [[nodiscard]] bool readInt(const char *section, const char *key, int &value) const ;
+        void readInt(const char *section, const char *key, int &value, int defaultValue) const {
+            if (!readInt(section, key, value)) {
                 value = defaultValue;
             }
         }
 
-        [[nodiscard]] bool getDouble(const char *section, const char *key, double &value) const;
-        void getDouble(const char *section, const char *key, double &value, double defaultValue) const {
-            if (!getDouble(section, key, value)) {
+        [[nodiscard]] bool readDouble(const char *section, const char *key, double &value) const;
+        void readDouble(const char *section, const char *key, double &value, double defaultValue) const {
+            if (!readDouble(section, key, value)) {
                 value = defaultValue;
             }
         }
@@ -55,33 +56,54 @@ namespace dpmutil {
          * @return true if the value could be read, false otherwise.  If false is returned, neither the buffer nor valueLength will be
          * changed.  Reasons for a false return value include: Unable to find the key, Insufficient Buffer, and Invalid Arguments
          */
-        [[nodiscard]] bool getString(const char *section, const char *key, char *valueBuf, size_t valueBufSize, int &valueLength) const; //Error if insufficient buffer (including if no room for null terminator)
+        [[nodiscard]] bool readString(const char *section, const char *key, char *valueBuf, size_t valueBufSize, int &valueLength) const; //Error if insufficient buffer (including if no room for null terminator)
 
         /** Same as the overloaded version except it does not take a valueLength param and thus the length is not returned */
-        [[nodiscard]] bool getString(const char *section, const char *key, char *valueBuf, size_t valueBufSize) const {
+        [[nodiscard]] bool readString(const char *section, const char *key, char *valueBuf, size_t valueBufSize) const {
             int placeholder;
-            return getString(section, key, valueBuf, valueBufSize, placeholder);
+            return readString(section, key, valueBuf, valueBufSize, placeholder);
         };
 
-        [[nodiscard]] bool getBoolean(const char *section, const char *key, bool &value) const;
-        void getBoolean(const char *section, const char *key, bool &value, bool defaultValue) const {
-            if (!getBoolean(section, key, value)) {
+        [[nodiscard]] bool readBoolean(const char *section, const char *key, bool &value) const;
+        void readBoolean(const char *section, const char *key, bool &value, bool defaultValue) const {
+            if (!readBoolean(section, key, value)) {
                 value = defaultValue;
             }
         }
 
-        [[nodiscard]] bool getChar(const char *section, const char *key, char &value) const {
+        [[nodiscard]] bool readChar(const char *section, const char *key, char &value) const {
             char buf[2];
-            if (!getString(section, key, buf, 2) || !buf[0] || buf[1]) {
+            if (!readString(section, key, buf, 2) || !buf[0] || buf[1]) {
                 return false;
             }
             value = buf[0];
             return true;
         }
-        void getChar(const char *section, const char *key, char &value, char defaultValue) const {
-            if (!getChar(section, key, value)) {
+        void readChar(const char *section, const char *key, char &value, char defaultValue) const {
+            if (!readChar(section, key, value)) {
                 value = defaultValue;
             }
+        }
+
+        [[nodiscard]] int getIntOrElse(const char *section, const char *key, int defaultValue) const {
+            int v;
+            readInt(section, key, v, defaultValue);
+            return v;
+        }
+        [[nodiscard]] double getDoubleOrElse(const char *section, const char *key, double defaultValue) const {
+            double v;
+            readDouble(section, key, v, defaultValue);
+            return v;
+        }
+        [[nodiscard]] bool getBooleanOrElse(const char *section, const char *key, bool defaultValue) const {
+            bool v;
+            readBoolean(section, key, v, defaultValue);
+            return v;
+        }
+        [[nodiscard]] char getCharOrElse(const char *section, const char *key, char defaultValue) const {
+            char v;
+            readChar(section, key, v, defaultValue);
+            return v;
         }
 
     };

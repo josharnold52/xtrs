@@ -92,7 +92,7 @@ CD EMUS
 REM UNZIP -o A:\devlocal.zip
 CD ..
 REM LAUNCHER
-d:\htst.bat
+REM d:\htst.bat
 ' | perl -pe 's/\n/\r\n/g' > "$ar"
 
 

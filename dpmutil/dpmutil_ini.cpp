@@ -170,7 +170,7 @@ int IniSettings::getStringLength(const char *section, const char *key) const {
     return length;
 }
 
-bool IniSettings::getString(const char *section, const char *key, char *valueBuf, size_t valueBufSize, int &valueLength) const {
+bool IniSettings::readString(const char *section, const char *key, char *valueBuf, size_t valueBufSize, int &valueLength) const {
     if (!section || !key || !valueBuf || valueBufSize == 0) {
         return -1;
     }
@@ -191,9 +191,9 @@ bool IniSettings::getString(const char *section, const char *key, char *valueBuf
 }
 
 
-bool IniSettings::getBoolean(const char *section, const char *key, bool &value) const {
+bool IniSettings::readBoolean(const char *section, const char *key, bool &value) const {
     char buf[8];
-    if (!getString(section, key, buf, sizeof(buf))) {
+    if (!readString(section, key, buf, sizeof(buf))) {
         return false;
     }
     //Note that stricmp isn't defined in ANSI but djgpp has it.
@@ -207,10 +207,10 @@ bool IniSettings::getBoolean(const char *section, const char *key, bool &value) 
     }
     return false;
 }
-bool IniSettings::getInt(const char *section, const char *key, int &value) const {
+bool IniSettings::readInt(const char *section, const char *key, int &value) const {
     char buf[128];
     int valueLength = 0;
-    if (!getString(section, key, buf, sizeof(buf), valueLength)) {
+    if (!readString(section, key, buf, sizeof(buf), valueLength)) {
         return false;
     }
     if (valueLength == 0) {
@@ -226,10 +226,10 @@ bool IniSettings::getInt(const char *section, const char *key, int &value) const
     return true;
 }
 
-bool IniSettings::getDouble(const char *section, const char *key, double &value) const {
+bool IniSettings::readDouble(const char *section, const char *key, double &value) const {
     char buf[128];
     int valueLength = 0;
-    if (!getString(section, key, buf, sizeof(buf), valueLength)) {
+    if (!readString(section, key, buf, sizeof(buf), valueLength)) {
         return false;
     }
     if (valueLength == 0) {

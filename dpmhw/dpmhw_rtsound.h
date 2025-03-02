@@ -23,8 +23,12 @@ namespace dpmhw::rtsound {
         int32_t fracAmt;
         tick fracWeight;
 
+        double ticksPerClock;
+        double clocksPerTick;
+
+        uint16_t lastLevel;
     private:
-        tick getElapsed();
+        tick getElapsed(int64_t clock);
 
         int32_t curDmaSample() {
             return (int32_t)( pDevice->getDmaPos(stream.descriptorNumber) >> 2);  // shift to convert to samples
@@ -36,11 +40,12 @@ namespace dpmhw::rtsound {
         HdaRealTimeSound(const HdaRealTimeSound &rhs) = delete;
         void operator=(const HdaRealTimeSound&) = delete;
 
-        void start();
+        void start(int64_t now, double clocksPerSecond);
         void stop();
 
-        void resetBuffer(uint16_t level);
-        int32_t soundOut(uint16_t level);
+        void resetBuffer(uint16_t level, int64_t now, double clocksPerSecond);
+        void resetBuffer(uint16_t level, int64_t now);
+        int32_t soundOut(uint16_t level, int64_t now);
 
         [[nodiscard]] bool isValid() const {
             return stream.allocationSucceeded;

@@ -4,6 +4,7 @@
 
 #ifndef XTRS_DPMHW_HDADEV_H
 #define XTRS_DPMHW_HDADEV_H
+#include <memory>
 #include "dpmhw_memory.h"
 #include "dpmhw_pci.h"
 
@@ -16,6 +17,10 @@ namespace dpmhw {
     HdaDeviceType hdaGetDeviceType(dpmhw::PciFunction &pciFunction);
 
 
+    /**
+     * Ok...I think HdaDevice is now move-constructible (but not copy-construcible).
+     * It also has a default constructor that should initialize it to an "allocation not succeeded" state
+     */
     class HdaDevice {
     public:
         const dpmhw::PciFunction pciFunction;
@@ -65,7 +70,8 @@ namespace dpmhw {
         const SelectorMem::ref32 DPUBASE = regs.r32(0x74);
     private:
 
-        DmaRegion * const pDmaRegion;
+        std::unique_ptr<DmaRegion, decltype(&DmaRegion::deallocate)>  const pDmaRegion;
+        //DmaRegion * const pDmaRegion;
         const DmaRegion::DmaBlock corbDma;
         const DmaRegion::DmaBlock rirbDma;
         const DmaRegion::DmaBlock dmaPosDma;
@@ -83,10 +89,10 @@ namespace dpmhw {
                 deviceType(hdaGetDeviceType(p)),
                 regs(r),
                 // Worst case 256 CORB entries (256 * 4), 256 RIRB entries (256 * 8), 64 DMAPOS entries (64 * 8)
-                pDmaRegion(DmaRegion::allocate(256 * 4 + 256 * 4 + 256 * 4 + 64 * 8, 128)),
-                corbDma(DmaRegion::reserveBlock(pDmaRegion, 256 * 4)),
-                rirbDma(DmaRegion::reserveBlock(pDmaRegion, 256 * 8)),
-                dmaPosDma(DmaRegion::reserveBlock(pDmaRegion, 64 * 8)),
+                pDmaRegion(DmaRegion::allocate(256 * 4 + 256 * 4 + 256 * 4 + 64 * 8, 128), DmaRegion::deallocate),
+                corbDma(DmaRegion::reserveBlock(pDmaRegion.get(), 256 * 4)),
+                rirbDma(DmaRegion::reserveBlock(pDmaRegion.get(), 256 * 8)),
+                dmaPosDma(DmaRegion::reserveBlock(pDmaRegion.get(), 64 * 8)),
                 allocationSucceeded(!corbDma.isError() && !rirbDma.isError() && !dmaPosDma.isError() && !p.hadErrors())
                 {
             if (p.hadErrors()) {
@@ -94,6 +100,14 @@ namespace dpmhw {
             }
             dpmhw_log("Allocated HDADevice success=%d\n", allocationSucceeded ? 1 : 0);
         }
+        HdaDevice() : pciFunction(PciFunction::invalid()),
+            deviceType(HdaDeviceType::other),
+            regs(SelectorMem::invalid()),
+            pDmaRegion(nullptr, DmaRegion::deallocate),
+            corbDma(DmaRegion::DmaBlock::invalidBlock()),
+            rirbDma(DmaRegion::DmaBlock::invalidBlock()),
+            dmaPosDma(DmaRegion::DmaBlock::invalidBlock()),
+            allocationSucceeded(false)  {}
 
         HdaDevice(const HdaDevice&) = delete; //Remove this compiler generated doohickeys
         void operator=(const HdaDevice&) = delete;
@@ -104,7 +118,8 @@ namespace dpmhw {
 
         ~HdaDevice() {
             force_reset();
-            DmaRegion::deallocate(pDmaRegion);
+            //Explicit deallocatation of DMA regions not required since we switched to unique_ptr
+            //DmaRegion::deallocate(pDmaRegion);
         }
 
         bool activate();
@@ -139,7 +154,7 @@ namespace dpmhw {
                 return e ? r : 0;
             }
             unsigned long getNodeParam( unsigned int node, unsigned int param) {
-                return getNodeParam(node, param, 0);
+                return getNodeParam(node, param, nullptr);
             }
 
             unsigned long nodeVerb(unsigned int node, unsigned int verb, unsigned int payload) {
@@ -193,6 +208,6 @@ namespace dpmhw {
         }
     };
 
-};
+}
 
 #endif //XTRS_DPMHW_HDADEV_H

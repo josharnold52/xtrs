@@ -87,6 +87,8 @@ void sendDma(uint16_t  sampleVal) {
 }
 */
 
+static inline const uint16_t LEVEL_NEUTRAL = 0x8000;
+
 //Warning - don't change these without checking for overflow in getElapsed  - I think MAX_DELAY is the critical one
 static inline const unsigned int TOTAL_BUFFER_SIZE_IN_SAMPLES = 65536;
 static inline const unsigned int TOTAL_BUFFER_SIZE_IN_BYTES = 4 * TOTAL_BUFFER_SIZE_IN_SAMPLES;
@@ -123,11 +125,14 @@ HdaRealTimeSound::HdaRealTimeSound(dpmhw::HdaDevice *d, unsigned char descNo, un
 , samplePos(0)
 , fracAmt(0)
 , fracWeight(0)
+, ticksPerClock(1.0)
+, clocksPerTick(1.0)
+, lastLevel(LEVEL_NEUTRAL)
 {
     if (!stream.allocationSucceeded) {
         return;
     }
-    stream.dmaBuffers.fill16(0x8000);
+    stream.dmaBuffers.fill16(LEVEL_NEUTRAL);
 
 }
 
@@ -136,16 +141,17 @@ HdaRealTimeSound::~HdaRealTimeSound() {
 }
 
 
-tick HdaRealTimeSound::getElapsed() {
+tick HdaRealTimeSound::getElapsed(const int64_t now) {
     static int32_t callcount = 0;
     static int32_t nzcallcount = 0;
     //2496004058
-    static const double tscFactor = 24e6 * 10.0 / 24959999078.0;
-    static const double invTscFactor = 1.0 / tscFactor;
+    // What's this? 24e6 is number of ticks per second, and (24959999078 / 10) is tsc per second
+    //   24e6 is ticks per second because it is 48khz and 500 ticks per sample
+    //static const double tscFactor = 24e6 * 10.0 / 24959999078.0;
+    //static const double invTscFactor = 1.0 / tscFactor;
 
     callcount++;
     //int32_t now = pDevice->getWallClockCount();
-    int64_t now = dpmhw::dpmhw_rdtsc();
     int64_t raw_diff = now - lastClock;
     if (raw_diff < 0) {
         dpmhw_log("neg diff %lld\n", raw_diff);
@@ -156,13 +162,13 @@ tick HdaRealTimeSound::getElapsed() {
         dpmhw_log("No change raw\n");
         return 0;
     }
-    auto diff = (int32_t)floor(tscFactor * (double)raw_diff);
+    auto diff = (int32_t)floor(ticksPerClock * (double)raw_diff);
     if (diff < 0 || diff > MAX_DELAY) {
         dpmhw_log("long diff %lld %lld %d\n", lastClock, raw_diff, diff);
         return -1;
     }
     nzcallcount++;
-    lastClock += llround(((double)diff) * invTscFactor);
+    lastClock += llround(((double)diff) * clocksPerTick);
     int32_t lead = (samplePos - curDmaSample()) & ((int32_t )(TOTAL_BUFFER_SIZE_IN_SAMPLES - 1));
     if (lead < LEAD_MIN) {
         writeToLog((uint16_t)samplePos, (uint16_t)lead, (uint16_t)curDmaSample());
@@ -183,7 +189,7 @@ tick HdaRealTimeSound::getElapsed() {
 
 
 
-void HdaRealTimeSound::start() {
+void HdaRealTimeSound::start(int64_t clock, double clocksPerSecond) {
     if (started) {
         return;
     }
@@ -192,11 +198,11 @@ void HdaRealTimeSound::start() {
         dpmhw_log("Cannot start HdaRealTimeSound because stream is invalid");
         return;
     }
-    stream.dmaBuffers.fill16(0x8000);
+    stream.dmaBuffers.fill16(LEVEL_NEUTRAL);
     //TODO Need to set up codecs, etc.   For now, we'll just assume that has been done externally
     stream.run();
     started = true;
-    resetBuffer(0x8000);
+    resetBuffer(LEVEL_NEUTRAL, clock, clocksPerSecond);
 }
 
 void HdaRealTimeSound::stop() {
@@ -216,7 +222,7 @@ void HdaRealTimeSound::stop() {
     }
 }
 
-void HdaRealTimeSound::resetBuffer(uint16_t level) {
+void HdaRealTimeSound::resetBuffer(uint16_t level, int64_t clock) {
     if (!started) {
         return;
     }
@@ -225,7 +231,13 @@ void HdaRealTimeSound::resetBuffer(uint16_t level) {
     fracAmt = 0;
     stream.dmaBuffers.fill16(level);
     samplePos = (curDmaSample() + LEAD_MAX) & ((int32_t )(TOTAL_BUFFER_SIZE_IN_SAMPLES - 1));
-    lastClock = dpmhw_rdtsc();
+    lastClock = clock;
+    lastLevel = level;
+}
+void HdaRealTimeSound::resetBuffer(uint16_t level, int64_t now, double clocksPerSecond) {
+    ticksPerClock = 24e6 / clocksPerSecond;
+    clocksPerTick = clocksPerSecond / 24e6;
+    resetBuffer(level, now);
 }
 
 
@@ -260,17 +272,23 @@ static void sendOneSample(uint16_t level, const dpmhw::DmaRegion::DmaBlock &bloc
     samplePos = next;
 }
 
-int32_t HdaRealTimeSound::soundOut(const uint16_t level) {
+int32_t HdaRealTimeSound::soundOut(const uint16_t new_level, int64_t now) {
+    // We actually want update the DMA with the previous_level, and then set new_level
+    // as the previous_level so that it gets filled in on the next set.
+
+    const auto level = lastLevel;   // The value we will update the DMA with up to the current time
+    lastLevel = new_level;  // Our new_level will get filled in the next time that soundOut is called.
+
     int32_t sampleCounter = 0;
     if (!started) {
         return sampleCounter;
     }
-    const tick origElapsed = getElapsed();
+    const tick origElapsed = getElapsed(now);
     tick elapsed = origElapsed;
     if (elapsed <= 0) {
         if (elapsed < 0) {
             dpmhw_log("neg elapsed %d\n", elapsed);
-            resetBuffer(level);
+            resetBuffer(level, now);
         }
         return sampleCounter;
     }
@@ -310,18 +328,39 @@ int32_t HdaRealTimeSound::soundOut(const uint16_t level) {
 
 
 /**
-* TODO (README)
- *  Ok, I fixed my big bug which was I had a bad factor for converting from rdtsc to wall ticks.  While troubleshooting
- *  I removed the code that adjusted the clock if we get out of position with respect to the DMA - I need to put that
- *  back and test it runnning for a long period of time.  Maybe need to try on real hardware too.
+ * TODO (README)
  *
- *  Test #2 should be some variable sound - maybe modulate the frequency as it plays
+ * Coming back to this after going down the atomic rabbit hole and then a pause on the project....
+ * I think most of the earlier TODOs have been taken care of
+ * although I still need to clean up the code.   Also, I should consider cleaning up the sample log
+ * code (currently commented out).   It was pretty useful when graphed in R so I'd suggest
+ *   1. Make a first-class sample log class
+ *   2. Add a way to easily enable/disable the log
+ *   3. Write some scripts for loading into R, etc.   IIRC I figured out how to quickly read binary data
+ *      into a data frame
  *
- *  Need to make some things configurable - LEAD/LAG for real hardware should be tight and the WallClockCounter
- *  may be reliable.  Need a configurable time source.
+ * What's next?
  *
- *  I'll have to remove / comment out the debugging code, but writing a trace log of samples + timing was useful.
- *  Storing it in memory and writing to a binary file worked well.   Graphing things in R was good too.  Should
- *  make some scripts for running a test in virtualbox and then pulling the results out to a directory (i.e. -
- *  copy from the b-drive floppy image) and then pull the data into R
-*/
+ * Well, I _think_ I had come around to the idea that the RTSound "elapsed" clock should actually be based off
+ * the emulated CPU clock (T state counter), and we'll rely on the emulator to keep that synced to real time
+ * (and presumably the sample stream).   This would suggest that we either pass the clock value in each time
+ * we send the sample, or that we have a callback of sorts to get the time.   I'm inclined to use the
+ * explicit pass-in.   Maybe we pass in the clock value at start, and pass it in at each soundOut call, and
+ * the RTSound clock can keep track of the previous value so it can calculate deltas.
+ *
+ * What units and types should we use?   Options:
+ *   1. Configure the class with the frequency, and pass in the raw clock value as a 64-bit integer
+ *   2. Or, fix the frequency,  In this case we could pass the value as an integer or a double.  I suspect
+ *      that double will lead to fewer double <-> int64 conversions, but we want to make sure that we
+ *      don't lose too much precision.   Also, double is great for time difference but not necessarily absolute
+ *      time.
+ *
+ * When choosing, also consider that the the Model 4 emulator supports changing the clock speed.  If we go for #1,
+ * we may need to reset the sound on a clock speed change.   I guess that's OK
+ *
+ * Overall plan of attack
+ *   * Switch the clock scheme as above and test it in my test program
+ *   * Start plumbing through to xtrs - initialization, shutdown (including trapping error exits!), sending the sample
+ *     speed changes, configurable XTRS time base, maybe make RT mode more accurate
+ */
+

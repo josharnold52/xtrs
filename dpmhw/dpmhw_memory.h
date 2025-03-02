@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <sys/farptr.h>
 #include <dpmi.h>
+#include <memory>
 #include "dpmhw.h"
 
 namespace dpmhw {
@@ -18,9 +19,16 @@ namespace dpmhw {
      * Does not manage the "life" of the selector (e.g. - does not do anything on destruction).
      */
     class SelectorMem {
+    private:
+        // The null selector points to the first entry of the global descriptor table which is supposed
+        // to be reserved for NULL.
+        static const unsigned short null_selector = 0;
     public:
         unsigned short selector;
         explicit SelectorMem(unsigned short sel) : selector(sel) {}
+        SelectorMem() : selector(null_selector) {}
+
+        [[nodiscard]] bool isNull() const { return selector == null_selector; }
 
         [[nodiscard]] uint8_t peek8 (uint32_t offset) const { return  _farpeekb(selector, offset); }
         [[nodiscard]] uint16_t peek16 (uint32_t offset) const { return  _farpeekw(selector, offset); }
@@ -45,7 +53,7 @@ namespace dpmhw {
         }
 
         /** Sentinel selector used to mark an invalid selector */
-        static SelectorMem invalid() { return SelectorMem(0) ; }
+        static SelectorMem invalid() { return SelectorMem(null_selector) ; }
 
         /**
          * Maps a selector corresponding to a given physical address (usually for accessing device memory)
@@ -76,6 +84,13 @@ namespace dpmhw {
                 return option<SelectorMem>(false, SelectorMem::invalid());
             }
             return option<SelectorMem>(SelectorMem(sel));
+        }
+
+        /** Call this to free a _succesfully_ allocated descriptor created via mapDevice .
+         * Do not call this for other types of descriptors
+         */
+        static void freeMappedDeviceDescriptor(const SelectorMem & sel) {
+            __dpmi_free_ldt_descriptor(sel.selector);
         }
 
         class ref {
@@ -113,6 +128,9 @@ namespace dpmhw {
 
     /**
      * A region of memory with known physical address, suitable for DMA
+     *
+     * You must use the allocate/deallocate methods to get a DMARegion.  So, e.g. you can't
+     * put a DMARegion directly in an object - you have to use a pointer
      */
     class DmaRegion {
     public:
@@ -133,6 +151,7 @@ namespace dpmhw {
         }
 
     public:
+        DmaRegion() = delete;
         DmaRegion(const DmaRegion &rhs) = delete;
         DmaRegion & operator =(const DmaRegion &rhs) = delete;
         void * operator new(size_t sz) = delete;
@@ -144,6 +163,9 @@ namespace dpmhw {
 
         const static uint32_t ALLOC_FAILED = 0xFFFFFFFFu;
 
+        /**
+         * Note - a zero-initialized DmaBlock (i.e. - default constructor) will show as isError
+         */
         struct DmaBlock {
             const SelectorMem selector;
             const uint32_t selectorAddress;
@@ -151,7 +173,7 @@ namespace dpmhw {
             const uint32_t size;
 
             [[nodiscard]] bool isError() const {
-                return selectorAddress == ALLOC_FAILED || physicalAddress == ALLOC_FAILED || size == 0;
+                return selector.isNull() || selectorAddress == ALLOC_FAILED || physicalAddress == ALLOC_FAILED || size == 0;
             }
 
             void flushFromCache() const {
@@ -165,6 +187,7 @@ namespace dpmhw {
             }
 
             void fill16(uint16_t value) const;
+
         };
 
         /**
@@ -194,6 +217,7 @@ namespace dpmhw {
 
 
     };
+
 
 
 };

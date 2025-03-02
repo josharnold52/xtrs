@@ -104,7 +104,6 @@ BUILD_CXX=g++
 
 #LDFLAGS += -L/usr/lib/X11
 #LDFLAGS = -non_shared -L/usr/X11/lib
-
 # NOTE: I'm ambandoning the xlibemu x11 emulator because it requires djgpp1.x
 #   and I think it will hard to be find a cross compiler that works (alternative
 #   would be to compile under dos, but then I'd have to worry about file names...
@@ -115,7 +114,7 @@ BUILD_CXX=g++
 # New attempt will be to use libgrx2.0 directly
 # OLD MAC SETTING:
 # LDFLAGS= -L/Users/arnold/devtools/djgpp/extras/grx249/lib
-LDFLAGS= -L/home/arnold/scm/dostrs-build-extras/grx249/lib
+LDFLAGS= -L/home/arnold/scm/dostrs-build-extras/grx249/lib -latomic
 
 # If you need a different path for include files:
 
@@ -135,6 +134,7 @@ XLIB = -lgrx20
 #EXTRALIBS = -ldnet
 #EXTRALIBS = -lots
 #EXTRALIBS = -ldnet_stub
+#EXTRALIBS = -latomic
 
 # If you want xtrs to look for a global app-defaults file
 # at runtime in $APPDEFAULTS/Xtrs:

@@ -19,15 +19,14 @@ namespace dpmhw {
     struct DPMHardwareConfig {
         double rdtscFrequencyHz;  // NaN if not supported.  Otherwise is a positive finite value
 
-        HRTimerSource cpuTimer;
+        HRTimerSource emulatorCpuTimer;
 
-        bool hdaAllowed;
+        bool hdaSupported;
         uint16_t hdaMinDmaLead;   // Minimum DMA lead value for HDA - maximum of 8192
-        uint16_t hdaMxnDmaLead;   // Maximum DMA lead value for HDA - maximum of 16384
-        HRTimerSource realTimeAudioTimer;
+        uint16_t hdaMaxDmaLead;   // Maximum DMA lead value for HDA - maximum of 16384
     };
 
-    const DPMHardwareConfig loadConfig();
+    const DPMHardwareConfig *loadConfig();
 }
 
 #endif //XTRS_DPMHW_CONFIG_H

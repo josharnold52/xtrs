@@ -8,6 +8,21 @@
 #include "dpmhw_pci.h"
 #include "dpmhw_impl.h"
 
+#define PCI_BIOS_INT 0x1A
+#define PCI_FUNCTION_ID 0xB1
+#define PCI_BIOS_PRESENT 0x01
+#define FIND_PCI_CLASS_CODE 0x03
+#define PCI_READ_CONFIG_BYTE 0x08
+#define PCI_READ_CONFIG_WORD 0x09
+#define PCI_READ_CONFIG_DWORD 0x0A
+#define PCI_WRITE_CONFIG_BYTE 0x0B
+#define PCI_WRITE_CONFIG_WORD 0x0C
+#define PCI_WRITE_CONFIG_DWORD 0x0D
+
+#define PCI_SUCCESSFUL 0
+#define PCI_DEVICE_NOT_FOUND 0x86
+
+
 using namespace dpmhw;
 
 /** Returns the usable remaining space in the djgpp transfer buffer.
@@ -99,7 +114,7 @@ static bool test_for_pci() {
 }
 
 uint32_t dpmhw::PciFunction::getConfig32(uint8_t address) {
-    if (!test_for_pci()) {
+    if (!isValidPciAddress() || !test_for_pci()) {
         had_errors |= 1;
         return invalid_read_value;
     }
@@ -125,7 +140,7 @@ uint32_t dpmhw::PciFunction::getConfig32(uint8_t address) {
 }
 
 uint16_t dpmhw::PciFunction::getConfig16(uint8_t address) {
-    if (!test_for_pci()) {
+    if (!isValidPciAddress() || !test_for_pci()) {
         had_errors |= 1;
         return (unsigned short)invalid_read_value;
     }
@@ -151,7 +166,7 @@ uint16_t dpmhw::PciFunction::getConfig16(uint8_t address) {
 }
 
 void dpmhw::PciFunction::setConfig16(uint8_t address, uint16_t value) {
-    if (!test_for_pci()) {
+    if (!isValidPciAddress() || !test_for_pci()) {
         had_errors |= 1;
         return;
     }

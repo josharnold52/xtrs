@@ -127,10 +127,14 @@ bool HdaDevice::activate() {
 
 
 void HdaDevice::force_reset() {
+    if (!allocationSucceeded) {
+        dpmhw_log("ERROR: Failed to force-reset HDA because allocation was not successful\n");
+        return;
+    }
     dpmhw_log("Resetting the HDA...\n");
     INTCTL.poke(0);
 
-    dpmhw_debug("Stopping all streams...\n");
+    dpmhw_log("Stopping all streams...\n");
     unsigned short gcap = GCAP.peek();
     unsigned int scnt = ((gcap >> 12) & 0xF) + ((gcap >> 8) & 0xF) + ((gcap >> 3) & 0x1F);
     for(unsigned int i=0; i<scnt && i <30; i++) {
@@ -141,29 +145,33 @@ void HdaDevice::force_reset() {
         regs.poke32(0x80 + i * 0x20, x);
     }
 
-    dpmhw_debug("Stopping DPL...\n");
+    dpmhw_log("Stopping DPL...\n");
     DPLBASE.poke(DPLBASE.peek() & ~1);
 
 
-    dpmhw_debug("Stopping response dma...\n");
+    dpmhw_log("Stopping response dma...\n");
     RIRBCTL.poke(0);
     while((RIRBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
-    dpmhw_debug("Stopping command dma...\n");
+    dpmhw_log("Stopping command dma...\n");
     CORBCTL.poke(0);
     while((CORBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
-    dpmhw_debug("Resetting device...\n");
+    dpmhw_log("Resetting device...\n");
     GCTL.poke(0);
     corbRirbSystemsActive = false;
     while((GCTL.peek() & 0x1) != 0) INLINE_PAUSE;
 
     GCTL.poke(1);
 
-    dpmhw_debug("HDA has been reset\n");
+    dpmhw_log("HDA has been reset\n");
 
 }
 
 
 bool HdaDevice::singleCommand(unsigned long command,  unsigned long &response) {
+    if (!allocationSucceeded) {
+        dpmhw_log("ERROR: Failed to singleCommand HDA because allocation was not successful\n");
+        return false;
+    }
     dpmhw_debug("Sending=%08x\n",command);
     if (!corbRirbSystemsActive) {
         dpmhw_log("Error: CORB/RIRB not active\n");
@@ -224,12 +232,20 @@ bool HdaDevice::singleCommand(unsigned long command,  unsigned long &response) {
 
 
 void HdaDevice::dbgCommandState() {
+    if (regs.isNull()) {
+        dpmhw_log("ERROR: Failed to dbgCommandState HDA because allocation was not successful\n");
+        return;
+    }
     dpmhw_debug("GCTL=%lu\n", GCTL.peek());
     dbgCorb();
     dbgRirb();
 }
 
 void HdaDevice::dbgCorb() {
+    if (regs.isNull()) {
+        dpmhw_log("ERROR: Failed to dbgCorb HDA because allocation was not successful\n");
+        return;
+    }
     dpmhw_debug("CORB L/U=%lx/%lx W/R=%hu/%hu C/S/Z=%hhu/%hhu/%hhu %8.8x %8.8x\n",
                 CORB.peek(), CORBUBASE.peek(),
                 CORBWP.peek(), CORBRP.peek(),
@@ -239,6 +255,10 @@ void HdaDevice::dbgCorb() {
     );
 }
 void HdaDevice::dbgRirb() {
+    if (regs.isNull()) {
+        dpmhw_log("ERROR: Failed to dbgRirb HDA because allocation was not successful\n");
+        return;
+    }
     dpmhw_debug("RIRB L/U=%lx/%lx W/R=%hu/%hu C/S/Z=%hhu/%hhu/%hhu %8.8x %8.8x %8.8x %8.8x\n",
                 RIRBLBASE.peek(), RIRBUBASE.peek(),
                 RIRBWP.peek(), rirbReadPointer,
@@ -250,6 +270,10 @@ void HdaDevice::dbgRirb() {
     );
 }
 void HdaDevice::dumpDmaBuf() {
+    if (dmaPosDma.isError()) {
+        dpmhw_log("ERROR: Failed to dumpDmaBuf HDA because allocation was not successful\n");
+        return;
+    }
     for(int i =0 ; i < 4; i++) {
         unsigned int p[8];
         for(int j=0; j<8;j++) {
@@ -262,6 +286,10 @@ void HdaDevice::dumpDmaBuf() {
 }
 
 void HdaDevice::dumpRegs() {
+    if (regs.isNull()) {
+        dpmhw_log("ERROR: Failed to dumpRegs HDA because allocation was not successful\n");
+        return;
+    }
     for(int i =0 ; i < 16; i++) {
         unsigned int p[8];
         for(int j=0; j<8;j++) {
@@ -274,6 +302,10 @@ void HdaDevice::dumpRegs() {
     }
 }
 void HdaDevice::dumpVendorRegs() {
+    if (regs.isNull()) {
+        dpmhw_log("ERROR: Failed to dumpVendorRegs HDA because allocation was not successful\n");
+        return;
+    }
     for(int i =0 ; i < 2; i++) {
         unsigned int p[8];
         for(int j=0; j<8;j++) {
@@ -286,6 +318,10 @@ void HdaDevice::dumpVendorRegs() {
     }
 }
 void HdaDevice::dumpExtendedRegs() {
+    if (regs.isNull()) {
+        dpmhw_log("ERROR: Failed to dumpExtendedRegs HDA because allocation was not successful\n");
+        return;
+    }
     for(int i =0 ; i < 2; i++) {
         unsigned int p[8];
         for(int j=0; j<8;j++) {

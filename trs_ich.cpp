@@ -228,8 +228,8 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     double afreq = 300 * 2  * PI;
     double bfreq = 4 * 2  * PI;
 
-    rtSound.start();
-    rtSound.resetBuffer(0x8000);
+    rtSound.start(dpmhw::dpmhw_rdtsc(), 2.4959999078E9);
+    rtSound.resetBuffer(0x8000,dpmhw::dpmhw_rdtsc());
     //Note - our calculations will overflow if we time longer than 89 seconds
     const auto started = dpmhw::dpmhw_rdtsc();
     double elapsed = 0;
@@ -240,7 +240,7 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
         elapsed = tdiff * tscFactor;
         auto x = (uint16_t )lround(0x8000 + 0x4000 * sin(afreq * (elapsed + 0.02 * sin(bfreq * (elapsed + 0.1 * elapsed * elapsed)))));
         //auto x = (tdiff & 512) ? 0x9999 : 0x7777;
-        auto sc = rtSound.soundOut(x);
+        auto sc = rtSound.soundOut(x, dpmhw::dpmhw_rdtsc());
         counter += sc;
         writesCounter++;
     }

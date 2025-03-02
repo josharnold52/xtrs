@@ -46,6 +46,7 @@ DOS_OBJECTS = \
 	target/dos/dpmhw/dpmhw_rtsound.o \
 	target/dos/dpmhw/dpmhw_config.o \
 	target/dos/dpmhw/dpmhw_hrt.o \
+	target/dos/dpmhw/dpmhw_dacemu.o \
 	target/dos/dpmutil/dpmutil_ini.o
 
 CR_OBJECTS = \
@@ -100,8 +101,9 @@ DPMCLI_OBJECTS = \
 	target/dos/dpmhw/dpmhw_hdastream.o \
 	target/dos/dpmhw/dpmhw_hdacodec.o \
 	target/dos/dpmhw/dpmhw_rtsound.o \
-	target/dos/dpmhw/dpmhw_config.o \
 	target/dos/dpmhw/dpmhw_hrt.o \
+	target/dos/dpmhw/dpmhw_config.o \
+	target/dos/dpmhw/dpmhw_dacemu.o \
 	target/dos/dpmutil/dpmutil_ini.o
 
 VE_OBJECTS = target/dos/video-experiments.o \
@@ -154,14 +156,17 @@ CFLAGS += $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
 	$(APPDEFAULTS) -DKBWAIT
 # -fno-exceptions 
 CXXFLAGS += -fno-exceptions $(DEBUG) $(ENDIAN) $(DEFAULT_ROM) $(READLINE) $(DISKDIR) $(IFLAGS) \
-	$(APPDEFAULTS) -DKBWAIT
+	$(APPDEFAULTS) -DKBWAIT -march=bonnell
 LIBS = $(XLIB) $(READLINELIBS) $(EXTRALIBS)
 
 ZMACFLAGS = -h
 
 .SUFFIXES: .dct .man .txt .html
 
-target/deps/%.o:
+target/deps/%.o: %.c
+	mkdir -p target/deps && mkdir -p $(@D) && touch $@
+
+target/deps/%.o: %.cpp
 	mkdir -p target/deps && mkdir -p $(@D) && touch $@
 
 target/dos/%.o: %.c target/deps/%.o
@@ -329,8 +334,11 @@ target/deps/trs_ich.o: dpmhw/dpmhw_hdastream.h dpmhw/dpmhw_hdadev.h
 target/deps/trs_ich.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw_rtsound.h
 target/deps/trs_ich.o: dpmhw/dpmhw_hdastream.h
 target/deps/trs_vga.o: trs.h z80.h config.h trs_vga.h trs_iodefs.h
-target/deps/dpmhw/dpmhw_config.o: dpmhw/dpmhw_config.h
+target/deps/dpmhw/dpmhw_c.o: dpmhw/dpmhw.h dpmhw/dpmhw_config.h
+target/deps/dpmhw/dpmhw_c.o: dpmhw/dpmhw_c.h
+target/deps/dpmhw/dpmhw_config.o: dpmhw/dpmhw_config.h dpmutil/dpmutil_ini.h
 target/deps/dpmhw/dpmhw.o: dpmhw/dpmhw.h dpmhw/dpmhw_impl.h z80.h config.h
+target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw.h dpmhw/dpmhw_dacemu.h
 target/deps/dpmhw/dpmhw_hdacodec.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw.h
 target/deps/dpmhw/dpmhw_hdacodec.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_hdadev.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_impl.h
@@ -347,4 +355,5 @@ target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_impl.h dpmhw/dpmhw_memory.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_pci.h
 target/deps/dpmutil/dpmutil_ini.o: dpmutil/dpmutil_ini.h dpmhw/dpmhw.h
-target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw.h
+target/deps/dpmcli/dpmcli.o: dpmutil/dpmutil_ini.h dpmhw/dpmhw.h
+target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw_config.h
