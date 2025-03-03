@@ -53,7 +53,7 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     HdaRealTimeSound rtSound(&dev, dev.getNumberOfInputStreamsSupported(), 1);
 
     if (!rtSound.isValid()) {
-        joshlog("ERROR: rtsound allocation failed");
+        joshlog("ERROR: rtsound allocation failed\n");
         return;
     }
 
@@ -90,7 +90,7 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     }
     const widget_info *dac = afg.lookupNode(chain[chainLen - 1]);
 
-    joshlog("Powering up...");
+    joshlog("Powering up...\n");
     //TODO - Hack! power up FG and other stuff
     joshlog("Power state of AFG is 0x%x\n", codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0));
     joshlog("Powering Down %u\n", afg.nodeNumber);
@@ -336,7 +336,7 @@ static void setup_hda() {
 
     option<SelectorMem> devMem = SelectorMem::mapDevice(allchunks[4] & 0xFFFFFFF0u, 4096 * 3);
     if (!devMem.exists()) {
-        joshlog("Could not map device memory");
+        joshlog("Could not map device memory\n");
         return;
     }
     unsigned long allpeeks[32];
@@ -350,7 +350,10 @@ static void setup_hda() {
                 peeks[4],peeks[5],peeks[6],peeks[7]);
     }
 
-    HdaDevice myDev(hdaFunction.get(), devMem.get());
+    // Silly test of move constructor
+    joshlog("Silly test\n");
+    HdaDevice throwAway=HdaDevice(hdaFunction.get(), devMem.get());
+    HdaDevice myDev(std::move(throwAway));
     joshlog("GCAP: os=%d,is=%d,bs=%d,sdo=%d,a64=%d\n", myDev.getNumberOfOutputStreamsSupported(),
            myDev.getNumberOfInputStreamsSupported(),
            myDev.getNumberOfBidirectionalStreamsSupported(),

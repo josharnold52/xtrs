@@ -8,6 +8,37 @@
 #include "dpmhw_impl.h"
 
 
+
+dpmhw::option<dpmhw::SelectorMem> dpmhw::SelectorMem::mapDevice(uint32_t addr, uint32_t size) {
+    if (size >= 0x100000) {
+        dpmhw_log("ERROR: Segments > 1M not supported (because I have to be smarter about granularity bit\n");
+        return option<SelectorMem>(false, SelectorMem::invalid());
+    }
+    __dpmi_meminfo mi;
+    mi.size=size;
+    mi.address = addr;
+    mi.handle = 0;
+    if (__dpmi_physical_address_mapping(&mi)!=0) {
+        dpmhw_log("ERROR: DPMI map of %x(%u) failed\n", addr,size);
+        return option<SelectorMem>(false, SelectorMem::invalid());
+    }
+    int sel = __dpmi_allocate_ldt_descriptors(1);
+    if (sel  == -1) {
+        dpmhw_log("ERROR: Unable to allocate descriptor\n");
+        return option<SelectorMem>(false, SelectorMem::invalid());
+    }
+    //Access rights - Data, RW, Ring 3, size in bytes
+    if (__dpmi_set_segment_base_address(sel, addr) |
+        __dpmi_set_segment_limit(sel, size - 1) |
+        __dpmi_set_descriptor_access_rights(sel, 0x4F3) ) {
+        dpmhw_log("Unable to set descriptor params\n");
+        return option<SelectorMem>(false, SelectorMem::invalid());
+    }
+    return option<SelectorMem>(SelectorMem(sel));
+}
+
+
+
 dpmhw::DmaRegion *dpmhw::DmaRegion::allocate(uint32_t size, uint32_t alignment) {
     //For now, we'll allocate this as DOS memory because it is easy to both figure out its physical
     //address and get a selector for it.   Eventually we should change this to allocating physical
@@ -19,14 +50,14 @@ dpmhw::DmaRegion *dpmhw::DmaRegion::allocate(uint32_t size, uint32_t alignment) 
     }
     auto p = malloc(sizeof(DmaRegion));
     if (!p) {
-        dpmhw_log("Error allocating DmaRegion");
+        dpmhw_log("Error allocating DmaRegion\n");
         return nullptr;
     }
     const auto paras = (size + alignment + 15u) >> 4;
     int selector;
     int seg = __dpmi_allocate_dos_memory((int)paras, &selector);
     if (seg == -1) {
-        dpmhw_log("Error allocating dos memory for DMA region");
+        dpmhw_log("Error allocating dos memory for DMA region\n");
         return nullptr;
     }
     uint32_t physAddress = ((uint32_t)seg) << 4;

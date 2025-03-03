@@ -195,7 +195,7 @@ void HdaRealTimeSound::start(int64_t clock, double clocksPerSecond) {
     }
     memset(loggedSamples, 0, sizeof(loggedSamples));
     if (!stream.allocationSucceeded) {
-        dpmhw_log("Cannot start HdaRealTimeSound because stream is invalid");
+        dpmhw_log("Cannot start HdaRealTimeSound because stream is invalid\n");
         return;
     }
     stream.dmaBuffers.fill16(LEVEL_NEUTRAL);

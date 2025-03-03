@@ -307,7 +307,7 @@ void trs_screen_init() {
                                    ((pat_flags & PATTERN_FLAG_8_PIXEL_CHARS) ? PATTERN_FLAG_BLANK_LOW_CHARS : 0));
 
         if (pat_flags & PATTERN_FLAG_8_PIXEL_CHARS) {
-            joshlog("NOTE: 80-grafix emulation behaves in a non-standard way for 8ppc fonts!");
+            joshlog("NOTE: 80-grafix emulation behaves in a non-standard way for 8ppc fonts!\n");
         }
     } else {
         joshlog("Init altset pattern table: %d - %08x\n", trs_charset, pat_flags | PATTERN_FLAG_USE_ALTSET);
@@ -531,14 +531,14 @@ void trs_screen_scroll() {
         vga_screen_scroll_64_16();
     } else {
         //TODO
-        joshlog("OOPS!  80x24 scroll not implemented yet");
+        joshlog("OOPS!  80x24 scroll not implemented yet\n");
     }
 #else
     if (row_chars != 80) {
         GrBitBlt(NULL, 120, 0, NULL, 120, TRS_CHAR_HEIGHT, 120 + 64 * 6, 16 * TRS_CHAR_HEIGHT, GrWRITE);
     } else {
         //TODO
-        joshlog("OOPS!  80x24 scroll not implemented yet");
+        joshlog("OOPS!  80x24 scroll not implemented yet\n");
     }
 #endif
 
@@ -982,7 +982,7 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
 
     cassette_base_directory = malloc(32 + strlen(emulator_base_directory));
     if (!cassette_base_directory) {
-        joshlog("Unable to allocate cassette base directory");
+        joshlog("Unable to allocate cassette base directory\n");
         cassette_base_directory = "./CAS";
     } else {
         sprintf((char *) cassette_base_directory, "%s/CAS", emulator_base_directory);
@@ -991,7 +991,7 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
 
     emulator_printer_directory = malloc(32 + strlen(emulator_base_directory));
     if (!emulator_printer_directory) {
-        joshlog("Unable to allocate printer base directory");
+        joshlog("Unable to allocate printer base directory\n");
         emulator_printer_directory = "./PRINT";
     } else {
         sprintf((char *) emulator_printer_directory, "%s/PRINT", emulator_base_directory);

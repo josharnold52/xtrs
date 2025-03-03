@@ -73,16 +73,18 @@ void * init() {
 
     auto deviceMem = hdaFunction->getConfig32(4*4);
     if (hdaFunction->hadErrors()) {
-        dpmhw_log("pci hda errors");
+        dpmhw_log("pci hda errors\n");
         return nullptr;
     }
     option<SelectorMem> devMem = SelectorMem::mapDevice(deviceMem & 0xFFFFFFF0u, 4096 * 3);
+
     if (!devMem.exists()) {
-        dpmhw_log("Could not map device memory");
+        dpmhw_log("Could not map device memory\n");
         return nullptr;
     }
 
-    HdaDevice myDev(hdaFunction.get(), devMem.get());
+    //Test move constructor
+    HdaDevice myDev(HdaDevice(hdaFunction.get(), devMem.get()));
     myDev.activate();
 
     rtsound::HdaRealTimeSound rtSound(&myDev, myDev.getNumberOfInputStreamsSupported(), 1);

@@ -310,7 +310,7 @@ static void do_joshem_tapedialog(int writeRequested) {
 }
 
 void joshem_request_tapedialog() {
-    //joshlog("HERE %u %u", cassette_state, joshem_tapeswitch_state);
+    //joshlog("HERE %u %u\n", cassette_state, joshem_tapeswitch_state);
     if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
         return;
     }
@@ -321,7 +321,7 @@ void joshem_request_tapedialog() {
     }
 }
 void joshem_request_tapedialog_status() {
-    //joshlog("HERE STATUS %u %u", cassette_state, joshem_tapeswitch_state);
+    //joshlog("HERE STATUS %u %u\n", cassette_state, joshem_tapeswitch_state);
     if (joshem_tapeswitch_state == JOSHEM_TAPESWITCH_ACTIVE) {
         return;
     }
@@ -354,7 +354,7 @@ no_sound(void)
 {
     static int warned = 0;
     if (!warned) {
-        joshlog("sound support is not compiled in");
+        joshlog("sound support is not compiled in\n");
         warned = 1;
     }
 }
@@ -724,7 +724,7 @@ static int assert_state(int state)
         case READ:
             get_control();
             if (!cassette_did_initial_selection) {
-                joshlog("Cassette read failed because no tape was selected");
+                joshlog("Cassette read failed because no tape was selected\n");
                 cassette_state = FAILED;
                 return -1;
             }

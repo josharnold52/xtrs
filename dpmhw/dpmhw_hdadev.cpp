@@ -12,7 +12,7 @@ dpmhw::HdaDeviceType dpmhw::hdaGetDeviceType(dpmhw::PciFunction &pciFunction) {
 }
 
 bool HdaDevice::activate() {
-    if (!allocationSucceeded) {
+    if (!allocationSucceeded.get()) {
         dpmhw_log("ERROR: Failed to activate HDA because allocation was not fuccessful\n");
         return false;
     }
@@ -127,27 +127,41 @@ bool HdaDevice::activate() {
 
 
 void HdaDevice::force_reset() {
-    if (!allocationSucceeded) {
+    if (regs.isNull()) {
         dpmhw_log("ERROR: Failed to force-reset HDA because allocation was not successful\n");
         return;
     }
     dpmhw_log("Resetting the HDA...\n");
     INTCTL.poke(0);
 
-    dpmhw_log("Stopping all streams...\n");
+    dpmhw_log("Resetting all streams...\n");
     unsigned short gcap = GCAP.peek();
     unsigned int scnt = ((gcap >> 12) & 0xF) + ((gcap >> 8) & 0xF) + ((gcap >> 3) & 0x1F);
     for(unsigned int i=0; i<scnt && i <30; i++) {
-        dpmhw_debug("Stopping streams %u...\n",i);
-        unsigned int x = regs.peek32(0x80 + i * 0x20);
+        unsigned ctlreg = 0x80 + i * 0x20;
+        unsigned int x = regs.peek32(ctlreg);
         x &= 0xFFFFFF; // oddly, only 3 byte register
-        x &= (~2); //Don't run
-        regs.poke32(0x80 + i * 0x20, x);
+        if (x & 0x2) {
+            dpmhw_log("Stopping stream %u...\n",i);
+            x &= (~2); //Don't run
+            regs.poke32(ctlreg, x);
+            while (regs.peek32(ctlreg) & 0x2) INLINE_PAUSE;
+        }
+        dpmhw_log("Resetting stream %u...\n",i);
+        x = regs.peek32(ctlreg) & 0xFFFFFF;
+        x |= 1;
+        regs.poke32(ctlreg, x);
+        while (!(regs.peek32(ctlreg) & 0x1)) INLINE_PAUSE;
+        // TODO - should we leave it in reset instead?
+        x = regs.peek32(ctlreg) & 0xFFFFFF;
+        x &= ~1;
+        regs.poke32(ctlreg, x);
+        while (regs.peek32(ctlreg) & 0x1) INLINE_PAUSE;
     }
 
     dpmhw_log("Stopping DPL...\n");
     DPLBASE.poke(DPLBASE.peek() & ~1);
-
+    while (DPLBASE.peek() & 1) INLINE_PAUSE;
 
     dpmhw_log("Stopping response dma...\n");
     RIRBCTL.poke(0);
@@ -168,7 +182,7 @@ void HdaDevice::force_reset() {
 
 
 bool HdaDevice::singleCommand(unsigned long command,  unsigned long &response) {
-    if (!allocationSucceeded) {
+    if (!allocationSucceeded.get()) {
         dpmhw_log("ERROR: Failed to singleCommand HDA because allocation was not successful\n");
         return false;
     }
@@ -250,8 +264,8 @@ void HdaDevice::dbgCorb() {
                 CORB.peek(), CORBUBASE.peek(),
                 CORBWP.peek(), CORBRP.peek(),
                 CORBCTL.peek(), CORBSTATUS.peek(), CORBSIZE.peek(),
-                allocationSucceeded ? corbDma.selector.peek32(corbDma.selectorAddress) : 0,
-                allocationSucceeded ? corbDma.selector.peek32(corbDma.selectorAddress+4) : 0
+                allocationSucceeded.get() ? corbDma.selector.peek32(corbDma.selectorAddress) : 0,
+                allocationSucceeded.get() ? corbDma.selector.peek32(corbDma.selectorAddress+4) : 0
     );
 }
 void HdaDevice::dbgRirb() {
@@ -263,10 +277,10 @@ void HdaDevice::dbgRirb() {
                 RIRBLBASE.peek(), RIRBUBASE.peek(),
                 RIRBWP.peek(), rirbReadPointer,
                 RIRBCTL.peek(), RIRBSTS.peek(), RIRBSIZE.peek(),
-                allocationSucceeded ? rirbDma.selector.peek32(rirbDma.selectorAddress) : 0,
-                allocationSucceeded ? rirbDma.selector.peek32(rirbDma.selectorAddress+4) : 0,
-                allocationSucceeded ? rirbDma.selector.peek32(rirbDma.selectorAddress + 8) : 0,
-                allocationSucceeded ? rirbDma.selector.peek32(rirbDma.selectorAddress+12) : 0
+                allocationSucceeded.get() ? rirbDma.selector.peek32(rirbDma.selectorAddress) : 0,
+                allocationSucceeded.get() ? rirbDma.selector.peek32(rirbDma.selectorAddress+4) : 0,
+                allocationSucceeded.get() ? rirbDma.selector.peek32(rirbDma.selectorAddress + 8) : 0,
+                allocationSucceeded.get() ? rirbDma.selector.peek32(rirbDma.selectorAddress+12) : 0
     );
 }
 void HdaDevice::dumpDmaBuf() {

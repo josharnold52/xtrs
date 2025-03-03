@@ -24,6 +24,7 @@ namespace dpmhw {
     class HdaDevice {
     public:
         const dpmhw::PciFunction pciFunction;
+        reset_on_move<bool> owns_hda;
         const HdaDeviceType deviceType;
         const SelectorMem regs;
 
@@ -70,12 +71,12 @@ namespace dpmhw {
         const SelectorMem::ref32 DPUBASE = regs.r32(0x74);
     private:
 
-        std::unique_ptr<DmaRegion, decltype(&DmaRegion::deallocate)>  const pDmaRegion;
+        std::unique_ptr<DmaRegion, decltype(&DmaRegion::deallocate)>  pDmaRegion;
         //DmaRegion * const pDmaRegion;
         const DmaRegion::DmaBlock corbDma;
         const DmaRegion::DmaBlock rirbDma;
         const DmaRegion::DmaBlock dmaPosDma;
-        const bool allocationSucceeded;
+        reset_on_move<bool> allocationSucceeded;
 
         unsigned short corbSizeInCommands = 0;
         unsigned short rirbSizeInCommands = 0;
@@ -86,6 +87,7 @@ namespace dpmhw {
     public:
         HdaDevice(dpmhw::PciFunction &p, SelectorMem &r) :
                 pciFunction(p),
+                owns_hda(true),
                 deviceType(hdaGetDeviceType(p)),
                 regs(r),
                 // Worst case 256 CORB entries (256 * 4), 256 RIRB entries (256 * 8), 64 DMAPOS entries (64 * 8)
@@ -96,30 +98,49 @@ namespace dpmhw {
                 allocationSucceeded(!corbDma.isError() && !rirbDma.isError() && !dmaPosDma.isError() && !p.hadErrors())
                 {
             if (p.hadErrors()) {
-                dpmhw_log("HDA ERROR: PCI Interface had errors!");
+                dpmhw_log("HDA ERROR: PCI Interface had errors!\n");
             }
-            dpmhw_log("Allocated HDADevice success=%d\n", allocationSucceeded ? 1 : 0);
+            dpmhw_log("Allocated HDADevice success=%d\n", allocationSucceeded.get() ? 1 : 0);
         }
         HdaDevice() : pciFunction(PciFunction::invalid()),
+            owns_hda(false),
             deviceType(HdaDeviceType::other),
             regs(SelectorMem::invalid()),
             pDmaRegion(nullptr, DmaRegion::deallocate),
             corbDma(DmaRegion::DmaBlock::invalidBlock()),
             rirbDma(DmaRegion::DmaBlock::invalidBlock()),
             dmaPosDma(DmaRegion::DmaBlock::invalidBlock()),
-            allocationSucceeded(false)  {}
+            allocationSucceeded(false)  {
+            dpmhw_log("Default constructor was called\n");
+        }
 
+        // Copy construction not allowed
         HdaDevice(const HdaDevice&) = delete; //Remove this compiler generated doohickeys
         void operator=(const HdaDevice&) = delete;
-        //TODO: Should I have a destructor?  This forces __gxx_personality_v0
-        //  Maybe can avoid it by disabling exceptions/RTTI
-        //  See https://stackoverflow.com/questions/329059/what-is-gxx-personality-v0-for
+
+        /*
+         * We allow _move_ construction because it makes initialization more convenient.
+         * The _from_ object is left with:
+         *  * A null pDmaRegion
+         *  * allocationSucceeded and owns_hda set to false.
+         * At the time of this writing, it's DmaBlock objects are not reset - so be sure to check
+         *   allocation_succeeded before using them.  The HDA registers are also not reset, but probably
+         *   NBD.
+         *
+         *   Note that CLion will warn about these, but the main compiler does not
+         */
+        HdaDevice (HdaDevice &&) = default;
+        HdaDevice & operator= (HdaDevice &&) = default;
 
 
         ~HdaDevice() {
-            force_reset();
-            //Explicit deallocatation of DMA regions not required since we switched to unique_ptr
-            //DmaRegion::deallocate(pDmaRegion);
+            dpmhw_log("HdaDevice destructor\n");
+            if (owns_hda.get()) {
+                dpmhw_log("Resetting HDA on destruction\n");
+                force_reset();
+            } else {
+                dpmhw_log("Not resetting HDA because not owned\n");
+            }
         }
 
         bool activate();
@@ -194,7 +215,7 @@ namespace dpmhw {
         void dumpExtendedRegs();
 
         uint32_t getDmaPos(int descriptorNo) {
-            if (descriptorNo < 0 || descriptorNo > 63) {
+            if (descriptorNo < 0 || descriptorNo > 63 || !allocationSucceeded.get()) {
                 return 0xFFFFFFFFu;
             }
             //Intel SCH (on the ASUS NB) puts the DMA Position info of its output streams at a different index

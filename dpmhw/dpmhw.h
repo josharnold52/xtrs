@@ -47,6 +47,35 @@ namespace dpmhw {
         const T & get() const { return value; }
     };
 
+    template <class T> class reset_on_move {
+    private:
+        T value;
+    public:
+        reset_on_move() : value() {
+            dpmhw_log("reset_on_move default constructor\n"); //TODO
+        }
+        explicit reset_on_move(T v) : value(v) {
+            dpmhw_log("reset_on_move value constructor\n"); //TODO
+        }
+        // No copying allowed
+        reset_on_move(const reset_on_move<T> &rhs) = delete;
+        reset_on_move<T> & operator =(const reset_on_move<T> &rhs) = delete;
+
+        // But moving is OK - we reset the value of the RHS
+        reset_on_move(reset_on_move<T> &&rhs) : value(rhs.value) {
+            dpmhw_log("reset_on_move move constructor\n"); //TODO
+            rhs.value = T();
+        }
+        reset_on_move<T> & operator=(reset_on_move<T> &&rhs) {
+            dpmhw_log("reset_on_move move assignment\n"); //TODO
+            value = rhs.value;
+            rhs.value = T();
+        }
+
+        const T & get() const { return value; }
+
+    };
+
 };
 
 #endif //XTRS_DPMHW_H

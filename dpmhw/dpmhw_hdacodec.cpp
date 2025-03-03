@@ -448,7 +448,7 @@ static unsigned int bfsToDac(const audio_function_group_info &afg, unsigned char
             }
         }
     }
-    dpmhw::dpmhw_log("Dont think I should get here");
+    dpmhw::dpmhw_log("Dont think I should get here\n");
     return 0;
 }
 
