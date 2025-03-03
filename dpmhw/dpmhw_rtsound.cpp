@@ -116,6 +116,19 @@ static void writeToLog(uint16_t samplePos, uint16_t level, uint16_t curDma) {
         loggedSamples[sampleLogPointer] = {0xFFFF, 0xFFFF, 0xFFFF};
     }
 }
+HdaRealTimeSound::HdaRealTimeSound()
+: pDevice(nullptr)
+, started(false)
+, lastClock(0)
+, samplePos(0)
+, fracAmt(0)
+, fracWeight(0)
+, ticksPerClock(1.0)
+, clocksPerTick(1.0)
+, lastLevel(LEVEL_NEUTRAL)
+{
+    dpmhw_log("Constructed placeholder (unusable) HdaRealTimeSound\n");
+}
 
 HdaRealTimeSound::HdaRealTimeSound(dpmhw::HdaDevice *d, unsigned char descNo, unsigned char streamNo)
 : pDevice(d)

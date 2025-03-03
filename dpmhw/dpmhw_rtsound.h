@@ -34,11 +34,20 @@ namespace dpmhw::rtsound {
             return (int32_t)( pDevice->getDmaPos(stream.descriptorNumber) >> 2);  // shift to convert to samples
         }
     public:
+        /**
+         * Default constructor is unusable but convenient if we want to pre-allocate storage in a controlled way
+         * and then later overwrite it with placement-new move constructor
+         */
+        HdaRealTimeSound();
         HdaRealTimeSound(HdaDevice *d, unsigned char descNo, unsigned char streamNo);
         ~HdaRealTimeSound();
 
         HdaRealTimeSound(const HdaRealTimeSound &rhs) = delete;
         void operator=(const HdaRealTimeSound&) = delete;
+
+        // Enable move construction since HdaOutputStream now supports it
+        HdaRealTimeSound(HdaRealTimeSound &&rhs) = default;
+
 
         void start(int64_t now, double clocksPerSecond);
         void stop();

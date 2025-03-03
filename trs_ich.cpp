@@ -386,7 +386,7 @@ static void setup_hda() {
     unsigned short pciCommand2 = hdaFunction->getConfig16(0x4);
     dpmhw::dpmhw_debug("HDA PCI COMMAND=%02hx\n", pciCommand2);
     if (pciCommand2 & 0x4) {
-        joshlog("HDA Bus Mastering enabled...enabling!\n");
+        joshlog("HDA Bus Mastering enabled...disabling!\n");
         hdaFunction->setConfig16(0x4, pciCommand2 & ~0x4);
         pciCommand2 = hdaFunction->getConfig16(0x4);
         joshlog("NEW HDA PCI COMMAND=%02hx\n", pciCommand2);
