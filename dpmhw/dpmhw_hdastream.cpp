@@ -7,6 +7,30 @@
 
 using dpmhw::HdaOutputStream;
 
+HdaOutputStream::HdaOutputStream()
+: dev(nullptr)
+, descriptorNumber(0)
+, SDCTL(SelectorMem::invalid(), 0)
+, SDSTS(SelectorMem::invalid(), 0)
+, SDLPIB(SelectorMem::invalid(), 0)
+, SDCBL(SelectorMem::invalid(), 0)
+, SDLVI(SelectorMem::invalid(), 0)
+, SDFIFOS(SelectorMem::invalid(), 0)
+, SDFMT(SelectorMem::invalid(), 0)
+, SDBDPL(SelectorMem::invalid(), 0)
+, SDBDPU(SelectorMem::invalid(), 0)
+, streamNumber(0)
+, bufferCount(0)
+, singleBufferSize(0)
+, totalBufferSize(0)
+, pDmaRegion(nullptr, DmaRegion::deallocate)
+, dmaBdl(DmaRegion::DmaBlock::invalidBlock())
+, dmaBuffers(DmaRegion::DmaBlock::invalidBlock())
+, allocationSucceeded(false)
+, ownsStream(false)
+{
+
+}
 
 HdaOutputStream::HdaOutputStream(HdaDevice *d, unsigned int bsize, unsigned char bcount, unsigned char descNo, unsigned char streamNo)
 : dev(d)
@@ -24,13 +48,14 @@ HdaOutputStream::HdaOutputStream(HdaDevice *d, unsigned int bsize, unsigned char
 , bufferCount(bcount)
 , singleBufferSize(bsize)
 , totalBufferSize(bsize * bcount)
-, pDmaRegion(DmaRegion::allocate(256 * 16 + totalBufferSize, 128))
-, dmaBdl(DmaRegion::reserveBlock(pDmaRegion, 256 * 16))
-, dmaBuffers(DmaRegion::reserveBlock(pDmaRegion, totalBufferSize))
+, pDmaRegion(DmaRegion::allocate(256 * 16 + totalBufferSize, 128), DmaRegion::deallocate)
+, dmaBdl(DmaRegion::reserveBlock(pDmaRegion.get(), 256 * 16))
+, dmaBuffers(DmaRegion::reserveBlock(pDmaRegion.get(), totalBufferSize))
 , allocationSucceeded(pDmaRegion && !dmaBdl.isError() && !dmaBuffers.isError() && isPowerOfTwo(singleBufferSize) && singleBufferSize >= 128)
+, ownsStream(true)
 {
     //TODO - Check that buffer size is a power of 2 and is at least 128 bytes?
-    if (!allocationSucceeded) {
+    if (!allocationSucceeded.get()) {
         dpmhw_log("ERROR Failed to allocate HDA Stream Buffers bc=%u,sbs=%u\n", bcount, bsize);
         return;
     }
@@ -90,7 +115,8 @@ HdaOutputStream::HdaOutputStream(HdaDevice *d, unsigned int bsize, unsigned char
 }
 
 HdaOutputStream::~HdaOutputStream() {
-    if (allocationSucceeded) {
+    if (allocationSucceeded.get() && ownsStream.get()) {
+        dpmhw_log("Shutting down stream in destructor\n");
         stop();
 
 
@@ -106,13 +132,14 @@ HdaOutputStream::~HdaOutputStream() {
         }
         dpmhw_log("SDCTL=0x%x\n", SDCTL.peek());
         dpmhw_log("SDBDPL=0x%x\n", SDBDPL.peek());
+    } else {
+        dpmhw_log("Skipping stream shut down in destructor because now owned or allocated\n");
     }
-    DmaRegion::deallocate(pDmaRegion);
 }
 
 
 void HdaOutputStream::run() {
-    if (!allocationSucceeded) {
+    if (!allocationSucceeded.get()) {
         dpmhw_log("HDA ERROR - Cannot run stream because allocation failed\n");
         return;
     }
@@ -121,7 +148,7 @@ void HdaOutputStream::run() {
 }
 
 void HdaOutputStream::stop() {
-    if (!allocationSucceeded) {
+    if (!allocationSucceeded.get()) {
         return;
     }
     dpmhw_log("Stopping stream %d\n", streamNumber);
@@ -133,6 +160,10 @@ void HdaOutputStream::stop() {
 }
 
 void HdaOutputStream::dumpBufferDescriptorList() {
+    if (!allocationSucceeded.get()) {
+        dpmhw_log("Cannot dump BDL\n");
+        return;
+    }
     for(int i =0 ; i < bufferCount; i++) {
         unsigned int p[4];
         for(int j=0; j<4;j++) {
@@ -145,6 +176,10 @@ void HdaOutputStream::dumpBufferDescriptorList() {
 }
 
 void HdaOutputStream::fillBufferWithTestTone(uint32_t halfPeriodInSamples) {
+    if (!allocationSucceeded.get()) {
+        dpmhw_log("Cannot fill buffer because buffer is not allocated\n");
+        return;
+    }
     uint32_t cnt = 0;
     bool state = false;
     for(uint32_t offset = 0; offset < dmaBuffers.size; offset += 2) {

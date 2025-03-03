@@ -95,7 +95,7 @@ namespace dpmhw {
                 corbDma(DmaRegion::reserveBlock(pDmaRegion.get(), 256 * 4)),
                 rirbDma(DmaRegion::reserveBlock(pDmaRegion.get(), 256 * 8)),
                 dmaPosDma(DmaRegion::reserveBlock(pDmaRegion.get(), 64 * 8)),
-                allocationSucceeded(!corbDma.isError() && !rirbDma.isError() && !dmaPosDma.isError() && !p.hadErrors())
+                allocationSucceeded(pDmaRegion && !corbDma.isError() && !rirbDma.isError() && !dmaPosDma.isError() && !p.hadErrors())
                 {
             if (p.hadErrors()) {
                 dpmhw_log("HDA ERROR: PCI Interface had errors!\n");

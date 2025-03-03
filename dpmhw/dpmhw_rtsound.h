@@ -48,7 +48,7 @@ namespace dpmhw::rtsound {
         int32_t soundOut(uint16_t level, int64_t now);
 
         [[nodiscard]] bool isValid() const {
-            return stream.allocationSucceeded;
+            return stream.allocationSucceeded.get();
         }
         [[nodiscard]] unsigned char getStreamNumber() const {
             return stream.getStreamNumber();
