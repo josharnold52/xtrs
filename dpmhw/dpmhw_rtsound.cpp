@@ -118,6 +118,7 @@ static void writeToLog(uint16_t samplePos, uint16_t level, uint16_t curDma) {
 }
 HdaRealTimeSound::HdaRealTimeSound()
 : pDevice(nullptr)
+, stream()
 , started(false)
 , lastClock(0)
 , samplePos(0)
@@ -126,6 +127,7 @@ HdaRealTimeSound::HdaRealTimeSound()
 , ticksPerClock(1.0)
 , clocksPerTick(1.0)
 , lastLevel(LEVEL_NEUTRAL)
+, dmaPosRef(SelectorMem::ref32::nullRef())
 {
     dpmhw_log("Constructed placeholder (unusable) HdaRealTimeSound\n");
 }
@@ -141,11 +143,12 @@ HdaRealTimeSound::HdaRealTimeSound(dpmhw::HdaDevice *d, unsigned char descNo, un
 , ticksPerClock(1.0)
 , clocksPerTick(1.0)
 , lastLevel(LEVEL_NEUTRAL)
+, dmaPosRef(pDevice ? pDevice->getDmaPosRef(descNo) : SelectorMem::ref32::nullRef())
 {
-    if (!stream.allocationSucceeded.get()) {
+    if (!stream.isValid()) {
         return;
     }
-    stream.dmaBuffers.fill16(LEVEL_NEUTRAL);
+    stream.getDmaBuffers() .fill16(LEVEL_NEUTRAL);
 
 }
 
@@ -207,11 +210,11 @@ void HdaRealTimeSound::start(int64_t clock, double clocksPerSecond) {
         return;
     }
     memset(loggedSamples, 0, sizeof(loggedSamples));
-    if (!stream.allocationSucceeded.get()) {
+    if (!stream.isValid()) {
         dpmhw_log("Cannot start HdaRealTimeSound because stream is invalid\n");
         return;
     }
-    stream.dmaBuffers.fill16(LEVEL_NEUTRAL);
+    stream.getDmaBuffers() .fill16(LEVEL_NEUTRAL);
     //TODO Need to set up codecs, etc.   For now, we'll just assume that has been done externally
     stream.run();
     started = true;
@@ -242,7 +245,7 @@ void HdaRealTimeSound::resetBuffer(uint16_t level, int64_t clock) {
     dpmhw_log("Resetting buffer\n");
     fracWeight = 0;
     fracAmt = 0;
-    stream.dmaBuffers.fill16(level);
+    stream.getDmaBuffers().fill16(level);
     samplePos = (curDmaSample() + LEAD_MAX) & ((int32_t )(TOTAL_BUFFER_SIZE_IN_SAMPLES - 1));
     lastClock = clock;
     lastLevel = level;
@@ -316,7 +319,7 @@ int32_t HdaRealTimeSound::soundOut(const uint16_t new_level, int64_t now) {
         // Send (fracAmt / TICKS_PER_SAMPLE) sample
         sampleCounter += 1;
         //TODO
-        sendOneSample((uint16_t)(fracAmt / TICKS_PER_SAMPLE), stream.dmaBuffers, samplePos, curDmaSample());
+        sendOneSample((uint16_t)(fracAmt / TICKS_PER_SAMPLE), stream.getDmaBuffers(), samplePos, curDmaSample());
         //sendOneSample(level, stream.dmaBuffers, samplePos ,curDmaSample());  // <<- Testing if the weighting logic is buggy
         elapsed -= fracAdd;
         fracWeight = 0;
@@ -326,7 +329,7 @@ int32_t HdaRealTimeSound::soundOut(const uint16_t new_level, int64_t now) {
     while (elapsed >= TICKS_PER_SAMPLE) {
         // Send "level" sample
         sampleCounter += 1;
-        sendOneSample(level, stream.dmaBuffers, samplePos, curDmaSample());
+        sendOneSample(level, stream.getDmaBuffers(), samplePos, curDmaSample());
         elapsed -= TICKS_PER_SAMPLE;
     }
     if (elapsed > 0) {

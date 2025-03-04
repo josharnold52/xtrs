@@ -24,7 +24,7 @@ namespace dpmhw {
         // to be reserved for NULL.
         static const unsigned short null_selector = 0;
     public:
-        unsigned short selector;
+        const unsigned short selector;
         explicit SelectorMem(unsigned short sel) : selector(sel) {}
         SelectorMem() : selector(null_selector) {}
 
@@ -73,12 +73,14 @@ namespace dpmhw {
             const unsigned short selector;
             const uint32_t offset;
             ref(unsigned short selector, uint32_t offset) : selector(selector), offset(offset) {}
+            [[nodiscard]] bool isNull() const { return selector == null_selector; }
         };
         class ref8 : public ref {
         public:
             ref8(const SelectorMem &mem, uint32_t offset) : ref(mem.selector, offset) {}
             [[nodiscard]] uint8_t peek() const { return  _farpeekb(selector, offset);  }
             void poke(uint8_t v) const { _farpokeb(selector, offset, v);  }
+            static ref8 nullRef() { return { SelectorMem::invalid(), 0}; }
         };
         [[nodiscard]] SelectorMem::ref8 r8(uint32_t offset) const { return {*this, offset}; }
 
@@ -87,6 +89,7 @@ namespace dpmhw {
             ref16(const SelectorMem &mem, uint32_t offset) : ref(mem.selector, offset) {}
             [[nodiscard]] uint16_t peek() const { return  _farpeekw(selector, offset);  }
             void poke(uint16_t v) const { _farpokew(selector, offset, v);  }
+            static ref16 nullRef() { return { SelectorMem::invalid(), 0}; }
         };
         [[nodiscard]] SelectorMem::ref16 r16(uint32_t offset) const { return {*this, offset}; }
 
@@ -95,6 +98,7 @@ namespace dpmhw {
             ref32(const SelectorMem &mem, uint32_t offset) : ref(mem.selector, offset) {}
             [[nodiscard]] uint32_t peek() const { return  _farpeekl(selector, offset);  }
             void poke(uint32_t v) const { _farpokel(selector, offset, v);  }
+            static ref32 nullRef() { return { SelectorMem::invalid(), 0}; }
         };
         [[nodiscard]] SelectorMem::ref32 r32(uint32_t offset) const { return {*this, offset}; }
 
@@ -141,11 +145,18 @@ namespace dpmhw {
         /**
          * Note - a zero-initialized DmaBlock (i.e. - default constructor) will show as isError
          */
-        struct DmaBlock {
+        class DmaBlock {
+        public:
             const SelectorMem selector;
             const uint32_t selectorAddress;
             const uint32_t physicalAddress;
             const uint32_t size;
+
+            DmaBlock(const SelectorMem sel, uint32_t selAddr, uint32_t physAddr, uint32_t sz) :
+                selector(sel), selectorAddress(selAddr), physicalAddress(physAddr), size(sz) {}
+
+            DmaBlock() :
+                selector(SelectorMem::invalid()), selectorAddress(0), physicalAddress(0), size(0) {}
 
             [[nodiscard]] bool isError() const {
                 return selector.isNull() || selectorAddress == ALLOC_FAILED || physicalAddress == ALLOC_FAILED || size == 0;

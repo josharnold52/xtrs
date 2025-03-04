@@ -12,7 +12,7 @@ namespace dpmhw {
 
 
     class HdaOutputStream {
-    public:
+    private:
         HdaDevice * const dev;
         const unsigned char descriptorNumber;
 
@@ -30,14 +30,13 @@ namespace dpmhw {
         const unsigned char bufferCount;
         const unsigned int singleBufferSize;
         const unsigned int totalBufferSize;
-    private:
         std::unique_ptr<DmaRegion, decltype(&DmaRegion::deallocate)>  pDmaRegion;
         const DmaRegion::DmaBlock dmaBdl;
-    public:
         const DmaRegion::DmaBlock dmaBuffers;
         reset_on_move<bool> allocationSucceeded;
         //TODO: maybe combine ownsStream and allocationSucceeded into a single flag
         reset_on_move<bool> ownsStream;
+
 
 
     public:
@@ -45,10 +44,8 @@ namespace dpmhw {
         ~HdaOutputStream();
 
         /*
-         * This constructs an "invalid" stream where "allocationSucceeded" is false.   There's not much that we can
-         * do with such a stream since it is non-functional, and we don't allow move-assignment.  But I think it might
-         * be useful to have for purpose of low-level hacking.  (E.g. - create an invalid instance somewhere and then
-         * later overwrite it using a placement new move constructor )
+         * This constructs an "invalid" stream where "allocationSucceeded" is false.  Can use move assignment to
+         * later give it a valid value...except move assignment isn't defined here :(
          */
         HdaOutputStream();
 
@@ -57,12 +54,17 @@ namespace dpmhw {
         HdaOutputStream &operator=(const HdaOutputStream &rhs) = delete;
         //Allow move construction - source stream becomes non-owner with allocationSucceeded as false (basically invalid)
         HdaOutputStream(HdaOutputStream &&rhs) = default;
-        // Don't allow move assignment right now (because we have a bunch of const members so assignment doesn't make sense)
+        // Not allowing move assignment because we would need to be able to deallocate the current stream
         HdaOutputStream &operator=(HdaOutputStream &&rhs) = delete;
-
 
         void run();
         void stop();
+
+        [[nodiscard]] bool isValid() const { return allocationSucceeded.get(); }
+
+        [[nodiscard]] const DmaRegion::DmaBlock & getDmaBuffers() {
+            return dmaBuffers;
+        }
 
         [[nodiscard]] unsigned long getDmaPos() const {
             return dev->getDmaPos(descriptorNumber);

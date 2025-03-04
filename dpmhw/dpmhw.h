@@ -70,10 +70,28 @@ namespace dpmhw {
             dpmhw_log("reset_on_move move assignment\n"); //TODO
             value = rhs.value;
             rhs.value = T();
+            return *this;
         }
 
         const T & get() const { return value; }
 
+    };
+
+    /**
+     * A "var" of type "const T" - only allows const access to the contained T, however the entirety
+     * of T can be changed through assignment
+     */
+    template <class T> class var {
+    private:
+        T v;
+    public:
+        /* implicit conversion OK */
+        var(T v0) : v(v0) {} // NOLINT(google-explicit-constructor)
+        var() : v() {}
+
+        const T * operator ->() const {
+            return &v;
+        }
     };
 
 };

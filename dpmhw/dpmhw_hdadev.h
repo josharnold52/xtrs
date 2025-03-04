@@ -71,7 +71,7 @@ namespace dpmhw {
         const SelectorMem::ref32 DPUBASE = regs.r32(0x74);
     private:
 
-        std::unique_ptr<DmaRegion, decltype(&DmaRegion::deallocate)>  pDmaRegion;
+        std::unique_ptr<DmaRegion, decltype(&DmaRegion::deallocate)> pDmaRegion;
         //DmaRegion * const pDmaRegion;
         const DmaRegion::DmaBlock corbDma;
         const DmaRegion::DmaBlock rirbDma;
@@ -127,10 +127,13 @@ namespace dpmhw {
          *   allocation_succeeded before using them.  The HDA registers are also not reset, but probably
          *   NBD.
          *
-         *   Note that CLion will warn about these, but the main compiler does not
          */
         HdaDevice (HdaDevice &&) = default;
-        HdaDevice & operator= (HdaDevice &&) = default;
+        /**
+         * Not allowing move assignment right now because destroying the current HDADevice to replace
+         * with another doesn't really make sense - should only have one!
+         */
+        HdaDevice & operator= (HdaDevice &&) = delete;
 
 
         ~HdaDevice() {
@@ -146,17 +149,19 @@ namespace dpmhw {
         bool activate();
         void force_reset();
 
-        int32_t getWallClockCount() { return (int32_t)WallClockCounter.peek(); };
-        unsigned short getGlobalCapabilities() { return GCAP.peek(); }
-        unsigned int getNumberOfOutputStreamsSupported() { return (getGlobalCapabilities() >> 12) & 0xF; }
-        unsigned int getNumberOfInputStreamsSupported() { return (getGlobalCapabilities() >> 8) & 0xF; }
-        unsigned int getNumberOfBidirectionalStreamsSupported() { return (getGlobalCapabilities() >> 3) & 0x1F; }
-        unsigned int getNumberOfSerialDataOutSignals() { return (getGlobalCapabilities() >> 1) & 0x3; }
-        unsigned int get64BitAddressSupported() { return getGlobalCapabilities() & 0x1; }
+        [[nodiscard]] bool isValid() const { return allocationSucceeded.get(); }
 
-        unsigned short getCodecBitMap() { return STATESTS.peek() & 0x7FFF; }
+        [[nodiscard]] int32_t getWallClockCount() const { return (int32_t)WallClockCounter.peek(); };
+        [[nodiscard]] unsigned short getGlobalCapabilities() const { return GCAP.peek(); }
+        [[nodiscard]] unsigned int getNumberOfOutputStreamsSupported() const { return (getGlobalCapabilities() >> 12) & 0xF; }
+        [[nodiscard]] unsigned char getNumberOfInputStreamsSupported() const { return (getGlobalCapabilities() >> 8) & 0xF; }
+        [[nodiscard]] unsigned int getNumberOfBidirectionalStreamsSupported() const { return (getGlobalCapabilities() >> 3) & 0x1F; }
+        [[nodiscard]] unsigned int getNumberOfSerialDataOutSignals() const { return (getGlobalCapabilities() >> 1) & 0x3; }
+        [[nodiscard]] unsigned int get64BitAddressSupported() const { return getGlobalCapabilities() & 0x1; }
 
-        bool getAcceptsUnsolicitedResponse() { return (GCTL.peek() & 0x100) != 0; }
+        [[nodiscard]] unsigned short getCodecBitMap() const { return STATESTS.peek() & 0x7FFF; }
+
+        [[nodiscard]] bool getAcceptsUnsolicitedResponse() const { return (GCTL.peek() & 0x100) != 0; }
 
         bool singleCommand(unsigned long command,  unsigned long &response);
 
@@ -214,18 +219,25 @@ namespace dpmhw {
         void dumpVendorRegs();
         void dumpExtendedRegs();
 
-        uint32_t getDmaPos(int descriptorNo) {
+
+        /** Returns an isNull ref if bad descriptorNo or invalid device */
+        [[nodiscard]] SelectorMem::ref32 getDmaPosRef(int descriptorNo) const {
             if (descriptorNo < 0 || descriptorNo > 63 || !allocationSucceeded.get()) {
-                return 0xFFFFFFFFu;
+                return SelectorMem::ref32::nullRef();
             }
-            //Intel SCH (on the ASUS NB) puts the DMA Position info of its output streams at a different index
             if (deviceType == HdaDeviceType::intelSch) {
                 if (descriptorNo == 2 || descriptorNo == 3) {
                     descriptorNo += 2;
                 }
             }
-
-            return dmaPosDma.selector.peek32(dmaPosDma.selectorAddress + (descriptorNo * 8));
+            return dmaPosDma.selector.r32(dmaPosDma.selectorAddress + (descriptorNo * 8));
+        }
+        [[nodiscard]] uint32_t getDmaPos(int descriptorNo) const {
+            auto ref = getDmaPosRef(descriptorNo);
+            if (ref.isNull()) {
+                return 0xFFFFFFFFu;
+            }
+            return ref.peek();
         }
     };
 
