@@ -23,13 +23,14 @@ namespace dpmhw {
         SelectorMem deviceMemory;
         HdaDevice device;
         rtsound::HdaRealTimeSound rtSound;
-        hda::codec_info codecInfo;
-        bool valid;
+        const hda::codec_info codecInfo;
+        const bool valid;
 
     public:
         EmulatedDac();
 
 
+        [[nodiscard]] bool isValid() const { return valid; }
     };
 
 

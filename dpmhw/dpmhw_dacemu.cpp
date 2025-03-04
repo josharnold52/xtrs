@@ -55,18 +55,26 @@ static rtsound::HdaRealTimeSound createRtSound(HdaDevice &dev) {
     return {&dev, dev.getNumberOfInputStreamsSupported(), 1};
 }
 
+static hda::codec_info loadCodecInfo(HdaDevice &dev) {
+    if (!dev.isValid()) {
+        return {};
+    }
+    hda::codec_info info{};
+    info.loadFrom(dev, 0);
+    return info;
+}
+
+
 EmulatedDac::EmulatedDac()
 : hdaPciFunction(getHdaPciFunction())
 , busMasterEnabler(PciFunctionBusMasterEnabler(hdaPciFunction))
 , deviceMemory(getHdaRegs(hdaPciFunction, busMasterEnabler))
 , device(createHdaDevice(hdaPciFunction, deviceMemory))
 , rtSound(createRtSound(device))
-, codecInfo()
-, valid(false)
+, codecInfo(loadCodecInfo(device))
+, valid(device.isValid() && rtSound.isValid())
 {
-    if (device.isValid() && rtSound.isValid()) {
-        codecInfo.loadFrom(device, 0);
-        valid = true;
+    if (valid) {
         dpmhw_log("Emulated DAC construction succeeded\n");
     } else {
         dpmhw_log("Emulated DAC construction failed\n");
