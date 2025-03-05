@@ -21,7 +21,8 @@ bool HdaDevice::activate() {
     WAKEEN.poke(0);
     GCTL.poke(1);
     dpmhw_debug("Waiting for device...\n");
-    usleep(600);
+    //TODO - I used to have a usleep here, but I think the time was too short so it had no effect
+    //usleep(600);
     while((GCTL.peek() & 0x1) == 0) INLINE_PAUSE;
     dpmhw_log("HDA Device is out of reset\n");
 
@@ -137,6 +138,17 @@ void HdaDevice::force_reset() {
     dpmhw_log("Resetting all streams...\n");
     unsigned short gcap = GCAP.peek();
     unsigned int scnt = ((gcap >> 12) & 0xF) + ((gcap >> 8) & 0xF) + ((gcap >> 3) & 0x1F);
+    /**
+     * TODO - The INLINE_PAUSE loops where we repeatedly read a register are acting strange...I thinl
+     *   perhaps that I'm not getting the "volatile" semantics that I think here and the the reads
+     *   are getting reordered or reuse - maybe I need to move the entire loops into assembly
+     */
+    /**
+     * TODO - On second thought, I think some of the problem may be that I'm leaving the GCTL in reset
+     *   when this exits...Then, if force_reset gets called again, GCTL is in reset and none of the
+     *   registers will necessarily work reliably.   I think I should check GCTL at the start, and if
+     *   it is in recess I should do nothing
+     */
     for(unsigned int i=0; i<scnt && i <30; i++) {
         unsigned ctlreg = 0x80 + i * 0x20;
         unsigned int x = regs.peek32(ctlreg);
@@ -145,13 +157,21 @@ void HdaDevice::force_reset() {
             dpmhw_log("Stopping stream %u...\n",i);
             x &= (~2); //Don't run
             regs.poke32(ctlreg, x);
-            while (regs.peek32(ctlreg) & 0x2) INLINE_PAUSE;
+            while (regs.peek32(ctlreg) & 0x2) {
+                INLINE_PAUSE;
+            }
         }
         dpmhw_log("Resetting stream %u...\n",i);
         x = regs.peek32(ctlreg) & 0xFFFFFF;
         x |= 1;
         regs.poke32(ctlreg, x);
-        while (!(regs.peek32(ctlreg) & 0x1)) INLINE_PAUSE;
+        for (int z=0; z < 20000 && !(regs.peek32(ctlreg) & 0x1); z++) {
+            INLINE_PAUSE;
+        }
+        auto chk = regs.peek32(ctlreg);
+        if (!(chk & 0x1)) {
+            dpmhw_log("Failed to reset stream %u (%u) (%u)\n", i, chk & 0xFFFFFF, regs.peek32(ctlreg) & 0xFFFFFF);
+        }
         // TODO - should we leave it in reset instead?
         x = regs.peek32(ctlreg) & 0xFFFFFF;
         x &= ~1;
@@ -163,18 +183,22 @@ void HdaDevice::force_reset() {
     DPLBASE.poke(DPLBASE.peek() & ~1);
     while (DPLBASE.peek() & 1) INLINE_PAUSE;
 
+    corbRirbSystemsActive = false;
     dpmhw_log("Stopping response dma...\n");
     RIRBCTL.poke(0);
     while((RIRBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
     dpmhw_log("Stopping command dma...\n");
     CORBCTL.poke(0);
     while((CORBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
+
     dpmhw_log("Resetting device...\n");
     GCTL.poke(0);
-    corbRirbSystemsActive = false;
     while((GCTL.peek() & 0x1) != 0) INLINE_PAUSE;
 
-    GCTL.poke(1);
+    //TODO - I used to bring the device out of reset here, but I think I will leave it to help
+    //  ensure that the HDA minimum reset times are met.  (Question - should I add a delay to help
+    //  ensure this?
+    //GCTL.poke(1);
 
     dpmhw_log("HDA has been reset\n");
 

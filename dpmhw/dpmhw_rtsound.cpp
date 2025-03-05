@@ -175,7 +175,7 @@ tick HdaRealTimeSound::getElapsed(const int64_t now) {
         return -1;
     }
     if (raw_diff == 0) {
-        dpmhw_log("No change raw\n");
+        //dpmhw_log("No change raw\n");
         return 0;
     }
     auto diff = (int32_t)floor(ticksPerClock * (double)raw_diff);

@@ -202,7 +202,7 @@ static void try_it_out(HdaDevice &dev, const codec_info &codec) {
     // TODO - EAPD/BTL ?
 
     // TODO - Stripe Control ??
-    codecControl.nodeVerb(dac->nodeNumber, 0x72D, 1);  // 2 channels
+    codecControl.nodeVerb(dac->nodeNumber, 0x72D, 1);  // Set converter channel count - 2 channels
     dev.dumpRegs();
     dev.dumpVendorRegs();
     dev.dumpExtendedRegs();

@@ -150,6 +150,7 @@ namespace dpmhw {
         void force_reset();
 
         [[nodiscard]] bool isValid() const { return allocationSucceeded.get(); }
+        [[nodiscard]] bool isActive() const { return isValid() && corbRirbSystemsActive; }
 
         [[nodiscard]] int32_t getWallClockCount() const { return (int32_t)WallClockCounter.peek(); };
         [[nodiscard]] unsigned short getGlobalCapabilities() const { return GCAP.peek(); }

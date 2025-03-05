@@ -6,9 +6,11 @@
 #include <cstring>
 #include <ctime>
 #include <unistd.h>
+#include <cmath>
 #include "../dpmutil/dpmutil_ini.h"
 #include "../dpmhw/dpmhw.h"
 #include "../dpmhw/dpmhw_config.h"
+#include "../dpmhw/dpmhw_dacemu.h"
 
 char default_program_name[] = "dpmcli";
 char *program_name;
@@ -32,6 +34,7 @@ struct command {
 };
 
 static int list_all_commands(args_container &args);
+static int test_dacemu();
 
 const command all_commands[] = {
         {"list-commands", nullptr, 0, list_all_commands},
@@ -95,6 +98,11 @@ const command all_commands[] = {
                 }
             }
             return 0;
+        }},
+        {"test-dacemu", nullptr, 0, [](args_container & args) {
+            auto rc = test_dacemu();
+            printf("Device cleanup complete\n");
+            return rc;
         }}
 };
 
@@ -108,6 +116,50 @@ static int list_all_commands(args_container &args) {
     }
     return 0;
 }
+
+static int test_dacemu() {
+    dpmhw::dpmhw_log("Creating device...\n");
+    dpmhw::EmulatedDac dac;
+    if (!dac.isValid()) {
+        dpmhw::dpmhw_log("Failed to create device...  %d\n", (int)dac.isValid());
+        return 1;
+    }
+    dpmhw::dpmhw_log("Activating device...\n");
+    dac.activate();
+    if (!dac.isActive()) {
+        dpmhw::dpmhw_log("Failed to activate device...\n");
+        return 1;
+    }
+    dpmhw::dpmhw_log("Starting device...\n");
+    dac.start(uclock(), UCLOCKS_PER_SEC);
+    if (!dac.isRunning()) {
+        dpmhw::dpmhw_log("Failed to start device...\n");
+        return 1;
+    }
+    dpmhw::dpmhw_log("Playing sound...\n");
+    double afreq = 300 * 2  * PI;
+    double bfreq = 4 * 2  * PI;
+    const auto started = uclock();
+    double elapsed = 0;
+    int32_t counter = 0;
+    int32_t writesCounter = 0;
+    while(elapsed < 5) {
+        auto c = uclock();
+        auto tdiff = (double)(c - started);
+        elapsed = tdiff / UCLOCKS_PER_SEC;
+        auto x = (uint16_t )lround(0x8000 + 0x4000 * sin(afreq * (elapsed + 0.02 * sin(bfreq * (elapsed + 0.1 * elapsed * elapsed)))));
+        //auto x = (tdiff & 512) ? 0x9999 : 0x7777;
+        auto sc = dac.soundOut(x, c);
+        counter += sc;
+        writesCounter++;
+    }
+    dac.stop();
+    dpmhw::dpmhw_log("Sent %ld samples (%ld)\n", counter, writesCounter);
+
+    dpmhw::dpmhw_log("Cleaning up...\n");
+    return 0;
+}
+
 extern "C" {
 extern int joshlog_echo_to_stdout;
 }
