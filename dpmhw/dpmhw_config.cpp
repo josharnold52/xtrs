@@ -9,6 +9,12 @@
 #include "dpmhw_config.h"
 #include "../dpmutil/dpmutil_ini.h"
 
+
+// The c function, which uses a different naming convention
+extern "C" const dpmhw::DPMHardwareConfig *cdpmhw_load_config() {
+    return dpmhw::loadConfig();
+}
+
 using namespace dpmhw;
 
 namespace {

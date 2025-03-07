@@ -53,6 +53,8 @@ extern int trs_ram_end;
 extern int trs_expansion_interface;
 extern int trs_model1_grafix80;
 
+extern int trs_dpmsound_enabled;
+
 int trs_parse_command_line(int argc, char **argv, int *debug);
 
 void trs_screen_init(void);

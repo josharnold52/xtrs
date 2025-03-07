@@ -132,6 +132,10 @@ void HdaDevice::force_reset() {
         dpmhw_log("ERROR: Failed to force-reset HDA because allocation was not successful\n");
         return;
     }
+    if ((GCTL.peek() & 1) == 0) {
+        dpmhw_log("HDA is already in reset - skipping\n");
+        return;
+    }
     dpmhw_log("Resetting the HDA...\n");
     INTCTL.poke(0);
 
@@ -139,15 +143,11 @@ void HdaDevice::force_reset() {
     unsigned short gcap = GCAP.peek();
     unsigned int scnt = ((gcap >> 12) & 0xF) + ((gcap >> 8) & 0xF) + ((gcap >> 3) & 0x1F);
     /**
-     * TODO - The INLINE_PAUSE loops where we repeatedly read a register are acting strange...I thinl
-     *   perhaps that I'm not getting the "volatile" semantics that I think here and the the reads
-     *   are getting reordered or reuse - maybe I need to move the entire loops into assembly
-     */
-    /**
-     * TODO - On second thought, I think some of the problem may be that I'm leaving the GCTL in reset
-     *   when this exits...Then, if force_reset gets called again, GCTL is in reset and none of the
-     *   registers will necessarily work reliably.   I think I should check GCTL at the start, and if
-     *   it is in recess I should do nothing
+     * TODO - I thought there might be some strangeness in my pause loops with reads get
+     *  reordered, but now I think that was just an artifact of the device already being
+     *  in reset while this runs, which has been fixed.
+     *  That said, it might be creating a spin-wait function in dpmhw_memory.h that does
+     *  the spin in assembly so that we know compiler reordering won't be an issue
      */
     for(unsigned int i=0; i<scnt && i <30; i++) {
         unsigned ctlreg = 0x80 + i * 0x20;
@@ -159,6 +159,7 @@ void HdaDevice::force_reset() {
             regs.poke32(ctlreg, x);
             while (regs.peek32(ctlreg) & 0x2) {
                 INLINE_PAUSE;
+                INLINE_MFENCE;
             }
         }
         dpmhw_log("Resetting stream %u...\n",i);
@@ -167,6 +168,8 @@ void HdaDevice::force_reset() {
         regs.poke32(ctlreg, x);
         for (int z=0; z < 20000 && !(regs.peek32(ctlreg) & 0x1); z++) {
             INLINE_PAUSE;
+            INLINE_MFENCE;
+
         }
         auto chk = regs.peek32(ctlreg);
         if (!(chk & 0x1)) {
@@ -176,24 +179,39 @@ void HdaDevice::force_reset() {
         x = regs.peek32(ctlreg) & 0xFFFFFF;
         x &= ~1;
         regs.poke32(ctlreg, x);
-        while (regs.peek32(ctlreg) & 0x1) INLINE_PAUSE;
+        while (regs.peek32(ctlreg) & 0x1) {
+            INLINE_PAUSE;
+            INLINE_MFENCE;
+        }
     }
 
     dpmhw_log("Stopping DPL...\n");
     DPLBASE.poke(DPLBASE.peek() & ~1);
-    while (DPLBASE.peek() & 1) INLINE_PAUSE;
+    while (DPLBASE.peek() & 1) {
+        INLINE_PAUSE;
+        INLINE_MFENCE;
+    }
 
     corbRirbSystemsActive = false;
     dpmhw_log("Stopping response dma...\n");
     RIRBCTL.poke(0);
-    while((RIRBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
+    while((RIRBCTL.peek() & 0x2) != 0) {
+        INLINE_PAUSE;
+        INLINE_MFENCE;
+    }
     dpmhw_log("Stopping command dma...\n");
     CORBCTL.poke(0);
-    while((CORBCTL.peek() & 0x2) != 0) INLINE_PAUSE;
+    while((CORBCTL.peek() & 0x2) != 0) {
+        INLINE_PAUSE;
+        INLINE_MFENCE;
+    }
 
     dpmhw_log("Resetting device...\n");
     GCTL.poke(0);
-    while((GCTL.peek() & 0x1) != 0) INLINE_PAUSE;
+    while((GCTL.peek() & 0x1) != 0) {
+        INLINE_PAUSE;
+        INLINE_MFENCE;
+    }
 
     //TODO - I used to bring the device out of reset here, but I think I will leave it to help
     //  ensure that the HDA minimum reset times are met.  (Question - should I add a delay to help
@@ -235,15 +253,18 @@ bool HdaDevice::singleCommand(unsigned long command,  unsigned long &response) {
 
     corbDma.selector.poke32(corbDma.selectorAddress + 4 * nextWritePtr, command);
     corbDma.selector.flushLine(corbDma.selectorAddress + 4 * nextWritePtr);
+    INLINE_MFENCE;
 
     dpmhw_debug("Poked %08X at DMA 0x%x\n", command, corbDma.selectorAddress + 4 * nextWritePtr);
     CORBWP.poke(nextWritePtr);
+    INLINE_MFENCE;
 
     dpmhw_debug("Waiting for command acceptance...\n");
     dbgCommandState();
     //TODO - spin then timeout
     while(CORBWP.peek() != CORBRP.peek()) {
         INLINE_PAUSE;
+        INLINE_MFENCE;
         dbgCommandState();
     }
 
@@ -252,6 +273,7 @@ bool HdaDevice::singleCommand(unsigned long command,  unsigned long &response) {
     //TODO - spin then timeout
     while(RIRBWP.peek() == rirbReadPointer) {
         INLINE_PAUSE;
+        INLINE_MFENCE;
         dbgCommandState();
     };
     rirbReadPointer = RIRBWP.peek();

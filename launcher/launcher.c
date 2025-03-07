@@ -13,6 +13,8 @@
 
 #define MAX_CONFIG_LEN 128
 
+int show_wip = 0;
+
 struct emu {
     char dir[13];
     struct emu *next;
@@ -130,6 +132,14 @@ int read_emus() {
             continue;
         }
         if (dirblk.ff_name[0] == '_') {
+            continue;
+        }
+        if (dirblk.ff_name[0] == 'W'
+           && dirblk.ff_name[1] == 'I'
+           && dirblk.ff_name[2] == 'P'
+           && dirblk.ff_name[3] <= ' '
+           && !show_wip
+        ) {
             continue;
         }
         memcpy(p->dir, dirblk.ff_name, 13);
@@ -314,10 +324,12 @@ int move(int cur_emu, int dx, int dy) {
 
 void mainloop() {
     static const char escape_hatch[] = "exit";
+    static const char wip_code[] = "wip";
 
-    int c,is_special,next_emu, cur_emu, escape_counter, launch_res;
+    int c,is_special,next_emu, cur_emu, escape_counter, launch_res, wip_counter;
     is_special = 0;
     escape_counter = 0;
+    wip_counter = 0;
 
     next_emu = 0;
     cur_emu = -1;
@@ -380,6 +392,21 @@ void mainloop() {
             escape_counter++;
         } else {
             escape_counter = 0;
+        }
+        if (c == wip_code[wip_counter]) {
+            wip_counter++;
+            if (!wip_code[wip_counter]) {
+                show_wip = 1;
+                wip_counter = 0;
+                read_emus();
+                clrscr();
+                show_options(0);
+                next_emu = 0;
+                cur_emu = -1;
+                continue;
+            }
+        } else {
+            wip_counter = 0;
         }
     }
 }

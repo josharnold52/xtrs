@@ -7,6 +7,7 @@
 
 #include "dpmhw_hdadev.h"
 #include "dpmhw_hdastream.h"
+#include "dpmhw_config.h"
 
 namespace dpmhw::rtsound {
 
@@ -29,6 +30,10 @@ namespace dpmhw::rtsound {
         uint16_t lastLevel;
 
         const SelectorMem::ref32 dmaPosRef;
+
+        const tick LEAD_MIN = dpmhw::loadConfig()->hdaMinDmaLead;
+        const tick LEAD_MAX = dpmhw::loadConfig()->hdaMaxDmaLead;
+
     private:
         tick getElapsed(int64_t clock);
 
@@ -54,6 +59,7 @@ namespace dpmhw::rtsound {
 
         [[nodiscard]] bool isValid() const { return pDevice && pDevice->isValid() && stream.isValid() && !dmaPosRef.isNull(); }
 
+        uint16_t currentLevel() const { return lastLevel; }
 
         void start(int64_t now, double clocksPerSecond);
         void stop();

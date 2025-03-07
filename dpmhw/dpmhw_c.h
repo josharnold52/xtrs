@@ -6,14 +6,21 @@
 #define XTRS_DPMHW_C_H
 
 #if defined(__cplusplus)
-extern "C" {
+#include <cstdint>
+namespace cpdpmhw { extern "C" {
+#else
+#include <stdint.h>
 #endif
 
-
+// Return truthy if success, false otherwise
+int cdpmhw_init_sound(uint16_t level, int64_t now, double clocksPerSecond);
+void cdpmhw_shutdown_sound();
+void cdpmhw_sound_out(uint16_t level, int64_t now);
+void cdpmhw_clock_update(int64_t now);
 
 
 #if defined(__cplusplus)
-}
+} }
 #endif
 
 

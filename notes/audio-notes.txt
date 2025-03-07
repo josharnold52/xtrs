@@ -1,3 +1,17 @@
+Latest Update:
+
+First pass at getting it working in the emulator was successful!
+
+Next steps
+  * Look at TODOs (especially the --march option in the Makefile - I had to switch away from bonnel
+    to run in dosbox, but I'd like to make this selectable so the bonnel builds are useable on real HW
+  * Fix up the initialization code, get it to work for other models - including speed switching model 4
+  * Get the "game sound" to work along with the "cassette sound" ... Do we try to mix them?
+  * Audio, better powerup,powerdown, pause so no clicking
+
+
+
+
 HDA Quirks:
 
 * On VirtualBox the capabilities for Volume Knob controls have an incorrect ID (not sure if this

@@ -873,6 +873,7 @@ struct option options[] = {
         {"noexpintf",      FALSE, &trs_expansion_interface, FALSE},
         {"grafix80",        FALSE, &trs_model1_grafix80, TRUE},
         {"nografix80",      FALSE, &trs_model1_grafix80, FALSE},
+        {"dpmsound", FALSE, &trs_dpmsound_enabled, TRUE},
         {NULL, 0,                 0,                0}
 };
 

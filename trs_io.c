@@ -39,6 +39,8 @@ static int rominimage = 0;  /* Model 4p */
 
 int trs_io_debug_flags = 0;
 
+int trs_dpmsound_enabled = 0;
+
 /*ARGSUSED*/
 void z80_out(int port, int value) {
     if (trs_io_debug_flags & IODEBUG_OUT) {

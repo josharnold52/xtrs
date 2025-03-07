@@ -164,7 +164,7 @@ bool EmulatedDac::setupCodecs() {
     //expect approx 40 us per call to nodeVerb() (not including controller overhead).  So 25000 loops
     //should correspond to a wait of about 1 second, which should be enough time for the power up
     for(int i=0;i<25000;i++) {
-        if ((codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0) & 0xF0) != 0) {
+        if ((codecControl.nodeVerb(afg.nodeNumber, 0xf05, 0) & 0xF0) == 0) {
             break;
         }
         INLINE_PAUSE;

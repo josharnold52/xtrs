@@ -66,6 +66,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <stdint.h>
+
+#include "dpmhw/dpmhw_c.h"
 
 #if HAVE_OSS
 #include <sys/ioctl.h>
@@ -218,6 +221,11 @@ Uchar value_to_sample[] = { 127, /* 0.46 V */
                             254, /* 0.85 V */
                             0,   /* 0.00 V */
                             127, /* unused, but close to 0.46 V */
+};
+
+
+uint16_t value_to_dpmhw_sample[] = {
+        0x7F80, 0xE000, 0x2000, 0x7F80
 };
 
 /* .wav file definitions */
@@ -1314,6 +1322,8 @@ void trs_cassette_out(int value)
             if (assert_state(WRITE) < 0) return;
             transition_out(value);
         }
+    } else if ( trs_dpmsound_enabled && trs_is_realtime_enabled()) {
+        cdpmhw_sound_out(value_to_dpmhw_sample[value & 3], z80_state.t_count);
     }
 
     /* Do sound emulation by sending samples to /dev/dsp if available */

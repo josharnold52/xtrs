@@ -97,9 +97,6 @@ static inline const tick TICKS_PER_SAMPLE = 500;
 static inline const tick MAX_DELAY = ((tick)(4096)) * TICKS_PER_SAMPLE;
 
 
-static inline const tick LEAD_MIN = 8192;
-static inline const tick LEAD_MAX = 16384;
-
 struct sampleLog {
     uint16_t offset;
     uint16_t level;
@@ -145,6 +142,7 @@ HdaRealTimeSound::HdaRealTimeSound(dpmhw::HdaDevice *d, unsigned char descNo, un
 , lastLevel(LEVEL_NEUTRAL)
 , dmaPosRef(pDevice ? pDevice->getDmaPosRef(descNo) : SelectorMem::ref32::nullRef())
 {
+    dpmhw_log("HDA LeadMin=%d LeadMax=%d\n", LEAD_MIN, LEAD_MAX);
     if (!stream.isValid()) {
         return;
     }

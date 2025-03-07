@@ -3,6 +3,7 @@
 #include <dos.h>
 #include "z80.h"
 #include "trs.h"
+#include "dpmhw/dpmhw_c.h"
 
 //DJGPP Notes
 // UCLOCKS_PER_SEC shows timing for uclock
@@ -58,6 +59,13 @@ void trs_realtime_reset() {
     if (trs_model == 1) {
         tstate_usec_factor = TSTATE_USEC_FACTOR_M1;
         tstates_per_sec = TSTATES_PER_SEC_M1;
+        //TODO
+        if (trs_dpmsound_enabled) {
+            joshlog("Before init call\n");
+            cdpmhw_init_sound(0x8000, z80_state.t_count, TSTATES_PER_SEC_M1);
+            joshlog("After init call\n");
+            cdpmhw_clock_update(z80_state.t_count);
+        }
     } else if (trs_model == 3) {
         tstate_usec_factor = TSTATE_USEC_FACTOR_M3;
         tstates_per_sec = TSTATES_PER_SEC_M3;
@@ -132,6 +140,9 @@ void trs_realtime_sync_uclock(tstate_t threhsold) {
         trs_get_event(0);
         return;
     }
+    if (trs_dpmsound_enabled) {
+        cdpmhw_clock_update(z80_state.t_count);
+    }
     if ( (z80_state.t_count - last_synced_at_tstate) < threhsold ) {
         return;
     }
@@ -155,7 +166,7 @@ void trs_realtime_sync_uclock(tstate_t threhsold) {
         if (elapsed_delta > 1000000) {
             elapsed_delta = 1000000;
         } 
-        for(i = 0; i < 10000; i++) {
+        for(i = 0; i < 100; i++) {
             __asm__ __volatile__ ("pause");
         }
         //asm ("pause" : /*no output*/ : /*no input */ : /* no clobber */);

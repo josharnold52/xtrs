@@ -101,6 +101,17 @@ namespace dpmhw {
             return running ? rtSound.soundOut(level, now) : 0;
         }
 
+        void silence(int64_t now) {
+            if (running) {
+                rtSound.resetBuffer(rtSound.currentLevel(), now);
+            }
+        }
+        void clock_update(int64_t now) {
+            if (running) {
+                rtSound.soundOut(rtSound.currentLevel(), now);
+            }
+        }
+
     };
 
 }
