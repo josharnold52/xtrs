@@ -118,11 +118,17 @@ namespace dpmhw {
         const uint32_t physicalBase;
         const uint32_t regionSize;
         const uint32_t alignment;
+        const uint8_t regionType;
+        const uint16_t xmsHandle;
     private:
+        static const uint8_t regionTypeDos = 0;
+        static const uint8_t regionTypeXms = 1;
+
         uint32_t allocated;
 
-        DmaRegion(SelectorMem s, uint32_t sbase, uint32_t pbase, uint32_t sz, uint32_t algn) :
-            selector(s) , selectorBase(sbase), physicalBase(pbase), regionSize(sz), alignment(algn), allocated(0) {
+        DmaRegion(SelectorMem s, uint32_t sbase, uint32_t pbase, uint32_t sz, uint32_t algn, uint8_t regionType, uint16_t xmsHandle) :
+            selector(s) , selectorBase(sbase), physicalBase(pbase), regionSize(sz), alignment(algn)
+            ,regionType(regionType), xmsHandle(xmsHandle), allocated(0){
         }
 
         void * operator new(size_t sz, void * p) {
@@ -196,11 +202,12 @@ namespace dpmhw {
          *
          * Returns null on failure - be sure to check for that.
          */
-        static DmaRegion *allocate(uint32_t size, uint32_t alignment);
+        static DmaRegion *allocateConventional(uint32_t size, uint32_t alignment);
 
         /** Deallocates the given region.  No-op if null is passed */
-        static void deallocate(DmaRegion *dmar);
+        static void deallocate(dpmhw::DmaRegion *p);
 
+        static DmaRegion *allocateXms(uint32_t size, uint32_t alignment);
 
     };
 

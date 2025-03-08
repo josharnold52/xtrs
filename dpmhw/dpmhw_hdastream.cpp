@@ -48,7 +48,7 @@ HdaOutputStream::HdaOutputStream(HdaDevice *d, unsigned int bsize, unsigned char
 , bufferCount(bcount)
 , singleBufferSize(bsize)
 , totalBufferSize(bsize * bcount)
-, pDmaRegion(DmaRegion::allocate(256 * 16 + totalBufferSize, 128), DmaRegion::deallocate)
+, pDmaRegion(DmaRegion::allocateXms(256 * 16 + totalBufferSize, 128), DmaRegion::deallocate)
 , dmaBdl(DmaRegion::reserveBlock(pDmaRegion.get(), 256 * 16))
 , dmaBuffers(DmaRegion::reserveBlock(pDmaRegion.get(), totalBufferSize))
 , allocationSucceeded(pDmaRegion && !dmaBdl.isError() && !dmaBuffers.isError() && isPowerOfTwo(singleBufferSize) && singleBufferSize >= 128)

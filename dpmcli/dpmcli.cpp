@@ -103,6 +103,12 @@ const command all_commands[] = {
             auto rc = test_dacemu();
             printf("Device cleanup complete\n");
             return rc;
+        }},
+        {"xms-test", nullptr, 0, [](args_container & args) {
+            auto p = dpmhw::DmaRegion::allocateXms(0x10000, 16);
+            printf("Allocated at %p (%s)\n",p, p ? "success" : "fail");
+            dpmhw::DmaRegion::deallocate(p);
+            return p ? 0 : 1;
         }}
 };
 

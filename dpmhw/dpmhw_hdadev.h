@@ -91,7 +91,7 @@ namespace dpmhw {
                 deviceType(hdaGetDeviceType(p)),
                 regs(r),
                 // Worst case 256 CORB entries (256 * 4), 256 RIRB entries (256 * 8), 64 DMAPOS entries (64 * 8)
-                pDmaRegion(DmaRegion::allocate(256 * 4 + 256 * 4 + 256 * 4 + 64 * 8, 128), DmaRegion::deallocate),
+                pDmaRegion(DmaRegion::allocateXms(256 * 4 + 256 * 4 + 256 * 4 + 64 * 8, 128), DmaRegion::deallocate),
                 corbDma(DmaRegion::reserveBlock(pDmaRegion.get(), 256 * 4)),
                 rirbDma(DmaRegion::reserveBlock(pDmaRegion.get(), 256 * 8)),
                 dmaPosDma(DmaRegion::reserveBlock(pDmaRegion.get(), 64 * 8)),

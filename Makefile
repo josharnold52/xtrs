@@ -303,7 +303,7 @@ target/deps/load_hex.o: z80.h config.h
 target/deps/main.o: z80.h config.h trs.h trs_disk.h trs_hard.h load_cmd.h
 target/deps/mkdisk.o: reed.h
 target/deps/newutils.o: newutils.h trs.h z80.h config.h
-target/deps/trs_cassette.o: trs.h z80.h config.h newutils.h
+target/deps/trs_cassette.o: trs.h z80.h config.h newutils.h dpmhw/dpmhw_c.h
 target/deps/trs_chars.o: trs_iodefs.h
 target/deps/trs_disk.o: z80.h config.h trs.h trs_disk.h trs_hard.h crc.c
 target/deps/trs_djgpp.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
@@ -322,7 +322,7 @@ target/deps/trs_memory.o: z80.h config.h trs.h trs_disk.h trs_hard.h
 target/deps/trs_metafile.o: trs.h z80.h config.h newutils.h trs_metafile.h
 target/deps/trs_patterns.o: trs_iodefs.h z80.h config.h
 target/deps/trs_printer.o: z80.h config.h trs.h newutils.h
-target/deps/trs_realtime.o: z80.h config.h trs.h
+target/deps/trs_realtime.o: z80.h config.h trs.h dpmhw/dpmhw_c.h
 target/deps/trs_stringy.o: z80.h config.h trs.h trs_disk.h
 target/deps/trs_uart.o: trs.h z80.h config.h trs_uart.h trs_hard.h
 target/deps/trs_xinterface.o: trs_iodefs.h trs.h z80.h config.h trs_disk.h
@@ -333,18 +333,21 @@ target/deps/trs_ich.o: dpmhw/dpmhw_memory.h dpmhw/dpmhw_hdadev.h
 target/deps/trs_ich.o: dpmhw/dpmhw_memory.h dpmhw/dpmhw_pci.h
 target/deps/trs_ich.o: dpmhw/dpmhw_hdastream.h dpmhw/dpmhw_hdadev.h
 target/deps/trs_ich.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw_rtsound.h
-target/deps/trs_ich.o: dpmhw/dpmhw_hdastream.h
+target/deps/trs_ich.o: dpmhw/dpmhw_hdastream.h dpmhw/dpmhw_config.h
 target/deps/trs_vga.o: trs.h z80.h config.h trs_vga.h trs_iodefs.h
 target/deps/dpmhw/dpmhw_c.o: dpmhw/dpmhw.h dpmhw/dpmhw_config.h
-target/deps/dpmhw/dpmhw_c.o: dpmhw/dpmhw_c.h
+target/deps/dpmhw/dpmhw_c.o: dpmhw/dpmhw_c.h dpmhw/dpmhw_dacemu.h
+target/deps/dpmhw/dpmhw_c.o: dpmhw/dpmhw_pci.h dpmhw/dpmhw_memory.h
+target/deps/dpmhw/dpmhw_c.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_rtsound.h
+target/deps/dpmhw/dpmhw_c.o: dpmhw/dpmhw_hdastream.h dpmhw/dpmhw_hdacodec.h
 target/deps/dpmhw/dpmhw_config.o: dpmhw/dpmhw_config.h dpmutil/dpmutil_ini.h
 target/deps/dpmhw/dpmhw.o: dpmhw/dpmhw.h dpmhw/dpmhw_impl.h z80.h config.h
 target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw_dacemu.h dpmhw/dpmhw_pci.h
 target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw_memory.h dpmhw/dpmhw_hdadev.h
 target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw_rtsound.h
 target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw_hdastream.h
-target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw.h
-target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw_impl.h
+target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw_config.h dpmhw/dpmhw_hdacodec.h
+target/deps/dpmhw/dpmhw_dacemu.o: dpmhw/dpmhw.h dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_hdacodec.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw.h
 target/deps/dpmhw/dpmhw_hdacodec.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_hdadev.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_impl.h
@@ -357,6 +360,7 @@ target/deps/dpmhw/dpmhw_memory.o: dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_pci.o: dpmhw/dpmhw_pci.h dpmhw/dpmhw_impl.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_rtsound.h dpmhw/dpmhw_hdadev.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_hdastream.h
+target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_config.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_impl.h dpmhw/dpmhw_memory.h
 target/deps/dpmhw/dpmhw_rtsound.o: dpmhw/dpmhw_pci.h
@@ -365,5 +369,5 @@ target/deps/dpmcli/dpmcli.o: dpmutil/dpmutil_ini.h dpmhw/dpmhw.h
 target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw_config.h dpmhw/dpmhw_dacemu.h
 target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw_pci.h dpmhw/dpmhw_memory.h
 target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw_hdadev.h dpmhw/dpmhw_rtsound.h
-target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw_hdastream.h dpmhw/dpmhw_hdacodec.h
-target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw.h
+target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw_hdastream.h dpmhw/dpmhw_config.h
+target/deps/dpmcli/dpmcli.o: dpmhw/dpmhw_hdacodec.h dpmhw/dpmhw.h

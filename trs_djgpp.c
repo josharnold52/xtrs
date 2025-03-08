@@ -168,6 +168,7 @@ void trs_get_event(int wait) {
     //Argument is ignored!  (In old xtrs it caused us to sleep for a bit if no events)
 
     static int nest_count = 0;
+    static int tabdown = 0;
 
     //TODO: I think there's a bug here (or in the trs_xlate_pc_scancode code that goes with it)
     // If shifted and unshifted IBM key maps to different TRS keys, and if shift is released
@@ -230,6 +231,20 @@ void trs_get_event(int wait) {
                 } else if (eec == JOSHEM_EMULATOR_CONTROL_RESPONSE_RESET_SOFT) {
                     trs_reset(0);
                 }
+            } else if (keycode == 0x0F) {
+                //TAB Down
+                if (!tabdown) {
+                    tabdown = 1;
+                    trs_realtime_disable();
+                }
+                ignoreKey = 1;
+            } else if (keycode == 0x8F) {
+                //TAB Up
+                if (tabdown) {
+                    tabdown = 0;
+                    trs_realtime_enable();
+                }
+                ignoreKey = 1;
             }
             nest_count--;
         }
