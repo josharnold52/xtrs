@@ -195,8 +195,8 @@ namespace dpmhw {
         }
 
         /**
-         * Allocates a DMA region. This is the only public way to create a new DMA region.
-         * Use "deallocate" to free.
+         * Allocates a DMA region. This is one of the two public ways to create a new DMA region.
+         * Use "deallocate" to free.  Memory is reserved from conventional memory.
          *
          * Note the alignment refers to the _PHYSICAL_ address, not the selector-relative address.
          *
@@ -207,6 +207,14 @@ namespace dpmhw {
         /** Deallocates the given region.  No-op if null is passed */
         static void deallocate(dpmhw::DmaRegion *p);
 
+        /**
+         * Allocates a DMA region. This is one of the two public ways to create a new DMA region.
+         * Use "deallocate" to free.  Memory is reserved from XMS (e.g. - himem.sys)
+         *
+         * Note the alignment refers to the _PHYSICAL_ address, not the selector-relative address.
+         *
+         * Returns null on failure - be sure to check for that.
+         */
         static DmaRegion *allocateXms(uint32_t size, uint32_t alignment);
 
     };

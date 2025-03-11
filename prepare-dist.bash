@@ -16,7 +16,11 @@ cp target/dos/dosxtrs.exe _dist_gather/ || exit 1
 cp target/dos/jahdatst.exe _dist_gather/ || exit 1
 cp target/dos/dpmcli.exe _dist_gather/ || exit 1
 cp target/dos/videxp.exe _dist_gather/ || exit 1
-cp cwsdpmi/BIN/CWSDPMI.EXE _dist_gather/ || exit 1
+
+mkdir -p _dist_gather/DPMI
+cp cwsdpmi/BIN/* _dist_gather/DPMI/ || exit 1
+cp patch-cwsdpmi/C*DPMI.EXE _dist_gather/DPMI/ || exit 1
+
 cp ./keytrap/target/KEYTRAP.COM _dist_gather || exit 1
 cp ./launcher/target/LAUNCHER.COM _dist_gather || exit 1
 

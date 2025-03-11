@@ -1,5 +1,18 @@
 Latest Update:
 
+I got it to work in real hardware, but there is a catch...  I switched to using
+XMS to get memory (because I couldn't allocate enough from conventional).  However,
+XMS from DJGPP only seems to work if you have a memory manager like JEMM386 or EMM386.
+If you just have HIMEM.SYS then DJGPP will allocate all available memory for itself
+so nothing can be allocated.
+
+However....Maybe we can allocate it from SCANTRAN.   Or allocate from a random DOS app
+and stick the info in an environment var.   I imagine I can grab some before DJGPP loads
+and then let DJGPP have the rest.
+
+
+== Previous ==
+
 First pass at getting it working in the emulator was successful!
 
 Next steps

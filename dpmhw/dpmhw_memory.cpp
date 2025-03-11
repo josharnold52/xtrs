@@ -128,7 +128,7 @@ public:
         }
         __dpmi_regs regs;
         memset(&regs, 0, sizeof(regs));
-        regs.h.ah = 0x08; //Query Free
+        regs.h.ah = 0x88; //Query Free
         regs.x.cs = xms.segment;
         regs.x.ip = xms.offset16;
         dpmhw::dpmhw_log("XMS: Calling XMS Query Free (%x:%x) ah=%u,dx=%u\n", regs.x.cs, regs.x.ip, regs.h.ah, regs.x.dx);
@@ -136,16 +136,27 @@ public:
             dpmhw::dpmhw_log("real mode call failed\n");
             return {};
         }
-        dpmhw::dpmhw_log("XMS: Query Free Returned: ax=0x%04x,dx=0x%04x,bl=0x%02x\n", regs.x.ax, regs.x.dx, regs.h.bl);
+        dpmhw::dpmhw_log("XMS: Query Free Returned: eax=0x%08x,ecx=%0x%08x,edx=0x%08x,bl=0x%02x\n", regs.d.eax, regs.d.ecx, regs.d.edx, regs.h.bl);
+
+        memset(&regs, 0, sizeof(regs));
+        regs.h.ah = 0x08; //Query Free
+        regs.x.cs = xms.segment;
+        regs.x.ip = xms.offset16;
+        dpmhw::dpmhw_log("XMS: Calling XMS Query Free OG (%x:%x) ah=%u,dx=%u\n", regs.x.cs, regs.x.ip, regs.h.ah, regs.x.dx);
+        if (__dpmi_simulate_real_mode_procedure_retf(&regs) != 0) {
+            dpmhw::dpmhw_log("real mode call failed\n");
+            return {};
+        }
+        dpmhw::dpmhw_log("XMS: Query Free OG Returned: ax=0x%08x,cx=%0x%08x,dx=0x%08x,bl=0x%02x\n", regs.x.ax, regs.x.cx, regs.x.dx, regs.h.bl);
 
         //https://github.com/MikeyG/himem/blob/master/spec/xms.txt
         const uint32_t sizeRounded = ((size + 4095) & (~4095));
         memset(&regs, 0, sizeof(regs));
-        regs.h.ah = 0x09; //Allocate
-        regs.x.dx = sizeRounded >> 10;
+        regs.h.ah = 0x89; //Allocate
+        regs.d.edx = sizeRounded >> 10;
         regs.x.cs = xms.segment;
         regs.x.ip = xms.offset16;
-        dpmhw::dpmhw_log("XMS: Calling XMS Allocation (%x:%x) ah=%u,dx=%u\n", regs.x.cs, regs.x.ip, regs.h.ah, regs.x.dx);
+        dpmhw::dpmhw_log("XMS: Calling XMS Allocation (%x:%x) ah=%u,edx=%u\n", regs.x.cs, regs.x.ip, regs.h.ah, regs.d.edx);
         if (__dpmi_simulate_real_mode_procedure_retf(&regs) != 0) {
             dpmhw::dpmhw_log("real mode call failed\n");
             return {};

@@ -34,7 +34,7 @@ void silly() {
     asm jmp dword ptr cs:O_OLDFUNC;
 
 
-trap_code:
+    trap_code:
     asm push bx;           /* BX is pushed!  Save to change BX (and bh and bl) */
 
     /* Add scan code to the ring buffer */
@@ -53,28 +53,28 @@ trap_code:
     asm test byte ptr cs:BUFFER.key_states[bx], 0xFF;
     asm jz set_initial_make_state;
     /* On autorepeat, increment but ensure high bit always set */
-set_autorepeat_make_state:
+    set_autorepeat_make_state:
     asm inc byte ptr cs:BUFFER.key_states[bx];
     asm or  byte ptr cs:BUFFER.key_states[bx], 0x80;
     asm jmp suppress_if_flagged;
-set_initial_make_state:
+    set_initial_make_state:
     asm mov byte ptr cs:BUFFER.key_states[bx], 1;
     asm jmp suppress_if_flagged;
-set_break_state:
+    set_break_state:
     asm mov byte ptr cs:BUFFER.key_states[bx], 0;
 
-suppress_if_flagged:
+    suppress_if_flagged:
     asm mov bl, byte ptr cs: BUFFER.suppress_flag;
     asm test bl, bl;
     asm jz cleanup_no_suppress;
 
-cleanup:
+    cleanup:
     asm pop bx;
     asm popf;
     asm clc;
     asm retf 2;
 
-cleanup_no_suppress:
+    cleanup_no_suppress:
     asm pop bx;
     asm popf;
     asm iret;
@@ -84,9 +84,27 @@ cleanup_no_suppress:
 /* To change scan code, update al before returning with iret */
 /* To suppress scan code, clear the carry flag and then do a "retf 2". so that we take the old flags
    off the stack but do not set them in the new flags register */
-    
-}
 
+
+    messing_around_can_delete:
+    asm mov    ah, 88H;
+    asm or bl, bl;
+
+    asm mov dx, 1;
+    asm mov ax, 0;
+    asm ret;
+
+    asm jne failed_xms_call;
+
+    asm db '1234567';
+    asm sub ax, 400H;
+    asm sbb dx, 0H;
+    asm ret;
+failed_xms_call:
+    asm xor ax, ax;
+    asm xor dx, dx;
+    asm ret;
+}
 
 
 void wait_for_keybord_ready() {

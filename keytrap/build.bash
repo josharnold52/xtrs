@@ -14,6 +14,7 @@ cp keytrap.c target/
 cp scanbuf.h target/
 
 echo "
+md misc
 tcc -mt -lt keytrap.c > BUILD.OUT
 tcc -nmisc -mt -S keytrap.c > ASM.OUT
 cd misc

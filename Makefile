@@ -112,8 +112,9 @@ VE_OBJECTS = target/dos/video-experiments.o \
 
 DOS16 = \
 	launcher/target/LAUNCHER.COM \
-	keytrap/target/KEYTRAP.COM
-	
+	keytrap/target/KEYTRAP.COM \
+    patch-cwsdpmi/C16MDPMI.EXE \
+    patch-cwsdpmi/CM1MDPMI.EXE
 
 Z80CODE = target/z80/export.cmd target/z80/import.cmd target/z80/settime.cmd target/z80/xtrsmous.cmd \
 	target/z80/xtrs8.dct target/z80/xtrshard.dct \
@@ -286,6 +287,12 @@ keytrap/target/KEYTRAP.COM: keytrap/build.bash keytrap/keytrap.c  keytrap/scanbu
 
 launcher/target/LAUNCHER.COM: launcher/build.bash launcher/launcher.c
 	cd launcher && bash build.bash
+
+patch-cwsdpmi/C16MDPMI.EXE: cwsdpmi/BIN/CWSDPMI.EXE patch-cwsdpmi/patch-cwsdpmi.bash
+	bash patch-cwsdpmi/patch-cwsdpmi.bash
+
+patch-cwsdpmi/CM1MDPMI.EXE: cwsdpmi/BIN/CWSDPMI.EXE patch-cwsdpmi/patch-cwsdpmi.bash
+	bash patch-cwsdpmi/patch-cwsdpmi.bash
 
 idebuild: target/dos/dosxtrs.exe target/dos/jahdatst.exe target/dos/videxp.exe target/dos/dpmcli.exe
 
