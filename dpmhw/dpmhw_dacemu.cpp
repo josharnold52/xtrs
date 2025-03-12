@@ -63,6 +63,9 @@ static hda::codec_info loadCodecInfo(HdaDevice &dev) {
     if (!dev.isValid()) {
         return {};
     }
+    if (!dev.isActive()) {
+        return {};
+    }
     hda::codec_info info{};
     info.loadFrom(dev, 0);
     return info;
@@ -76,6 +79,7 @@ EmulatedDac::EmulatedDac()
 , device(createHdaDevice(hdaPciFunction, deviceMemory))
 , hdaDeviceRunning(device.activate())
 , rtSound(createRtSound(device))
+, codecInfo(loadCodecInfo(device))
 , valid(device.isValid() && device.isActive() && rtSound.isValid() && hdaDeviceRunning)
 {
     if (valid) {
@@ -99,14 +103,12 @@ EmulatedDac::~EmulatedDac() {
 }
 
 bool EmulatedDac::setupCodecs() {
-    //TODO - this sets up codecs, but we may need to acitvate/reset the HDA too!
-    if (!codecInfoLoaded) {
-        codecInfo.loadFrom(device, 0);
-        codecInfoLoaded = true;
-    }
+    //TODO - this sets up codecs, but we may need to acitvate/reset the HDA too! (UPDATE: PROBABLy NOT)
+    this->volSetup = false;
 
     dpmhw_log("Setting up codecs: streamDescriptorNumber=%d streamNumber=%d\n", rtSound.getDescriptorNumber(), rtSound.getStreamNumber());
     HdaDevice::Codec codecControl(device, codecInfo.codecNumber);
+    functionGroup = 0;
     const hda::audio_function_group_info &afg = codecInfo.audioFunctionGroups[0];
 
     //TODO: This is needed to make virtualbox work on the second run (Without this, the first run works
@@ -125,18 +127,26 @@ bool EmulatedDac::setupCodecs() {
     if (!speaker) {
         dpmhw_log("Cannot find speaker\n");
         return false;
+    } else {
+        dpmhw_log("Found speaker node %u: \n", speaker->nodeNumber);
     }
     unsigned char chain[8];
     unsigned int chainLen = afg.findPathToDac(speaker->nodeNumber, chain, 8);
     if (!chainLen) {
         dpmhw_log("Cannot find DAC\n");
         return false;
+    } else {
+        for(auto i = 0u; i < chainLen; i++) {
+            dpmhw_log("  -- Chain(%u) = node %u\n", i, (uint32_t)chain[i]);
+        }
     }
     unsigned char vkbuf[1];
     const hda::widget_info * volumeKnob;
     if (afg.findAssociatedVolumeKnobs(chain, chainLen, vkbuf, 1)) {
         volumeKnob = afg.lookupNode(vkbuf[0]);
+        dpmhw_log("  -- VolKnob = node %u\n", volumeKnob->nodeNumber);
     } else {
+        dpmhw_log("  -- No VolKnob\n");
         volumeKnob = nullptr;
     }
     const hda::widget_info *dac = afg.lookupNode(chain[chainLen - 1]);
@@ -227,6 +237,8 @@ bool EmulatedDac::setupCodecs() {
         }
 
         if (cur->widgetCaps.hasOutputAmp()) {
+            this->volumeNode = cur->nodeNumber; //last one wins
+            this->volSetup = true;
             dpmhw_log("Tweaking output amp of node %u\n", cur->nodeNumber);
             dpmhw_log("OutAmp 0x8000 value is 0x%x\n", codecControl.nodeVerb(cur->nodeNumber, 0xB, 0x8000));
             dpmhw_log("OutAmp 0xC000 value is 0x%x\n", codecControl.nodeVerb(cur->nodeNumber, 0xB, 0xC000));
@@ -238,10 +250,9 @@ bool EmulatedDac::setupCodecs() {
                                         0;
             dpmhw_log("Setting output amp of node %u - PL=%04X\n", cur->nodeNumber, payloadReset);
             codecControl.nodeVerb(cur->nodeNumber, 0x3, payloadReset);
-            // I  used to crank down the volume here, but now I'm not
-            unsigned int payload = 0xB000 |
-                                   ((inputIndex >= 0 ? (inputIndex & 0xF) : 0) << 8) |
-                                   ((acap.getOffset() & 0x7F) );
+            // I  used to crank down the volume here, but now I'm not.
+            // Note that input index does not affect output amp settings and can be set to 0
+            unsigned int payload = 0xB000 | ((acap.getOffset() & 0x7F) );
             dpmhw_log("Setting output amp of node %u - PL=%04X\n", cur->nodeNumber, payload);
             codecControl.nodeVerb(cur->nodeNumber, 0x3, payload);
 
@@ -282,4 +293,55 @@ bool EmulatedDac::setupCodecs() {
     codecControl.nodeVerb(dac->nodeNumber, 0x72D, 1);  // 2 channels
 
     return true;
+}
+
+
+void EmulatedDac::logDeviceReport() {
+    if (!valid) {
+        return;
+    }
+    codecInfo.logReport();
+}
+
+void EmulatedDac::setVolume(unsigned char volume) {
+    if (!isActive()) {
+        dpmhw_log("Cannot set volume while inactive %u\n", volume);
+        return;
+    }
+    auto & afg = codecInfo.audioFunctionGroups[functionGroup];
+    auto widget = afg.lookupNode(volumeNode);
+    HdaDevice::Codec codecControl(device, codecInfo.codecNumber);
+    auto & caps = widget->widgetCaps.hasAmpOverride() ? widget->outputAmpCaps : afg.outputAmpCaps;
+
+    auto steps = caps.getNumSteps(); //1 above the maximum setting value
+    auto setting = ((uint32_t)volume) * steps / 256;
+    if (setting >= steps) {
+        setting = steps - 1;
+    }
+    unsigned int payload = 0xB000 | (setting & 0x7F);
+    dpmhw_log("Setting output amp of node %u - PL=%04X\n", widget->nodeNumber, payload);
+    codecControl.nodeVerb(widget->nodeNumber, 0x3, payload);
+
+}
+
+unsigned char EmulatedDac::getVolume() {
+    if (!isActive()) {
+        dpmhw_log("Cannot get volume while inactive\n");
+        return 0;
+    }
+    auto & afg = codecInfo.audioFunctionGroups[functionGroup];
+    auto widget = afg.lookupNode(volumeNode);
+    HdaDevice::Codec codecControl(device, codecInfo.codecNumber);
+    auto & caps = widget->widgetCaps.hasAmpOverride() ? widget->outputAmpCaps : afg.outputAmpCaps;
+
+    auto steps = caps.getNumSteps();
+    uint16_t  pl = 0x8000;
+    auto resp = codecControl.nodeVerb(widget->nodeNumber, 0xB, pl);
+    dpmhw_log("Getting output amp of node %u - PL=%04X RESP=%08x\n", widget->nodeNumber, pl, resp);
+    auto currentSetting = resp & 0x7F;
+    if (currentSetting > steps) {
+        currentSetting = steps;
+    }
+    auto z = currentSetting * 256 / steps;
+    return (z > 255) ? 255 : ((uint8_t)z);
 }

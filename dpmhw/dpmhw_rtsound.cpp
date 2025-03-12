@@ -253,7 +253,10 @@ void HdaRealTimeSound::resetBuffer(uint16_t level, int64_t now, double clocksPer
     clocksPerTick = clocksPerSecond / 24e6;
     resetBuffer(level, now);
 }
-
+void HdaRealTimeSound::setSpeed(double clocksPerSecond) {
+    ticksPerClock = 24e6 / clocksPerSecond;
+    clocksPerTick = clocksPerSecond / 24e6;
+}
 
 
 

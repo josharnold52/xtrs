@@ -64,6 +64,8 @@ namespace dpmhw::rtsound {
         void start(int64_t now, double clocksPerSecond);
         void stop();
 
+        /** Changes the speed without resetting the buffer */
+        void setSpeed(double clocksPerSecond);
         void resetBuffer(uint16_t level, int64_t now, double clocksPerSecond);
         void resetBuffer(uint16_t level, int64_t now);
         int32_t soundOut(uint16_t level, int64_t now);

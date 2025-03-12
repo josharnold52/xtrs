@@ -1323,7 +1323,7 @@ void trs_cassette_out(int value)
             transition_out(value);
         }
     } else if ( trs_dpmsound_enabled && trs_is_realtime_enabled()) {
-        cdpmhw_sound_out(value_to_dpmhw_sample[value & 3], z80_state.t_count);
+        cdpmhw_sound_out(value_to_dpmhw_sample[value & 3], (int64_t)z80_state.t_count);
     }
 
     /* Do sound emulation by sending samples to /dev/dsp if available */
@@ -1352,10 +1352,21 @@ trs_cassette_select(int value)
 void
 trs_sound_out(int value)
 {
+    /*
     if (cassette_motor == 0) {
         if (assert_state(SOUND) < 0) return;
         trs_suspend_delay();
         transition_out(value ? 1 : 2);
+    }
+    */
+    if ( trs_dpmsound_enabled && trs_is_realtime_enabled()) {
+        //TODO - For now we'll treat this as just toggling between the extreme settings of the cassette out
+        // DAC.   But this isn't technically correct - the "right" think to do be to mix the two sounds.
+        // Also, we should probably allow both of these sound sources to be toggled on/off individually
+        // However, this stuff only really matters if there is software toggling both sound outputs at the
+        // same time....not sure if anyone does that.  Could be cool to try to instrument it to see if that's
+        // the case
+        cdpmhw_sound_out(value_to_dpmhw_sample[value ? 1 : 2], (int64_t)z80_state.t_count);
     }
 }
 

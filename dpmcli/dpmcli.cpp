@@ -109,6 +109,11 @@ const command all_commands[] = {
             printf("Allocated at %p (%s)\n",p, p ? "success" : "fail");
             dpmhw::DmaRegion::deallocate(p);
             return p ? 0 : 1;
+        }},
+        {"hda-info", nullptr, 0, [](args_container & args) {
+                dpmhw::EmulatedDac dac;
+                dac.logDeviceReport();
+                return dac.isValid() ? 0 : 1;
         }}
 };
 
@@ -176,6 +181,8 @@ int main(int argc, char** argv) {
     args_container args{argc, argv};
     if (argc < 2) {
         fprintf(stderr,"NO_COMMAND: Missing command\n");
+        printf("Valid commands are:\n");
+        list_all_commands(args);
         return 1;
     }
     for(auto cmd : all_commands) {

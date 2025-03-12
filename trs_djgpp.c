@@ -58,6 +58,7 @@
 
 #include "trs_djgpp.h"
 #include "trs_vga.h"
+#include "dpmhw/dpmhw_c.h"
 
 GrColor COLOR_BORDER;
 GrColor COLOR_PRIMARY;
@@ -245,6 +246,16 @@ void trs_get_event(int wait) {
                     trs_realtime_enable();
                 }
                 ignoreKey = 1;
+            } else if (keycode == 0x49) {
+                //PAGE UP
+                if (trs_dpmsound_enabled) {
+                    cdpmhw_volume_up();
+                }
+            } else if (keycode == 0x51) {
+                //PAGE DOWN
+                if (trs_dpmsound_enabled) {
+                    cdpmhw_volume_down();
+                }
             }
             nest_count--;
         }
@@ -1204,6 +1215,7 @@ trs_parse_command_line(int argc, char **argv, int *debug) {
         cur_char_width = TRS_CHAR_WIDTH * scale_x;
         cur_char_height = TRS_CHAR_HEIGHT * scale_y;
     }
+
 
     for (i = 0; i <= 7; i++) {
         s[i] = opt_stepdefault;

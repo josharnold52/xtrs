@@ -23,11 +23,15 @@ namespace dpmhw {
         HdaDevice device;
         const bool hdaDeviceRunning;
         rtsound::HdaRealTimeSound rtSound;
-        bool codecInfoLoaded = false;
-        hda::codec_info codecInfo = {};
+        const hda::codec_info codecInfo;
         const bool valid;
         bool active = false;
         bool running = false;
+
+        /** Set by setupCodecs - only valid if active - node number of either a volume knob or a node with an output amp */
+        uint16_t volumeNode;
+        uint16_t functionGroup;
+        bool volSetup;
 
         //TODO - we probably need to do more than sets up codec - we need to activate the HDA too.   These operations
         // should be tied together....maybe have activate/deactivate commands.   Deactivating should possibly
@@ -106,12 +110,23 @@ namespace dpmhw {
                 rtSound.resetBuffer(rtSound.currentLevel(), now);
             }
         }
+
         void clock_update(int64_t now) {
             if (running) {
                 rtSound.soundOut(rtSound.currentLevel(), now);
             }
         }
+        void setClockSpeed(double clocksPerSecond) {
+            if (running) {
+                rtSound.setSpeed(clocksPerSecond);
+            }
+        }
 
+        void logDeviceReport();
+
+        /** 0 is min volume, 255 is max */
+        void setVolume(unsigned char volume);
+        unsigned char getVolume();
     };
 
 }

@@ -42,7 +42,8 @@ namespace dpmhw::hda {
         unsigned long caps;
 
         [[nodiscard]] unsigned int getStepSize() const { return (caps >> 16) & 0x7F ; }
-        [[nodiscard]] unsigned int getNumSteps() const { return (caps >> 8) & 0x7F ; }
+        /** Value returned is from 1 to 128 */
+        [[nodiscard]] unsigned int getNumSteps() const { return 1 + ((caps >> 8) & 0x7F) ; }
         [[nodiscard]] unsigned int getOffset() const { return (caps) & 0x7F ; }
         [[nodiscard]] bool getMuteCapable() const { return (caps & 0x80000000u) != 0; }
         [[nodiscard]] bool isPresent() const { return caps != 0; }

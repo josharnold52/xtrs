@@ -12,6 +12,8 @@ using namespace  cpdpmhw;
 
 static char dacemu_mem[sizeof(dpmhw::EmulatedDac)] = {0};
 
+static uint8_t dacemu_volume = 0;
+
 std::atomic<int> init_flag(0);
 
 inline dpmhw::EmulatedDac *dacPtr() {
@@ -30,6 +32,8 @@ int cdpmhw_init_sound(uint16_t level, int64_t now, double clocksPerSecond) {
     new (dacemu_mem) dpmhw::EmulatedDac();
     dpmhw::dpmhw_log("TRS-HDA: Activating DAC\n");
     dacPtr()->activate();
+    dacemu_volume = 256 - 8;
+    dacPtr()->setVolume(dacemu_volume);
     dpmhw::dpmhw_log("TRS-HDA: Stating DAC\n");
     dacPtr()->start(now, clocksPerSecond);
     atexit(cpdpmhw::cdpmhw_shutdown_sound);
@@ -60,4 +64,35 @@ void cdpmhw_clock_update(int64_t now) {
     if (init_flag.load() == 1) {
         dacPtr()->clock_update(now);
     }
+}
+
+extern "C"
+void cdpmhw_volume_up() {
+    auto dp = dacPtr();
+    if (init_flag.load() != 1 || !dp->isActive()) {
+        return;
+    }
+    int c = ((int)(dacemu_volume)) + 16;
+    uint8_t v = (c > 255) ? 255 : ((uint8_t)c);
+    dp->setVolume(dacemu_volume = v);
+}
+
+extern "C"
+void cdpmhw_volume_down() {
+    auto dp = dacPtr();
+    if (init_flag.load() != 1 || !dp->isActive()) {
+        return;
+    }
+    int c = ((int)(dacemu_volume)) - 16;
+    uint8_t v = (c < 0) ? 0 : ((uint8_t)c);
+    dp->setVolume(dacemu_volume = v);
+}
+
+extern "C"
+void cdpmhw_set_clock_speed(double clocksPerSecond) {
+    auto dp = dacPtr();
+    if (init_flag.load() != 1 || !dp->isActive()) {
+        return;
+    }
+    dp->setClockSpeed(clocksPerSecond);
 }

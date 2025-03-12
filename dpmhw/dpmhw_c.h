@@ -18,6 +18,9 @@ void cdpmhw_shutdown_sound();
 void cdpmhw_sound_out(uint16_t level, int64_t now);
 void cdpmhw_clock_update(int64_t now);
 
+void cdpmhw_volume_up();
+void cdpmhw_volume_down();
+void cdpmhw_set_clock_speed(double clocksPerSecond);
 
 #if defined(__cplusplus)
 } }

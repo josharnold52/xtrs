@@ -52,10 +52,12 @@ static int m4_fast = 0;
 void trs_realtime_sync_uclock(tstate_t threhsold);
 
 void trs_realtime_reset() {
+    static int did_init_sound = 0;
+
     joshlog("Reset realtime counters model=%d\n", trs_model);
     // TODO: These values should be calculated from z80_state.clockMHz - and we should automatically
     //  reset whenever they change.  (Maybe save old value and do a very quick comparison / reset-on-change when
-    //  we perform a realtime sync.  This way, we won't need to explicitly reset when the speen changes
+    //  we perform a realtime sync.  This way, we won't need to explicitly reset when the speed changes
     if (trs_model == 1) {
         tstate_usec_factor = TSTATE_USEC_FACTOR_M1;
         tstates_per_sec = TSTATES_PER_SEC_M1;
@@ -79,7 +81,21 @@ void trs_realtime_reset() {
     real_basetime = uclock();
     last_synced_at_tstate = z80_basetime;
     last_reset_at_uclock = real_basetime;
-
+    if (trs_dpmsound_enabled) {
+        if (!did_init_sound) {
+            joshlog("Initializing dpmhw sound\n");
+            if (!cdpmhw_init_sound(0x8000, (int64_t)(z80_state.t_count), TSTATES_PER_SEC_M1)) {
+                joshlog("dpmhw initialization failed - disabling sound\n");
+                trs_dpmsound_enabled = 0;
+            } else {
+                joshlog("Sound initialized\n");
+            }
+        }
+    }
+    if (trs_dpmsound_enabled) {
+        cdpmhw_clock_update((int64_t)(z80_state.t_count));
+        cdpmhw_set_clock_speed((double)tstates_per_sec);
+    }
 }
 
 void trs_realtime_set_m4_speed(int fast) {
