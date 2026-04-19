@@ -1307,6 +1307,8 @@ void trs_cassette_motor(int value)
 
 void trs_cassette_out(int value)
 {
+    static int sndlogchk = 0;
+
 #if CASSDEBUG3
     debug("out %ld\n", z80_state.t_count);
 #endif
@@ -1323,6 +1325,15 @@ void trs_cassette_out(int value)
             transition_out(value);
         }
     } else if ( trs_dpmsound_enabled && trs_is_realtime_enabled()) {
+        if (sndlogchk >= 0) {
+            int chk = (value == 1) ? 1 : (value == 2 ? 2 : 4);
+            if (sndlogchk == 0) {
+                sndlogchk = chk;
+            } else if (sndlogchk != chk) {
+                sndlogchk = -1;
+                joshlog("Cassette Sound out was toggled\n");
+            }
+        }
         cdpmhw_sound_out(value_to_dpmhw_sample[value & 3], (int64_t)z80_state.t_count);
     }
 
@@ -1352,13 +1363,18 @@ trs_cassette_select(int value)
 void
 trs_sound_out(int value)
 {
-    /*
-    if (cassette_motor == 0) {
-        if (assert_state(SOUND) < 0) return;
-        trs_suspend_delay();
-        transition_out(value ? 1 : 2);
+    static int logchk = 0;
+
+    if (logchk >= 0) {
+        int chk = (value == 0) ? 1 : 2;
+        if (logchk == 0) {
+            logchk = chk;
+        } else if (logchk != chk) {
+            logchk = -1;
+            joshlog("Model 4 Sound out was toggled\n");
+        }
     }
-    */
+
     if ( trs_dpmsound_enabled && trs_is_realtime_enabled()) {
         //TODO - For now we'll treat this as just toggling between the extreme settings of the cassette out
         // DAC.   But this isn't technically correct - the "right" think to do be to mix the two sounds.

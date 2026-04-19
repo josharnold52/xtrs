@@ -1333,6 +1333,8 @@ int joshem_do_modal(joshem_modal_handler handler, void *input) {
 #endif
     joshem_modal_context context;
 
+    trs_realtime_disable();
+
     memset(&context, 0, sizeof(context));
 
     context.input = input;
@@ -1345,7 +1347,7 @@ int joshem_do_modal(joshem_modal_handler handler, void *input) {
     pScanBuffer->suppress_flag = 1;
 
     scanBufferCursor = pScanBuffer->next_offset;
-    trs_realtime_reset();
+    trs_realtime_enable();
     return context.result;
 
 }
