@@ -7,6 +7,9 @@ It's been a while since I touched the TODOs list.  Here's top of mind stuff:
              I only initialize the ones relevant for the given model's hardware.  It would be better to initialize
              all tables for all models and then use the io port mapping to contol which get enabled.  That would let
              me play things like grafix-80 style support for model 3/4, etc.
+    UPDATE (2026-11-08) - I started fixing a bug where the hi-res screen got erased on return from a modal, and
+             it turned into a bit of a mess.   We need to have better coordination between TRS-80 modes and the
+             VGA graphics driver
 * Figure out how I want to deal with changing removable disks - Emulator UI or TRSDOS cmd?   In some ways I prefer
   the latter because I can also tell the OS about the change
 * Some cassette improvements - For user tapes, it would be nice to set descriptions and or documentation for tracks.

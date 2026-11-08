@@ -273,16 +273,27 @@ void trs_get_event(int wait) {
 }
 
 static void repaint_screen(int reset) {
-    if (reset) {
 #if VIDEO_DRIVER_VGA
-        vga_needs_reset();
+    if (vga_is_hires()) {
+        // TODO - we don't currently have a "trs-80" view of graphics, so we just refresh the VGA buffers.
+        //   this works provided we're not changing trs-80 modes at the same time..
+        vga_redraw();
+    } else {
+        if (reset) {
+            vga_needs_reset();
+        }
+        for (int i = 0; i < screen_chars; i++) {
+            trs_screen_write_char(i, trs_screen[i]);
+        }
+    }
 #else
+    if (reset) {
         GrFilledBox(0, 0, GrMaxX(), GrMaxY(), GrBlack());
-#endif
     }
     for (int i = 0; i < screen_chars; i++) {
         trs_screen_write_char(i, trs_screen[i]);
     }
+#endif
 }
 
 void trs_exit() {

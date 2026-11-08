@@ -169,6 +169,25 @@ void vga_set_text() {
     }
 }
 
+int vga_is_hires() {
+    // TODO - Not sure what this should do for overlay when we implement it....  This was added for the
+    //    sake of redraw - when redrawing in hires we want to just redraw the buffer - when doing it in text
+    //    we want to re-output the glyphs because we may be changing modes.  What we REALLY should do is keep
+    //    a trs-80 view of the graphics data _and_ the text data and then our VGA code can update the vga
+    //   buffers from that - this will make redraw simple.
+    return trsmode == trsmode_hires;
+}
+void vga_redraw() {
+    if (init == VGA_INIT_MODE_17) {
+        setVGAHighRes();
+        redraw();
+    } else if (init == VGA_INIT_MODE_6) {
+        setCGAHighRes();
+        redraw();
+    } else {
+        // Nothing to do because the video has either been reset or has not been initialized
+    }
+}
 
 void vga_screen_write_glyph_64_16(char *glyphRows, int position) {
 
